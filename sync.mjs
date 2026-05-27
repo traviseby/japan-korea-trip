@@ -192,6 +192,7 @@ async function fetchAllRows(tableId){
     const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
     if (!res.ok) throw new Error(`Coda ${tableId}: ${res.status} ${await res.text()}`);
     const body = await res.json();
+    if (tableId === TABLES.itinerary && out.length === 0 && body.items[0]) console.log('SAMPLE ITINERARY ROW:', JSON.stringify(body.items[0], null, 2));
     out.push(...body.items);
     pageToken = body.nextPageToken;
   } while (pageToken);
