@@ -1508,10 +1508,15 @@
     _updateBannerShown = true;
     const root = document.querySelector('.phone-fullscreen');
     if (!root) return;
-    const banner = el('button', { class: 'update-banner', id: 'update-banner', onclick: () => location.reload() },
+    const banner = el('div', { class: 'update-banner', id: 'update-banner' },
+      el('button', { class: 'ub-dismiss', 'aria-label': 'Dismiss', onclick: (e) => {
+        e.stopPropagation();
+        banner.classList.remove('show');
+        setTimeout(() => banner.remove(), 300);
+      } }, '\u2715'),
       el('span', { class: 'ub-dot' }),
       el('span', { class: 'ub-text' }, 'New trip updates available'),
-      el('span', { class: 'ub-action' }, 'Refresh \u21bb')
+      el('button', { class: 'ub-action', onclick: () => location.reload() }, 'Refresh \u21bb')
     );
     root.appendChild(banner);
     requestAnimationFrame(() => banner.classList.add('show'));
@@ -1521,7 +1526,8 @@
   async function checkForUpdates(){
     try {
       // Extract current data.js generation timestamp from the comment
-      const currentTimestamp = D.trip?.lastGenerated || null;
+      const currentTimestamp = D.trip?.lastGenerated;
+      if (!currentTimestamp) return; // Skip check if no timestamp in current data
       
       // Fetch the latest data.js from GitHub to check timestamp
       const res = await fetch('https://raw.githubusercontent.com/traviseby/japan-korea-trip/main/data.js', {
@@ -1534,7 +1540,8 @@
       if (!match) return;
       
       const remoteTimestamp = match[1];
-      if (currentTimestamp && remoteTimestamp > currentTimestamp){
+      // Compare ISO timestamp strings (they sort correctly as strings)
+      if (remoteTimestamp > currentTimestamp){
         showUpdateBanner();
       }
     } catch (err){

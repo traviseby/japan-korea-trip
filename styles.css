@@ -570,7 +570,7 @@ input { font: inherit; color: inherit; }
   letter-spacing: 0.05em;
 }
 
-.bottom-pad { height: 28px; }
+.bottom-pad { height: 12px; }
 
 /* Scroll-away large title (iOS pattern) — used inside .scroll containers */
 .lt-title {
@@ -1204,6 +1204,32 @@ input { font: inherit; color: inherit; }
   color: var(--fg-mute);
   font-weight: 600;
   white-space: nowrap;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.update-banner .ub-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--fg-mute);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background .15s ease, color .15s ease;
+}
+.update-banner .ub-dismiss:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--fg);
 }
 .toast {
   position: absolute;
