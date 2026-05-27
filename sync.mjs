@@ -221,6 +221,14 @@ function flattenSlate(v){
   return '';
 }
 
+// Coda often wraps rich-text/canvas cells in triple-backticks (```text```).
+// Strip them so plain consumers don't see the fences.
+function stripFence(v){
+  if (typeof v !== 'string') return v;
+  // remove all ``` markers (Coda uses these as rich-text delimiters)
+  return v.replace(/```/g, '').trim();
+}
+
 // Convert a Coda date cell to YYYY-MM-DD, handling old (.epoch) and new (ISO string) formats.
 function cellToDate(cell){
   if (!cell) return null;
@@ -255,16 +263,16 @@ const days = itnRows
     return {
       n: dayNum,
       date: iso,
-      title: v[ITN.overview].replace(/^Day \d+:\s*/, ''),
+      title: stripFence(v[ITN.overview]).replace(/^Day \d+:\s*/, ''),
       loc: meta.locOverride || locName,
       country: meta.country,
       flag: meta.flag,
       lat: meta.lat,
       lng: meta.lng,
       color: meta.color,
-      overview: v[ITN.overview],
-      notes: v[ITN.notes] || '',
-      hero: v[ITN.imageUrl] || ''
+      overview: stripFence(v[ITN.overview]),
+      notes: stripFence(v[ITN.notes] || ''),
+      hero: stripFence(v[ITN.imageUrl] || '')
     };
   })
   .filter(Boolean)
@@ -282,11 +290,11 @@ const activities = actRows.map(r => {
   return {
     id,
     day,
-    time: v[ACT.timeOfDay]?.name || v[ACT.timeOfDay] || '',
-    name: v[ACT.activity],
-    desc: v[ACT.description] || '',
-    url:  v[ACT.moreInfo] || '',
-    cat:  v[ACT.category]?.name || v[ACT.category] || '',
+     time: v[ACT.timeOfDay]?.name || v[ACT.timeOfDay] || '',
+    name: stripFence(v[ACT.activity]),
+    desc: stripFence(v[ACT.description] || ''),
+    url:  stripFence(v[ACT.moreInfo] || ''),
+    cat:  stripFence(v[ACT.category]?.name || v[ACT.category] || ''),
     lat, lng
   };
 }).filter(a => a && a.day);
