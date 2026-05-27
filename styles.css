@@ -1173,7 +1173,7 @@ input { font: inherit; color: inherit; }
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--fg);
-  padding: 12px 16px;
+  padding: 12px 40px 12px 16px;
   font: inherit;
   font-size: 13px;
   letter-spacing: 0.01em;
@@ -1184,7 +1184,6 @@ input { font: inherit; color: inherit; }
   transform: translateY(20px);
   opacity: 0;
   transition: opacity .25s ease, transform .25s ease;
-  cursor: pointer;
 }
 .update-banner.show {
   opacity: 1;
