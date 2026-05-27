@@ -1505,7 +1505,7 @@
       } }, '\u2715'),
       el('span', { class: 'ub-dot' }),
       el('span', { class: 'ub-text' }, 'New trip updates available'),
-      el('button', { class: 'ub-action', onclick: () => location.reload() }, 'Refresh \u21bb')
+      el('button', { class: 'ub-action', onclick: () => location.reload() }, 'Refresh')
     );
     root.appendChild(banner);
     requestAnimationFrame(() => banner.classList.add('show'));
