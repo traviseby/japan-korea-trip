@@ -111,7 +111,7 @@ input { font: inherit; color: inherit; }
 
 .tabbar {
   flex-shrink: 0;
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   background: rgba(13,13,13,.92);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);

@@ -701,29 +701,7 @@
     const wrap = $('#filter-bar-' + tab);
     if (!wrap) return;
     wrap.innerHTML = '';
-    const gear = el('button', { class: 'header-gear', 'aria-label': 'Settings', onclick: openSettings },
-      (() => {
-        const ns = 'http://www.w3.org/2000/svg';
-        const svg = document.createElementNS(ns, 'svg');
-        svg.setAttribute('width','20'); svg.setAttribute('height','20');
-        svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none');
-        svg.setAttribute('stroke','currentColor'); svg.setAttribute('stroke-width','1.7');
-        svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round');
-        const c = document.createElementNS(ns,'circle');
-        c.setAttribute('cx','12'); c.setAttribute('cy','12'); c.setAttribute('r','3');
-        svg.appendChild(c);
-        const p = document.createElementNS(ns,'path');
-        p.setAttribute('d','M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z');
-        svg.appendChild(p);
-        return svg;
-      })()
-    );
-    const rightSlot = tab === 'map'
-      ? el('div', { class: 'header-actions' },
-          anyFilterActive() ? el('button', { class: 'reset', onclick: resetFilters }, 'Reset') : null,
-          gear
-        )
-      : (anyFilterActive() ? el('button', { class: 'reset', onclick: resetFilters }, 'Reset') : null);
+    const rightSlot = anyFilterActive() ? el('button', { class: 'reset', onclick: resetFilters }, 'Reset') : null;
     wrap.appendChild(buildLargeTitle(tab === 'map' ? 'Map' : 'Activities', rightSlot));
     wrap.appendChild(buildFilterChipRow(tab));
   }
@@ -1294,29 +1272,25 @@
   }
 
   // ─── Settings overlay ─────────────────────────────────────────────────────
-  function openSettings(){
-    const overlay = $('#settings');
-    overlay.innerHTML = '';
-    overlay.appendChild(el('div', { class: 'settings-header' },
-      el('h2', null, 'Settings'),
-      el('button', { class: 'close', 'aria-label': 'Close', onclick: closeSettings }, '\u2715')
-    ));
-    const body = el('div', { class: 'settings-body' });
-    body.appendChild(buildOfflineCard());
-    body.appendChild(buildResetCard());
-    body.appendChild(buildSyncCard());
-    body.appendChild(buildRefreshCard());
-    body.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
-    body.appendChild(el('div', { class: 'settings-about' },
+  // ─── Render: SETTINGS tab ─────────────────────────────────────────────────
+  function renderSettingsTab(){
+    const header = $('#settings-header');
+    header.innerHTML = '';
+    header.appendChild(buildLargeTitle('Settings'));
+
+    const root = $('#settings-content');
+    root.innerHTML = '';
+    root.appendChild(buildOfflineCard());
+    root.appendChild(buildResetCard());
+    root.appendChild(buildSyncCard());
+    root.appendChild(buildRefreshCard());
+    root.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
+    root.appendChild(el('div', { class: 'settings-about' },
       el('div', null, 'Japan & Korea 2026'),
       el('div', { class: 'sub' }, 'Eby family trip companion \u00b7 Jul 22 \u2013 Aug 5')
     ));
-    overlay.appendChild(body);
-    overlay.classList.add('open');
+    root.appendChild(el('div', { class: 'bottom-pad' }));
     setTimeout(refreshCacheStatus, 60);
-  }
-  function closeSettings(){
-    $('#settings').classList.remove('open');
   }
 
   function fitMapToVisibleActivities(){
@@ -1396,6 +1370,7 @@
     if (tab === 'map') renderMapTab();
     if (tab === 'activities') renderActivitiesTab();
     if (tab === 'todo') renderTodoTab();
+    if (tab === 'settings') renderSettingsTab();
     // give Leaflet a kick after the pane becomes visible
     setTimeout(() => { try { if (leafletFull) leafletFull.invalidateSize(); if (leafletMini) leafletMini.invalidateSize(); } catch{} }, 100);
   }
