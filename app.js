@@ -340,6 +340,19 @@
     return card;
   }
 
+  function buildRefreshCard(){
+    const card = el('div', { class: 'offline-card' },
+      el('div', { class: 'oc-head' },
+        el('span', { class: 'oc-icon' }, '↻'),
+        el('div', { class: 'oc-headline' }, 'Refresh app'),
+        el('span', { class: 'oc-status' }, '')
+      ),
+      el('div', { class: 'oc-desc' }, 'Reload the app to see the latest changes and updates.'),
+      el('button', { class: 'oc-btn', onclick: () => location.reload() }, 'Refresh now')
+    );
+    return card;
+  }
+
   async function triggerCodaSync(){
     const btn = $('#sync-btn');
     const status = $('#sync-status');
@@ -1292,6 +1305,7 @@
     body.appendChild(buildOfflineCard());
     body.appendChild(buildResetCard());
     body.appendChild(buildSyncCard());
+    body.appendChild(buildRefreshCard());
     body.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
     body.appendChild(el('div', { class: 'settings-about' },
       el('div', null, 'Japan & Korea 2026'),
