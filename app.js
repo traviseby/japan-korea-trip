@@ -335,7 +335,7 @@
         el('span', { class: 'oc-status', id: 'sync-status' }, 'Ready')
       ),
       el('div', { class: 'oc-desc' }, 'Pull the latest itinerary updates from your Coda doc. Takes about 1 minute. Changes will appear after refreshing.'),
-      el('button', { class: 'oc-btn', id: 'sync-btn', onclick: triggerCodaSync }, 'Sync now')
+      el('button', { class: 'oc-btn secondary', id: 'sync-btn', onclick: triggerCodaSync }, 'Sync now')
     );
     return card;
   }
@@ -348,7 +348,7 @@
         el('span', { class: 'oc-status' }, '')
       ),
       el('div', { class: 'oc-desc' }, 'Reload the app to see the latest changes and updates.'),
-      el('button', { class: 'oc-btn', onclick: () => location.reload() }, 'Refresh now')
+      el('button', { class: 'oc-btn secondary', onclick: () => location.reload() }, 'Refresh now')
     );
     return card;
   }
