@@ -262,7 +262,9 @@ const days = itnRows
 const activities = actRows.map(r => {
   const v = r.values;
   const id = r.id;
-  const dayDate = dateISO(v[ACT.date].epoch);
+  const dateEpoch = v[ACT.date]?.epoch;
+  if (!dateEpoch) return null;
+  const dayDate = dateISO(dateEpoch);
   const day = days.find(d => d.date === dayDate)?.n;
   const [lat, lng] = ACTIVITY_LATLNG[id] || [null, null];
   return {
@@ -275,7 +277,7 @@ const activities = actRows.map(r => {
     cat:  v[ACT.category]?.name || '',
     lat, lng
   };
-}).filter(a => a.day);
+}).filter(a => a && a.day);
 
 // — To-dos and flights
 const todos = todoRows.map(r => {
