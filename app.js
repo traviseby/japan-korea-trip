@@ -195,7 +195,7 @@
 
     // Hero
     const hero = el('div', { class: 'hero', style: { '--day-accent': day.color } },
-      el('div', { class: 'img', style: { backgroundImage: `url('${D.heroes[day.n]}')` } }),
+     el('div', { class: 'img', style: { backgroundImage: `url('${day.hero}')` } }),
       el('div', { class: 'scrim' }),
       el('div', { class: 'day-color-bar', style: { background: day.color } }),
       el('div', { class: 'top' },
