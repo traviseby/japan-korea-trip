@@ -1,5 +1,8 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/trip-app.html" }
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/trip-app.html"
+    }
   ]
 }
