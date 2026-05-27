@@ -25,7 +25,7 @@ if (!TOKEN){
   console.error('Missing CODA_TOKEN env var. Generate at https://coda.io/account');
   process.exit(1);
 }
-const DOC = 'dJMxdg1mRFk';
+const DOC = 'JMxdg1mRFk';
 
 const TABLES = {
   itinerary:  'grid-PJ65RQ3-wp',
