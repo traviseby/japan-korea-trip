@@ -628,6 +628,9 @@ input { font: inherit; color: inherit; }
   position: relative;
   z-index: 10;
 }
+#settings-header {
+  border-bottom: none;
+}
 
 /* Single-line filter row */
 .chips {
