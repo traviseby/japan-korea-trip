@@ -4,6 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
+  const APP_VERSION = '1.0';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -1283,12 +1284,13 @@
     root.appendChild(buildOfflineCard());
     root.appendChild(buildSyncCard());
     root.appendChild(buildRefreshCard());
+    root.appendChild(buildResetCard());
     root.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
     root.appendChild(el('div', { class: 'settings-about' },
       el('div', null, 'Japan & Korea 2026'),
-      el('div', { class: 'sub' }, 'Eby family trip companion \u00b7 Jul 22 \u2013 Aug 5')
+      el('div', { class: 'sub' }, 'Eby family trip companion \u00b7 Jul 22 \u2013 Aug 5'),
+      el('div', { class: 'sub', style: 'margin-top: 8px; opacity: 0.6;' }, `Version ${APP_VERSION}`)
     ));
-    root.appendChild(buildResetCard());
     root.appendChild(el('div', { class: 'bottom-pad' }));
     setTimeout(refreshCacheStatus, 60);
   }
