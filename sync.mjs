@@ -186,7 +186,7 @@ async function fetchAllRows(tableId){
   const out = [];
   let pageToken = null;
   do {
-    const params = new URLSearchParams({ limit: '200', useColumnNames: 'false', valueFormat: 'rich' });
+  const params = new URLSearchParams({ limit: '200', useColumnNames: 'false', valueFormat: 'simple' });
     if (pageToken) params.set('pageToken', pageToken);
     const url = `https://coda.io/apis/v1/docs/${DOC}/tables/${tableId}/rows?${params}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
@@ -251,7 +251,7 @@ const days = itnRows
     if (!iso) return null;
     const dayNum = parseInt(v[ITN.overview].match(/Day (\d+)/)?.[1] ?? '0', 10);
     const meta = DAY_META[dayNum] || {};
-    const locName = (v[ITN.location]?.name || '').replace(/^[^\w]+\s*/, '').trim();
+    const locName = (v[ITN.location]?.name || v[ITN.location] || '').replace(/^[^\w]+\s*/, '').trim();
     return {
       n: dayNum,
       date: iso,
@@ -282,11 +282,11 @@ const activities = actRows.map(r => {
   return {
     id,
     day,
-    time: v[ACT.timeOfDay]?.name || '',
+    time: v[ACT.timeOfDay]?.name || v[ACT.timeOfDay] || '',
     name: v[ACT.activity],
     desc: v[ACT.description] || '',
     url:  v[ACT.moreInfo] || '',
-    cat:  v[ACT.category]?.name || '',
+    cat:  v[ACT.category]?.name || v[ACT.category] || '',
     lat, lng
   };
 }).filter(a => a && a.day);
