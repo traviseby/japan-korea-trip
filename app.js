@@ -326,6 +326,53 @@
     );
     return card;
   }
+
+  function buildSyncCard(){
+    const card = el('div', { class: 'offline-card' },
+      el('div', { class: 'oc-head' },
+        el('span', { class: 'oc-icon' }, '🔄'),
+        el('div', { class: 'oc-headline' }, 'Sync from Coda'),
+        el('span', { class: 'oc-status', id: 'sync-status' }, 'Ready')
+      ),
+      el('div', { class: 'oc-desc' }, 'Pull the latest itinerary updates from your Coda doc. Takes about 1 minute. Changes will appear after refreshing.'),
+      el('button', { class: 'oc-btn', id: 'sync-btn', onclick: triggerCodaSync }, 'Sync now')
+    );
+    return card;
+  }
+
+  async function triggerCodaSync(){
+    const btn = $('#sync-btn');
+    const status = $('#sync-status');
+    if (!btn || !status) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Syncing...';
+    status.textContent = 'Triggering...';
+
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST'
+      });
+
+      const data = await res.json();
+
+      if (!res.ok){
+        throw new Error(data.error || `Sync failed with status ${res.status}`);
+      }
+
+      status.textContent = 'Sync started!';
+      btn.textContent = 'Sync now';
+      btn.disabled = false;
+      toast('Sync triggered! Check back in ~1 minute for updates.');
+    } catch (err){
+      console.error('Sync error:', err);
+      status.textContent = 'Error';
+      btn.textContent = 'Sync now';
+      btn.disabled = false;
+      toast('Sync failed: ' + err.message);
+    }
+  }
+
   function resetCountLabel(){
     const n = checkedActs.size + checkedTodos.size;
     if (!n) return 'nothing checked';
@@ -1244,6 +1291,7 @@
     const body = el('div', { class: 'settings-body' });
     body.appendChild(buildOfflineCard());
     body.appendChild(buildResetCard());
+    body.appendChild(buildSyncCard());
     body.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
     body.appendChild(el('div', { class: 'settings-about' },
       el('div', null, 'Japan & Korea 2026'),
@@ -1469,6 +1517,31 @@
     requestAnimationFrame(() => banner.classList.add('show'));
   }
 
+  // ─── Auto-check for updates ───────────────────────────────────────────────
+  async function checkForUpdates(){
+    try {
+      // Extract current data.js generation timestamp from the comment
+      const currentTimestamp = D.trip?.lastGenerated || null;
+      
+      // Fetch the latest data.js from GitHub to check timestamp
+      const res = await fetch('https://raw.githubusercontent.com/traviseby/japan-korea-trip/main/data.js', {
+        cache: 'no-cache'
+      });
+      if (!res.ok) return;
+      
+      const text = await res.text();
+      const match = text.match(/\/\/ Generated (.+)/);
+      if (!match) return;
+      
+      const remoteTimestamp = match[1];
+      if (currentTimestamp && remoteTimestamp > currentTimestamp){
+        showUpdateBanner();
+      }
+    } catch (err){
+      console.log('Update check failed:', err);
+    }
+  }
+
   // ─── Wire up ──────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     // tab bar
@@ -1512,6 +1585,7 @@
     tryGeolocate();
     updateOnline();
     registerSW();
+    checkForUpdates();
     switchTab('today');
   });
 })();
