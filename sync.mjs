@@ -25,7 +25,7 @@ if (!TOKEN){
   console.error('Missing CODA_TOKEN env var. Generate at https://coda.io/account');
   process.exit(1);
 }
-const DOC = 'JMxdg1mRFk';
+const DOC = 'dJMxdg1mRFk';
 
 const TABLES = {
   itinerary:  'grid-PJ65RQ3-wp',
@@ -220,7 +220,19 @@ function flattenSlate(v){
   return '';
 }
 
-function dateISO(epoch){ return new Date(epoch * 1000).toISOString().slice(0, 10); }
+// Convert a Coda date cell to YYYY-MM-DD, handling old (.epoch) and new (ISO string) formats.
+function cellToDate(cell){
+  if (!cell) return null;
+  if (typeof cell === 'object' && typeof cell.epoch === 'number'){
+    return new Date(cell.epoch * 1000).toISOString().slice(0, 10);
+  }
+  const s = typeof cell === 'string' ? cell : cell?.value;
+  if (typeof s === 'string'){
+    const d = new Date(s);
+    if (isFinite(d)) return d.toISOString().slice(0, 10);
+  }
+  return null;
+}
 
 // ── Main ───────────────────────────────────────────────────────────────────
 const [itnRows, actRows, todoRows, flightRows] = await Promise.all([
@@ -234,9 +246,8 @@ const [itnRows, actRows, todoRows, flightRows] = await Promise.all([
 const days = itnRows
   .map(r => {
     const v = r.values;
-    const epoch = v[ITN.date]?.epoch;
-    if (!epoch) return null;
-    const iso = dateISO(epoch);
+    const iso = cellToDate(v[ITN.date]);
+    if (!iso) return null;
     const dayNum = parseInt(v[ITN.overview].match(/Day (\d+)/)?.[1] ?? '0', 10);
     const meta = DAY_META[dayNum] || {};
     const locName = (v[ITN.location]?.name || '').replace(/^[^\w]+\s*/, '').trim();
@@ -262,9 +273,9 @@ const days = itnRows
 const activities = actRows.map(r => {
   const v = r.values;
   const id = r.id;
-  const dateEpoch = v[ACT.date]?.epoch;
-  if (!dateEpoch) return null;
-  const dayDate = dateISO(dateEpoch);
+  // Guard against rows with no Date set in Coda — skip them rather than crash.
+  const dayDate = cellToDate(v[ACT.date]);
+  if (!dayDate) return null;
   const day = days.find(d => d.date === dayDate)?.n;
   const [lat, lng] = ACTIVITY_LATLNG[id] || [null, null];
   return {
@@ -307,7 +318,7 @@ const flights = flightRows.map(r => {
     to:       v[FL.toCode]   || deriveAirportCode(toCity),
     fromCity,
     toCity,
-    date:     v[FL.date]?.epoch ? dateISO(v[FL.date].epoch) : '',
+    date:     cellToDate(v[FL.date]) || '',
     depart:   fmtTimeSeconds(v[FL.departTime]?.seconds),
     arrive:   fmtTimeSeconds(v[FL.arriveTime]?.seconds)
   };
