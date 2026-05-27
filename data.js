@@ -7,6 +7,70 @@ window.DATA = {
     "start": "2026-07-22",
     "end": "2026-08-05"
   },
+  "categories": {
+    "Food & Drink": {
+      "label": "Food & Drink",
+      "emoji": "🍜"
+    },
+    "Temple / Shrine": {
+      "label": "Temple / Shrine",
+      "emoji": "⛩️"
+    },
+    "Hotel & Lodging": {
+      "label": "Hotel & Lodging",
+      "emoji": "🏨"
+    },
+    "Train / Transit": {
+      "label": "Train / Transit",
+      "emoji": "🚆"
+    },
+    "Culture & History": {
+      "label": "Culture & History",
+      "emoji": "🎭"
+    },
+    "Nature & Parks": {
+      "label": "Nature & Parks",
+      "emoji": "🌿"
+    },
+    "Sightseeing": {
+      "label": "Sightseeing",
+      "emoji": "📍"
+    },
+    "Shopping": {
+      "label": "Shopping",
+      "emoji": "🛍️"
+    },
+    "Entertainment": {
+      "label": "Entertainment",
+      "emoji": "🎟️"
+    },
+    "Wellness": {
+      "label": "Wellness",
+      "emoji": "💆"
+    },
+    "Flight": {
+      "label": "Flight",
+      "emoji": "✈️"
+    }
+  },
+  "timesOfDay": [
+    {
+      "id": "Morning",
+      "emoji": "🌅"
+    },
+    {
+      "id": "Afternoon",
+      "emoji": "☀️"
+    },
+    {
+      "id": "Evening",
+      "emoji": "🌆"
+    },
+    {
+      "id": "Late Night",
+      "emoji": "🌙"
+    }
+  ],
   "days": [
     {
       "n": 1,
