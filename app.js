@@ -1500,12 +1500,23 @@
     const banner = el('div', { class: 'update-banner', id: 'update-banner' },
       el('button', { class: 'ub-dismiss', 'aria-label': 'Dismiss', onclick: (e) => {
         e.stopPropagation();
+        // Mark this version as dismissed so it doesn't show again
+        if (D.trip?.lastGenerated) {
+          localStorage.setItem('jk26.dismissedUpdate', D.trip.lastGenerated);
+        }
         banner.classList.remove('show');
         setTimeout(() => banner.remove(), 300);
       } }, '\u2715'),
       el('span', { class: 'ub-dot' }),
       el('span', { class: 'ub-text' }, 'New trip updates available'),
-      el('button', { class: 'ub-action', onclick: () => location.reload() }, 'Refresh')
+      el('button', { class: 'ub-action', onclick: () => {
+        // Mark this version as dismissed before reloading
+        if (D.trip?.lastGenerated) {
+          localStorage.setItem('jk26.dismissedUpdate', D.trip.lastGenerated);
+        }
+        banner.classList.remove('show');
+        setTimeout(() => location.reload(), 300);
+      } }, 'Refresh')
     );
     root.appendChild(banner);
     requestAnimationFrame(() => banner.classList.add('show'));
@@ -1517,6 +1528,10 @@
       // Extract current data.js generation timestamp from the comment
       const currentTimestamp = D.trip?.lastGenerated;
       if (!currentTimestamp) return; // Skip check if no timestamp in current data
+      
+      // Check if user already dismissed this version
+      const dismissedVersion = localStorage.getItem('jk26.dismissedUpdate');
+      if (dismissedVersion === currentTimestamp) return;
       
       // Fetch the latest data.js from GitHub to check timestamp
       const res = await fetch('https://raw.githubusercontent.com/traviseby/japan-korea-trip/main/data.js', {
