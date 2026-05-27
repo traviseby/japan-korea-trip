@@ -5,7 +5,8 @@ window.DATA = {
   "trip": {
     "title": "Japan & Korea 2026",
     "start": "2026-07-22",
-    "end": "2026-08-05"
+    "end": "2026-08-05",
+    "lastGenerated": "2026-05-27T20:20:07.331Z"
   },
   "days": [
     {
