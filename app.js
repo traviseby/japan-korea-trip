@@ -1281,7 +1281,6 @@
     const root = $('#settings-content');
     root.innerHTML = '';
     root.appendChild(buildOfflineCard());
-    root.appendChild(buildResetCard());
     root.appendChild(buildSyncCard());
     root.appendChild(buildRefreshCard());
     root.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
@@ -1289,6 +1288,7 @@
       el('div', null, 'Japan & Korea 2026'),
       el('div', { class: 'sub' }, 'Eby family trip companion \u00b7 Jul 22 \u2013 Aug 5')
     ));
+    root.appendChild(buildResetCard());
     root.appendChild(el('div', { class: 'bottom-pad' }));
     setTimeout(refreshCacheStatus, 60);
   }

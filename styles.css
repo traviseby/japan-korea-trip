@@ -578,7 +578,7 @@ input { font: inherit; color: inherit; }
   letter-spacing: 0.05em;
 }
 
-.bottom-pad { height: 12px; }
+.bottom-pad { height: 0; }
 
 /* Scroll-away large title (iOS pattern) — used inside .scroll containers */
 .lt-title {
