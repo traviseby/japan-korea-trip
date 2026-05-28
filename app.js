@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.36';
+  const APP_VERSION = '1.37';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -2313,7 +2313,12 @@
             width: '100%',
             padding: '14px',
             fontSize: '16px',
-            fontWeight: '600'
+            fontWeight: '600',
+            background: '#f4f3f0',
+            color: '#0a0a0a',
+            border: 'none',
+            borderRadius: '10px',
+            cursor: 'pointer'
           },
           onclick: async () => {
             const nameInput = $('#onboarding-name-input');
