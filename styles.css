@@ -392,7 +392,7 @@ input { font: inherit; color: inherit; }
   font-weight: 500;
 }
 .settings-about {
-  margin: 0 var(--pad);
+  margin: 0 var(--pad) 20px;
   padding: 14px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -504,7 +504,7 @@ input { font: inherit; color: inherit; }
   border: 1px solid var(--border);
 }
 .notes {
-  margin: 4px var(--pad) 0;
+  margin: 4px var(--pad) 20px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r);

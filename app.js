@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.0';
+  const APP_VERSION = '1.01';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -31,9 +31,9 @@
 
   // Shared filter state — single source of truth for Map + Activities
   const filterState = {
-    day: null,
-    timeOfDay: null,
-    category: null,
+    day: [],
+    timeOfDay: [],
+    category: [],
     search: ''
   };
   window.filterState = filterState;
@@ -113,15 +113,15 @@
   function filteredActivities(){
     const q = filterState.search.trim().toLowerCase();
     return D.activities.filter(a => {
-      if (filterState.day && a.day !== filterState.day) return false;
-      if (filterState.timeOfDay && a.time !== filterState.timeOfDay) return false;
-      if (filterState.category && a.cat !== filterState.category) return false;
+      if (filterState.day.length && !filterState.day.includes(a.day)) return false;
+      if (filterState.timeOfDay.length && !filterState.timeOfDay.includes(a.time)) return false;
+      if (filterState.category.length && !filterState.category.includes(a.cat)) return false;
       if (q && !((a.name + ' ' + (a.desc||'')).toLowerCase().includes(q))) return false;
       return true;
     });
   }
   function anyFilterActive(){
-    return filterState.day || filterState.timeOfDay || filterState.category || filterState.search;
+    return filterState.day.length || filterState.timeOfDay.length || filterState.category.length || filterState.search;
   }
 
   // ─── Pin icon factory (Leaflet) ───────────────────────────────────────────
@@ -248,9 +248,9 @@
     const miniWrap = el('div', { class: 'mini-map', id: 'mini-map-wrap', onclick: () => {
       // Open the Map tab with this day's filter + region applied so it pans
       // to today's stops instead of dropping you on Tokyo.
-      filterState.day = day.n;
-      filterState.timeOfDay = null;
-      filterState.category = null;
+      filterState.day = [day.n];
+      filterState.timeOfDay = [];
+      filterState.category = [];
       filterState.search = '';
       state.searching = false;
       state.region = day.country; // 'JP' or 'KR' — flips the segmented control
@@ -741,10 +741,10 @@
     tray.appendChild(el('div', { class: 'handle' }));
     tray.appendChild(el('button', { class: 'close', onclick: closeFilterTray }, '\u2715'));
 
-    let title, options, current, onPick;
+    let title, options, currentArray, onPick;
     if (kind === 'day'){
       title = 'Filter by day';
-      current = filterState.day;
+      currentArray = filterState.day;
       options = [{ value: null, label: 'All Days', sub: 'Show every day' }]
         .concat(D.days.map(d => ({
           value: d.n,
@@ -752,25 +752,55 @@
           sub: `${shortDate(d.date)} \u00b7 ${d.loc} \u00b7 ${d.title}`,
           color: d.color
         })));
-      onPick = (v) => { filterState.day = v; closeFilterTray(); syncFilters(); };
+      onPick = (v) => {
+        if (v === null) {
+          filterState.day = [];
+        } else {
+          const idx = filterState.day.indexOf(v);
+          if (idx >= 0) filterState.day.splice(idx, 1);
+          else filterState.day.push(v);
+        }
+        openFilterTray(kind);
+        syncFilters();
+      };
     } else if (kind === 'time'){
       title = 'Filter by time of day';
-      current = filterState.timeOfDay;
+      currentArray = filterState.timeOfDay;
       options = [{ value: null, label: 'All Times', sub: 'Morning through Late Night' }]
         .concat(D.timesOfDay.map(t => ({ value: t.id, label: t.id, sub: '', emoji: t.emoji })));
-      onPick = (v) => { filterState.timeOfDay = v; closeFilterTray(); syncFilters(); };
+      onPick = (v) => {
+        if (v === null) {
+          filterState.timeOfDay = [];
+        } else {
+          const idx = filterState.timeOfDay.indexOf(v);
+          if (idx >= 0) filterState.timeOfDay.splice(idx, 1);
+          else filterState.timeOfDay.push(v);
+        }
+        openFilterTray(kind);
+        syncFilters();
+      };
     } else if (kind === 'type'){
       title = 'Filter by category';
-      current = filterState.category;
+      currentArray = filterState.category;
       options = [{ value: null, label: 'All Types', sub: 'Every category' }]
         .concat(Object.values(D.categories).map(c => ({ value: c.label, label: c.label, sub: '', emoji: c.emoji })));
-      onPick = (v) => { filterState.category = v; closeFilterTray(); syncFilters(); };
+      onPick = (v) => {
+        if (v === null) {
+          filterState.category = [];
+        } else {
+          const idx = filterState.category.indexOf(v);
+          if (idx >= 0) filterState.category.splice(idx, 1);
+          else filterState.category.push(v);
+        }
+        openFilterTray(kind);
+        syncFilters();
+      };
     }
 
     tray.appendChild(el('div', { class: 'tray-title' }, title));
     const list = el('div', { class: 'tray-list' });
     options.forEach(opt => {
-      const selected = opt.value === current;
+      const selected = opt.value === null ? currentArray.length === 0 : currentArray.includes(opt.value);
       // One leader column: colored dot OR emoji OR bullet — all align in the
       // same horizontal position regardless of which kind of filter we're picking.
       let leader;
@@ -815,9 +845,9 @@
     }, 180);
   }
   function resetFilters(){
-    filterState.day = null;
-    filterState.timeOfDay = null;
-    filterState.category = null;
+    filterState.day = [];
+    filterState.timeOfDay = [];
+    filterState.category = [];
     filterState.search = '';
     state.searching = false;
     syncFilters();
@@ -853,9 +883,9 @@
     const fa = filteredActivities();
     if (!fa.length){
       const pieces = [];
-      if (filterState.day) pieces.push(`Day ${filterState.day}`);
-      if (filterState.timeOfDay) pieces.push(filterState.timeOfDay);
-      if (filterState.category) pieces.push(filterState.category);
+      if (filterState.day.length) pieces.push(filterState.day.length === 1 ? `Day ${filterState.day[0]}` : `${filterState.day.length} days`);
+      if (filterState.timeOfDay.length) pieces.push(filterState.timeOfDay.length === 1 ? filterState.timeOfDay[0] : `${filterState.timeOfDay.length} times`);
+      if (filterState.category.length) pieces.push(filterState.category.length === 1 ? filterState.category[0] : `${filterState.category.length} types`);
       if (filterState.search) pieces.push(`"${filterState.search}"`);
       root.appendChild(el('div', { class: 'empty-state' },
         el('div', { class: 'em' }, 'No activities match.'),
@@ -863,7 +893,7 @@
       ));
       return;
     }
-    const flat = filterState.day || filterState.search;
+    const flat = filterState.day.length || filterState.search;
     if (flat){
       fa.sort((a,b) => a.day - b.day || timeOrder(a.time) - timeOrder(b.time)).forEach(a => {
         root.appendChild(buildFullRow(a, true));
@@ -921,18 +951,24 @@
     }, svgIcon('search')));
 
     chips.appendChild(summaryChip(
-      filterState.day ? `Day ${filterState.day} \u00b7 ${shortDate(D.byDay[filterState.day].date)}` : 'All Days',
-      !!filterState.day,
+      filterState.day.length === 0 ? 'All Days' : 
+        filterState.day.length === 1 ? `Day ${filterState.day[0]} \u00b7 ${shortDate(D.byDay[filterState.day[0]].date)}` :
+        `${filterState.day.length} Days`,
+      filterState.day.length > 0,
       () => openFilterTray('day')
     ));
     chips.appendChild(summaryChip(
-      filterState.timeOfDay ? (D.timesOfDay.find(t => t.id === filterState.timeOfDay).emoji + ' ' + filterState.timeOfDay) : 'All Times',
-      !!filterState.timeOfDay,
+      filterState.timeOfDay.length === 0 ? 'All Times' :
+        filterState.timeOfDay.length === 1 ? (D.timesOfDay.find(t => t.id === filterState.timeOfDay[0]).emoji + ' ' + filterState.timeOfDay[0]) :
+        `${filterState.timeOfDay.length} Times`,
+      filterState.timeOfDay.length > 0,
       () => openFilterTray('time')
     ));
     chips.appendChild(summaryChip(
-      filterState.category ? (catEmoji(filterState.category) + ' ' + filterState.category) : 'All Types',
-      !!filterState.category,
+      filterState.category.length === 0 ? 'All Types' :
+        filterState.category.length === 1 ? (catEmoji(filterState.category[0]) + ' ' + filterState.category[0]) :
+        `${filterState.category.length} Types`,
+      filterState.category.length > 0,
       () => openFilterTray('type')
     ));
 
