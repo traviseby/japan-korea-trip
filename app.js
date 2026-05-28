@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.25';
+  const APP_VERSION = '1.26';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -654,15 +654,13 @@
     const addButton = el('button', { 
       class: 'oc-btn',
       id: 'show-add-trip-btn',
-      style: { width: '100%' },
+      style: { width: '100%', display: 'block' },
       onclick: () => {
         const form = $('#add-trip-form');
         const showBtn = $('#show-add-trip-btn');
         
-        if (form.style.display === 'none') {
-          form.style.display = 'block';
-          showBtn.style.display = 'none';
-        }
+        form.style.display = 'block';
+        showBtn.style.display = 'none';
       }
     }, '+ Add New Trip');
     
