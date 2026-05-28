@@ -1333,17 +1333,19 @@ input { font: inherit; color: inherit; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* Trip management */
-.trip-row:hover {
-  background: var(--surface) !important;
-  border-color: var(--accent) !important;
+/* Trip management - inline select controls */
+.trip-select-item {
+  user-select: none;
 }
-.trip-row.active {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+.trip-select-item:not(.selected):hover {
+  border-color: var(--fg-mid) !important;
+  background: rgba(255,255,255,0.02);
+}
+.trip-select-item.selected {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .trip-remove-btn:hover {
-  background: var(--surface) !important;
+  background: rgba(255,255,255,0.08) !important;
   color: var(--fg) !important;
-  border-color: var(--accent) !important;
 }
 

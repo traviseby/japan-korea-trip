@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.14';
+  const APP_VERSION = '1.15';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -343,9 +343,10 @@
     if (stored) {
       try {
         const trips = JSON.parse(stored);
-        // Ensure all trips have an icon (migration for existing trips)
+        // Ensure all trips have required fields (migration for existing trips)
         trips.forEach(trip => {
           if (!trip.icon) trip.icon = '📄';
+          if (!trip.docName) trip.docName = trip.name;
         });
         return trips;
       } catch (e) {
@@ -355,7 +356,7 @@
     // Migrate old single doc URL to new trips array
     const oldUrl = localStorage.getItem('jk26.codaDocUrl');
     if (oldUrl) {
-      const trips = [{ name: 'My Trip', url: oldUrl, icon: '📄', active: true }];
+      const trips = [{ name: 'My Trip', url: oldUrl, icon: '📄', docName: 'My Trip', active: true }];
       localStorage.setItem('jk26.trips', JSON.stringify(trips));
       localStorage.removeItem('jk26.codaDocUrl');
       return trips;
@@ -378,7 +379,7 @@
     saveTrips(trips);
   }
 
-  async function addTrip(name, url, icon = null){
+  async function addTrip(name, url, icon = null, docName = null){
     const trips = getTrips();
     // Check if URL already exists
     if (trips.some(t => t.url === url)) {
@@ -387,7 +388,13 @@
     }
     // Set all trips to inactive, make new one active
     trips.forEach(t => t.active = false);
-    trips.push({ name, url, icon: icon || '📄', active: true });
+    trips.push({ 
+      name, 
+      url, 
+      icon: icon || '📄', 
+      docName: docName || name,
+      active: true 
+    });
     saveTrips(trips);
     return true;
   }
@@ -436,25 +443,25 @@
         el('div', { class: 'oc-headline' }, 'Trips'),
         el('span', { class: 'oc-status' }, trips.length === 0 ? 'No trips' : `${trips.length} trip${trips.length > 1 ? 's' : ''}`)
       ),
-      el('div', { class: 'oc-desc' }, 'Add and manage your Coda trip documents. Switch between different trips to view their itineraries.')
+      el('div', { class: 'oc-desc' }, 'Manage your Coda trip documents. Select a trip to view its itinerary.')
     );
 
-    // List of existing trips
+    // List of existing trips as inline select controls
     if (trips.length > 0) {
-      const tripsList = el('div', { style: { marginTop: '12px' } });
+      const tripsList = el('div', { class: 'trips-select-list', style: { marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' } });
       trips.forEach(trip => {
         const tripRow = el('div', { 
-          class: 'trip-row' + (trip.active ? ' active' : ''),
+          class: 'trip-select-item' + (trip.active ? ' selected' : ''),
           style: { 
             display: 'flex', 
             alignItems: 'center', 
-            padding: '10px 12px',
-            marginBottom: '6px',
-            background: trip.active ? 'var(--surface)' : 'var(--bg)',
-            border: `1px solid ${trip.active ? 'var(--accent)' : 'var(--border)'}`,
-            borderRadius: '6px',
+            padding: '12px',
+            background: trip.active ? 'var(--surface)' : 'transparent',
+            border: `2px solid ${trip.active ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: '8px',
             cursor: 'pointer',
-            transition: 'all 0.15s'
+            transition: 'all 0.2s',
+            position: 'relative'
           },
           onclick: () => {
             if (!trip.active) {
@@ -466,27 +473,29 @@
         },
           el('div', { 
             style: { 
-              fontSize: '20px', 
+              fontSize: '24px', 
               marginRight: '12px',
-              flexShrink: '0'
+              flexShrink: '0',
+              lineHeight: '1'
             } 
           }, trip.icon || '📄'),
           el('div', { style: { flex: '1', minWidth: 0 } },
-            el('div', { style: { fontWeight: trip.active ? '500' : '400', fontSize: '14px', color: 'var(--fg)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
-            el('div', { style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.url)
+            el('div', { style: { fontWeight: '500', fontSize: '15px', color: 'var(--fg)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
+            el('div', { style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.docName || trip.name)
           ),
-          trip.active ? el('span', { style: { fontSize: '12px', color: 'var(--accent)', marginLeft: '8px', fontWeight: '500' } }, 'ACTIVE') : null,
           el('button', {
             class: 'trip-remove-btn',
             style: { 
-              marginLeft: '8px',
-              padding: '4px 8px',
-              fontSize: '12px',
+              marginLeft: '12px',
+              padding: '6px 10px',
+              fontSize: '16px',
               background: 'transparent',
-              border: '1px solid var(--border)',
+              border: 'none',
               borderRadius: '4px',
               color: 'var(--fg-mid)',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              lineHeight: '1',
+              transition: 'all 0.15s'
             },
             onclick: (e) => {
               e.stopPropagation();
@@ -503,9 +512,33 @@
       card.appendChild(tripsList);
     }
 
-    // Add new trip form
-    const addForm = el('div', { style: { marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' } },
-      el('div', { style: { fontSize: '13px', fontWeight: '500', marginBottom: '8px', color: 'var(--fg)' } }, 'Add New Trip'),
+    // Add new trip button and collapsible form
+    const addSection = el('div', { style: { marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' } });
+    
+    const addButton = el('button', { 
+      class: 'oc-btn secondary',
+      id: 'show-add-trip-btn',
+      style: { width: '100%' },
+      onclick: () => {
+        const form = $('#add-trip-form');
+        const btn = $('#show-add-trip-btn');
+        if (form.style.display === 'none') {
+          form.style.display = 'block';
+          btn.textContent = 'Cancel';
+        } else {
+          form.style.display = 'none';
+          btn.textContent = '+ Add New Trip';
+          // Clear inputs
+          $('#trip-name-input').value = '';
+          $('#trip-url-input').value = '';
+        }
+      }
+    }, '+ Add New Trip');
+    
+    const addForm = el('div', { 
+      id: 'add-trip-form',
+      style: { display: 'none', marginTop: '12px' } 
+    },
       el('input', {
         type: 'text',
         id: 'trip-name-input',
@@ -524,7 +557,7 @@
       el('input', {
         type: 'text',
         id: 'trip-url-input',
-        placeholder: 'Coda doc URL',
+        placeholder: 'Paste Coda doc URL',
         style: { 
           width: '100%', 
           padding: '10px', 
@@ -538,42 +571,48 @@
       }),
       el('button', { 
         class: 'oc-btn secondary',
-        id: 'add-trip-btn',
+        id: 'add-trip-submit-btn',
+        style: { width: '100%' },
         onclick: async () => {
           const nameInput = $('#trip-name-input');
           const urlInput = $('#trip-url-input');
-          const btn = $('#add-trip-btn');
+          const submitBtn = $('#add-trip-submit-btn');
+          const showBtn = $('#show-add-trip-btn');
           const name = nameInput.value.trim();
           const url = urlInput.value.trim();
           
-          if (!name) {
-            alert('Please enter a trip name');
-            return;
-          }
           if (!url) {
             alert('Please paste a Coda doc URL');
             return;
           }
           
-          // Fetch doc info to get icon
-          btn.disabled = true;
-          btn.textContent = 'Fetching doc info...';
+          // Fetch doc info to get icon and doc name
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Fetching doc info...';
           
           const docInfo = await fetchDocInfo(url);
           const icon = docInfo?.icon || '📄';
-          const docName = docInfo?.name || name;
+          const docName = docInfo?.name || name || 'Untitled Trip';
+          const tripName = name || docName;
           
-          btn.textContent = 'Add Trip';
-          btn.disabled = false;
+          submitBtn.textContent = 'Add Trip';
+          submitBtn.disabled = false;
           
-          if (await addTrip(name || docName, url, icon)) {
+          if (await addTrip(tripName, url, icon, docName)) {
+            nameInput.value = '';
+            urlInput.value = '';
+            $('#add-trip-form').style.display = 'none';
+            showBtn.textContent = '+ Add New Trip';
             renderSettingsTab();
-            toast(`Added ${name || docName}`);
+            toast(`Added ${tripName}`);
           }
         }
       }, 'Add Trip')
     );
-    card.appendChild(addForm);
+    
+    addSection.appendChild(addButton);
+    addSection.appendChild(addForm);
+    card.appendChild(addSection);
     
     return card;
   }
