@@ -300,6 +300,17 @@
 
 </div>
 
+<script>
+// iOS viewport height fix for standalone PWA mode
+function setViewportHeight() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+setViewportHeight();
+window.addEventListener('resize', setViewportHeight);
+window.addEventListener('orientationchange', setViewportHeight);
+</script>
+
 <script src="data.js"></script>
 <script src="app.js"></script>
 <script>
