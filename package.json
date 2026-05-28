@@ -1,0 +1,9 @@
+{
+  "name": "japan-korea-trip",
+  "version": "1.30.0",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {}
+}

@@ -2,11 +2,14 @@
 // Returns the same data structure that sync.mjs generates, but as JSON
 
 export default async function handler(req, res) {
+  console.log('fetch-trip-data called, method:', req.method);
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { docUrl } = req.body;
+  console.log('docUrl:', docUrl);
   
   if (!docUrl) {
     return res.status(400).json({ error: 'Missing docUrl' });
@@ -14,6 +17,7 @@ export default async function handler(req, res) {
 
   const CODA_TOKEN = process.env.CODA_TOKEN;
   if (!CODA_TOKEN) {
+    console.error('CODA_TOKEN not set in environment');
     return res.status(500).json({ error: 'Server configuration error: CODA_TOKEN not set' });
   }
 
@@ -27,6 +31,8 @@ export default async function handler(req, res) {
   }
 
   const docId = parseDocId(docUrl);
+  console.log('parsed docId:', docId);
+  
   if (!docId) {
     return res.status(400).json({ error: 'Invalid Coda doc URL' });
   }
@@ -236,9 +242,11 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Error fetching trip data:', error);
+    console.error('Error stack:', error.stack);
     return res.status(500).json({ 
       error: 'Failed to fetch trip data',
-      details: error.message 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
