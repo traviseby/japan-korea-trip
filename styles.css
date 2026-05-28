@@ -210,15 +210,15 @@ input { font: inherit; color: inherit; }
 .hero .sub { margin-top: 6px; font-size: 13px; color: var(--fg-mid); }
 
 /* Day description (expandable) */
-.day-desc {
-  margin: 14px var(--pad) 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
+.day-desc-card {
+  margin: 0 var(--pad);
   padding: 14px 16px;
   font-size: 14px;
   line-height: 1.55;
   color: var(--fg-mid);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
   position: relative;
 }
 .day-desc-body {

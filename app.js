@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.10';
+  const APP_VERSION = '1.11';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -226,6 +226,12 @@
 
     // Description (expandable)
     if (day.desc && day.desc.trim()) {
+      const descSection = el('div', { class: 'section tight' },
+        el('div', { class: 'section-head' },
+          el('h3', null, 'Description')
+        )
+      );
+      root.appendChild(descSection);
       const descCard = buildDayDescription(day);
       if (descCard) root.appendChild(descCard);
     }
@@ -517,7 +523,7 @@
   function buildDayDescription(day){
     const desc = day.desc.trim();
     if (!desc) return null;
-    
+
     const id = `day-desc-${day.n}`;
     const maxLines = 3;
     
@@ -537,7 +543,7 @@
       }
     }, 'more');
     
-    return el('div', { class: 'day-desc' },
+    return el('div', { class: 'day-desc-card' },
       body,
       expandBtn
     );
