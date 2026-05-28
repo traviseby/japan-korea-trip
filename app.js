@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.38';
+  const APP_VERSION = '1.39';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -593,7 +593,7 @@
         el('div', { class: 'oc-headline' }, 'Trips'),
         el('span', { class: 'oc-status' }, trips.length === 0 ? 'No trips' : `${trips.length} trip${trips.length > 1 ? 's' : ''}`)
       ),
-      el('div', { class: 'oc-desc' }, 'Manage your Coda trip documents. Select a trip to view its itinerary.')
+      el('div', { class: 'oc-desc' }, 'Manage your Superhuman Docs trip documents. Select a trip to view its itinerary.')
     );
 
     // List of existing trips as inline select controls
@@ -852,7 +852,7 @@
         const url = urlInput.value.trim();
         
         if (!url) {
-          alert('Please paste a Coda doc URL');
+          alert('Please paste a Superhuman Docs URL');
           return;
         }
         
@@ -905,7 +905,7 @@
       el('input', {
         type: 'text',
         id: 'trip-url-input',
-        placeholder: 'Paste Coda doc URL',
+        placeholder: 'Paste Superhuman Docs URL',
         style: { 
           width: '100%', 
           padding: '10px', 
@@ -935,7 +935,7 @@
     
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('div', { class: 'oc-headline' }, 'Sync from Coda'),
+        el('div', { class: 'oc-headline' }, 'Sync from Superhuman Docs'),
         el('span', { class: 'oc-status', id: 'sync-status' }, activeTrip ? 'Ready' : 'No trip')
       ),
       el('div', { class: 'oc-desc' }, desc),
@@ -2266,8 +2266,8 @@
       }
     },
       el('div', { style: { fontSize: '48px', marginBottom: '20px' } }, '✈️'),
-      el('h1', { style: { fontSize: '24px', fontWeight: '600', color: 'var(--fg)', marginBottom: '12px', textAlign: 'center' } }, 'Welcome to Trip Planner'),
-      el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get started by adding your Coda trip document'),
+      el('h1', { style: { fontSize: '24px', fontWeight: '600', color: 'var(--fg)', marginBottom: '12px', textAlign: 'center' } }, 'Welcome to Superhuman Trips'),
+      el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get started by adding your Superhuman Docs trip document'),
       
       el('div', { style: { width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' } },
         el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Trip Name'),
@@ -2288,11 +2288,11 @@
           }
         }),
         
-        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Coda Document URL'),
+        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Superhuman Docs URL'),
         el('input', {
           type: 'text',
           id: 'onboarding-url-input',
-          placeholder: 'https://coda.io/d/...',
+          placeholder: 'https://docs.superhuman.com/d/...',
           style: {
             width: '100%',
             padding: '12px',
@@ -2327,7 +2327,7 @@
             
             const url = urlInput.value.trim();
             if (!url) {
-              alert('Please paste a Coda doc URL');
+              alert('Please paste a Superhuman Docs URL');
               return;
             }
             
