@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.29';
+  const APP_VERSION = '1.30';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -869,7 +869,7 @@
   function buildSyncCard(){
     const activeTrip = getActiveTrip();
     const desc = activeTrip 
-      ? `Pull the latest itinerary updates from "${activeTrip.name}". Takes about 1 minute. Changes will appear after refreshing.`
+      ? `Fetch the latest updates from "${activeTrip.name}". Data will refresh instantly.`
       : 'Add a trip above to enable syncing.';
     
     const card = el('div', { class: 'offline-card' },
