@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "/trip-app.html"
+      "destination": "/index.html"
     }
   ]
 }

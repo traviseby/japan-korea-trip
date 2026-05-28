@@ -5,6 +5,18 @@
 <title>Japan 2026 · iPhone 15 Pro Preview</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<script>
+// Redirect mobile devices to the app without phone frame
+(function() {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    || ('ontouchstart' in window && window.innerWidth < 768);
+  
+  if (isMobile && window.location.pathname === '/' || window.location.pathname === '/index.html') {
+    window.location.replace('/trip-app.html');
+  }
+})();
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
