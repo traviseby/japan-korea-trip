@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.16';
+  const APP_VERSION = '1.17';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -459,7 +459,7 @@
             alignItems: 'center', 
             padding: '12px',
             background: trip.active ? 'rgba(255,255,255,0.05)' : 'transparent',
-            border: showBorders ? `2px solid ${trip.active ? 'var(--accent)' : 'var(--border)'}` : '2px solid transparent',
+            border: showBorders ? `2px solid ${trip.active ? 'rgba(255,255,255,0.3)' : 'var(--border)'}` : '2px solid transparent',
             borderRadius: '8px',
             cursor: trips.length > 1 ? 'pointer' : 'default',
             transition: 'all 0.2s',
