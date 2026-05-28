@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.27';
+  const APP_VERSION = '1.28';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -563,6 +563,17 @@
           tripRow.addEventListener('mouseleave', () => {
             desktopDeleteBtn.style.opacity = '0';
             desktopDeleteBtn.style.pointerEvents = 'none';
+          });
+        }
+        
+        // Desktop click handler to switch trips
+        if (!isTouchDevice) {
+          tripRow.addEventListener('click', () => {
+            if (!trip.active && trips.length > 1) {
+              setActiveTrip(trip.url);
+              renderSettingsTab();
+              toast(`Switched to ${trip.name}`);
+            }
           });
         }
         
