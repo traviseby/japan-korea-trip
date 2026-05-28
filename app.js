@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.44';
+  const APP_VERSION = '1.45';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -422,18 +422,23 @@
 
   async function loadTripData(docUrl, fromCache = true){
     try {
+      console.log('loadTripData called with:', { docUrl, fromCache });
       let tripData;
       
       // Try to load from cache first
       if (fromCache) {
-        const cached = localStorage.getItem(`jk26.tripData.${docUrl}`);
+        const cacheKey = `jk26.tripData.${docUrl}`;
+        console.log('Checking cache for key:', cacheKey);
+        const cached = localStorage.getItem(cacheKey);
         if (cached) {
           try {
             tripData = JSON.parse(cached);
-            console.log('Loaded trip data from cache');
+            console.log('Loaded trip data from cache for:', tripData.trip?.title || 'Unknown');
           } catch (e) {
             console.warn('Failed to parse cached trip data');
           }
+        } else {
+          console.log('No cached data found');
         }
       }
       
@@ -473,11 +478,21 @@
 
           tripData = await res.json();
           
+          console.log('Fetched trip data:', tripData.trip?.title || 'Unknown', 'Days:', tripData.days?.length);
+          
           // Cache the data
-          localStorage.setItem(`jk26.tripData.${docUrl}`, JSON.stringify(tripData));
+          const cacheKey = `jk26.tripData.${docUrl}`;
+          localStorage.setItem(cacheKey, JSON.stringify(tripData));
+          console.log('Cached trip data with key:', cacheKey);
         }
       }
       
+      if (!tripData) {
+        console.error('No trip data available!');
+        throw new Error('Failed to load trip data');
+      }
+      
+      console.log('Setting window.DATA to:', tripData.trip?.title || 'Unknown');
       // Replace window.DATA with the new trip data
       window.DATA = tripData;
       
