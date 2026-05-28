@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.18';
+  const APP_VERSION = '1.19';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -603,25 +603,52 @@
     // Add new trip button and collapsible form
     const addSection = el('div', { style: { marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' } });
     
+    const buttonRow = el('div', { 
+      id: 'add-trip-buttons',
+      style: { display: 'flex', gap: '8px' } 
+    });
+    
     const addButton = el('button', { 
       class: 'oc-btn',
       id: 'show-add-trip-btn',
-      style: { width: '100%' },
+      style: { flex: '1' },
       onclick: () => {
         const form = $('#add-trip-form');
-        const btn = $('#show-add-trip-btn');
+        const btnRow = $('#add-trip-buttons');
+        const showBtn = $('#show-add-trip-btn');
+        const cancelBtn = $('#cancel-add-trip-btn');
+        
         if (form.style.display === 'none') {
           form.style.display = 'block';
-          btn.textContent = 'Cancel';
+          showBtn.textContent = '+ Add New Trip';
+          cancelBtn.style.display = 'block';
         } else {
           form.style.display = 'none';
-          btn.textContent = '+ Add New Trip';
+          cancelBtn.style.display = 'none';
           // Clear inputs
           $('#trip-name-input').value = '';
           $('#trip-url-input').value = '';
         }
       }
     }, '+ Add New Trip');
+    
+    const cancelButton = el('button', {
+      class: 'oc-btn secondary',
+      id: 'cancel-add-trip-btn',
+      style: { flex: '1', display: 'none' },
+      onclick: () => {
+        const form = $('#add-trip-form');
+        const cancelBtn = $('#cancel-add-trip-btn');
+        form.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        // Clear inputs
+        $('#trip-name-input').value = '';
+        $('#trip-url-input').value = '';
+      }
+    }, 'Cancel');
+    
+    buttonRow.appendChild(addButton);
+    buttonRow.appendChild(cancelButton);
     
     const addForm = el('div', { 
       id: 'add-trip-form',
@@ -658,14 +685,14 @@
         }
       }),
       el('button', { 
-        class: 'oc-btn secondary',
+        class: 'oc-btn',
         id: 'add-trip-submit-btn',
         style: { width: '100%' },
         onclick: async () => {
           const nameInput = $('#trip-name-input');
           const urlInput = $('#trip-url-input');
           const submitBtn = $('#add-trip-submit-btn');
-          const showBtn = $('#show-add-trip-btn');
+          const cancelBtn = $('#cancel-add-trip-btn');
           const name = nameInput.value.trim();
           const url = urlInput.value.trim();
           
@@ -690,7 +717,7 @@
             nameInput.value = '';
             urlInput.value = '';
             $('#add-trip-form').style.display = 'none';
-            showBtn.textContent = '+ Add New Trip';
+            cancelBtn.style.display = 'none';
             renderSettingsTab();
             toast(`Added ${tripName}`);
           }
@@ -698,7 +725,7 @@
       }, 'Add Trip')
     );
     
-    addSection.appendChild(addButton);
+    addSection.appendChild(buttonRow);
     addSection.appendChild(addForm);
     card.appendChild(addSection);
     
