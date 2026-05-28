@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.17';
+  const APP_VERSION = '1.18';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -452,6 +452,44 @@
       const showBorders = trips.length > 1;
       
       trips.forEach(trip => {
+        // Container for swipe-to-delete
+        const container = el('div', { 
+          class: 'trip-swipe-container',
+          style: { 
+            position: 'relative', 
+            overflow: 'hidden',
+            borderRadius: '8px'
+          } 
+        });
+        
+        // Delete button (revealed on swipe)
+        const deleteBtn = el('div', {
+          class: 'trip-delete-action',
+          style: {
+            position: 'absolute',
+            right: '0',
+            top: '0',
+            bottom: '0',
+            width: '80px',
+            background: '#ff3b30',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontWeight: '600',
+            fontSize: '14px',
+            cursor: 'pointer'
+          },
+          onclick: () => {
+            if (confirm(`Remove "${trip.name}"?`)) {
+              removeTrip(trip.url);
+              renderSettingsTab();
+              toast(`Removed ${trip.name}`);
+            }
+          }
+        }, 'Delete');
+        
+        // Trip row (swipeable)
         const tripRow = el('div', { 
           class: 'trip-select-item' + (trip.active ? ' selected' : ''),
           style: { 
@@ -462,15 +500,10 @@
             border: showBorders ? `2px solid ${trip.active ? 'rgba(255,255,255,0.3)' : 'var(--border)'}` : '2px solid transparent',
             borderRadius: '8px',
             cursor: trips.length > 1 ? 'pointer' : 'default',
-            transition: 'all 0.2s',
-            position: 'relative'
-          },
-          onclick: () => {
-            if (!trip.active) {
-              setActiveTrip(trip.url);
-              renderSettingsTab();
-              toast(`Switched to ${trip.name}`);
-            }
+            transition: 'transform 0.2s ease-out, background 0.2s',
+            position: 'relative',
+            touchAction: 'pan-y',
+            zIndex: '1'
           }
         },
           el('div', { 
@@ -484,32 +517,85 @@
           el('div', { style: { flex: '1', minWidth: 0 } },
             el('div', { style: { fontWeight: '500', fontSize: '15px', color: 'var(--fg)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
             el('div', { style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.docName || trip.name)
-          ),
-          el('button', {
-            class: 'trip-remove-btn',
-            style: { 
-              marginLeft: '12px',
-              padding: '6px 10px',
-              fontSize: '16px',
-              background: 'transparent',
-              border: 'none',
-              borderRadius: '4px',
-              color: 'var(--fg-mid)',
-              cursor: 'pointer',
-              lineHeight: '1',
-              transition: 'all 0.15s'
-            },
-            onclick: (e) => {
-              e.stopPropagation();
-              if (confirm(`Remove "${trip.name}"?`)) {
-                removeTrip(trip.url);
-                renderSettingsTab();
-                toast(`Removed ${trip.name}`);
-              }
-            }
-          }, '\u00d7')
+          )
         );
-        tripsList.appendChild(tripRow);
+        
+        // Swipe gesture handling
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let currentX = 0;
+        let isDragging = false;
+        let isVerticalScroll = false;
+        
+        tripRow.addEventListener('touchstart', (e) => {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+          isDragging = false;
+          isVerticalScroll = false;
+          tripRow.style.transition = 'none';
+        }, { passive: true });
+        
+        tripRow.addEventListener('touchmove', (e) => {
+          if (isVerticalScroll) return;
+          
+          const touchX = e.touches[0].clientX;
+          const touchY = e.touches[0].clientY;
+          const deltaX = touchX - touchStartX;
+          const deltaY = touchY - touchStartY;
+          
+          // Determine if this is a vertical scroll (let it pass through)
+          if (!isDragging && Math.abs(deltaY) > Math.abs(deltaX)) {
+            isVerticalScroll = true;
+            return;
+          }
+          
+          // Only allow left swipe
+          if (deltaX < 0) {
+            isDragging = true;
+            currentX = Math.max(deltaX, -80); // Max swipe of 80px (delete button width)
+            tripRow.style.transform = `translateX(${currentX}px)`;
+            e.preventDefault();
+          }
+        });
+        
+        tripRow.addEventListener('touchend', () => {
+          if (!isDragging) {
+            // Treat as a click
+            if (!trip.active && trips.length > 1) {
+              setActiveTrip(trip.url);
+              renderSettingsTab();
+              toast(`Switched to ${trip.name}`);
+            }
+            return;
+          }
+          
+          tripRow.style.transition = 'transform 0.2s ease-out';
+          
+          // If swiped more than halfway, keep it open
+          if (currentX < -40) {
+            tripRow.style.transform = 'translateX(-80px)';
+          } else {
+            // Snap back
+            tripRow.style.transform = 'translateX(0)';
+          }
+          
+          isDragging = false;
+        });
+        
+        // Close swipe on tap outside
+        tripRow.addEventListener('click', (e) => {
+          if (currentX < -40) {
+            e.preventDefault();
+            e.stopPropagation();
+            tripRow.style.transition = 'transform 0.2s ease-out';
+            tripRow.style.transform = 'translateX(0)';
+            currentX = 0;
+          }
+        });
+        
+        container.appendChild(deleteBtn);
+        container.appendChild(tripRow);
+        tripsList.appendChild(container);
       });
       card.appendChild(tripsList);
     }
