@@ -558,6 +558,12 @@
         body: JSON.stringify({ docUrl })
       });
 
+      // Handle local dev (501)
+      if (res.status === 501) {
+        console.warn('API not available (local dev mode), using defaults');
+        return { name: 'My Trip', icon: '✈️' };
+      }
+
       if (!res.ok) {
         throw new Error(`Failed to fetch doc info: ${res.status}`);
       }
