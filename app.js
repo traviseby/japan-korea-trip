@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.31';
+  const APP_VERSION = '1.32';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -461,8 +461,13 @@
   async function initTripData(){
     const activeTrip = getActiveTrip();
     if (activeTrip && activeTrip.url) {
-      // Load the active trip's data
-      await loadTripData(activeTrip.url, true);
+      try {
+        // Load the active trip's data
+        await loadTripData(activeTrip.url, true);
+      } catch (err) {
+        console.warn('Failed to initialize trip data, using default:', err);
+        // Continue with default data.js - don't block app startup
+      }
     }
   }
 
