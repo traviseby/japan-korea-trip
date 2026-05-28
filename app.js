@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.20';
+  const APP_VERSION = '1.21';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -462,7 +462,10 @@
           } 
         });
         
-        // Delete button (revealed on swipe)
+        // Check if device supports touch
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        // Delete button (revealed on swipe for touch, or on hover for desktop)
         const deleteBtn = el('div', {
           class: 'trip-delete-action',
           style: {
@@ -472,13 +475,14 @@
             bottom: '0',
             width: '80px',
             background: '#ff3b30',
-            display: 'flex',
+            display: isTouchDevice ? 'flex' : 'none', // Hide on desktop by default
             alignItems: 'center',
             justifyContent: 'center',
             color: 'white',
             fontWeight: '600',
             fontSize: '14px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            zIndex: '0'
           },
           onclick: () => {
             if (confirm(`Remove "${trip.name}"?`)) {
@@ -489,7 +493,34 @@
           }
         }, 'Delete');
         
-        // Trip row (swipeable)
+        // Desktop delete button (hidden on touch devices)
+        const desktopDeleteBtn = !isTouchDevice ? el('button', {
+          class: 'trip-desktop-delete',
+          style: {
+            marginLeft: '12px',
+            padding: '6px 10px',
+            fontSize: '16px',
+            background: 'transparent',
+            border: 'none',
+            borderRadius: '4px',
+            color: 'var(--fg-mid)',
+            cursor: 'pointer',
+            lineHeight: '1',
+            transition: 'all 0.15s',
+            opacity: '0',
+            pointerEvents: 'none'
+          },
+          onclick: (e) => {
+            e.stopPropagation();
+            if (confirm(`Remove "${trip.name}"?`)) {
+              removeTrip(trip.url);
+              renderSettingsTab();
+              toast(`Removed ${trip.name}`);
+            }
+          }
+        }, '×') : null;
+        
+        // Trip row (swipeable on touch, hoverable on desktop)
         const tripRow = el('div', { 
           class: 'trip-select-item' + (trip.active ? ' selected' : ''),
           style: { 
@@ -504,7 +535,8 @@
             position: 'relative',
             touchAction: 'pan-y',
             zIndex: '1',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            transform: 'translateX(0)' // Ensure starting position
           }
         },
           el('div', { 
@@ -518,17 +550,31 @@
           el('div', { style: { flex: '1', minWidth: 0 } },
             el('div', { style: { fontWeight: '500', fontSize: '15px', color: 'var(--fg)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
             el('div', { style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.docName || trip.name)
-          )
+          ),
+          desktopDeleteBtn
         );
         
-        // Swipe gesture handling
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let currentX = 0;
-        let isDragging = false;
-        let isVerticalScroll = false;
+        // Add hover effect for desktop delete button
+        if (!isTouchDevice && desktopDeleteBtn) {
+          tripRow.addEventListener('mouseenter', () => {
+            desktopDeleteBtn.style.opacity = '1';
+            desktopDeleteBtn.style.pointerEvents = 'auto';
+          });
+          tripRow.addEventListener('mouseleave', () => {
+            desktopDeleteBtn.style.opacity = '0';
+            desktopDeleteBtn.style.pointerEvents = 'none';
+          });
+        }
         
-        tripRow.addEventListener('touchstart', (e) => {
+        // Swipe gesture handling (only for touch devices)
+        if (isTouchDevice) {
+          let touchStartX = 0;
+          let touchStartY = 0;
+          let currentX = 0;
+          let isDragging = false;
+          let isVerticalScroll = false;
+          
+          tripRow.addEventListener('touchstart', (e) => {
           touchStartX = e.touches[0].clientX;
           touchStartY = e.touches[0].clientY;
           isDragging = false;
@@ -580,19 +626,20 @@
             tripRow.style.transform = 'translateX(0)';
           }
           
-          isDragging = false;
-        });
-        
-        // Close swipe on tap outside
-        tripRow.addEventListener('click', (e) => {
-          if (currentX < -40) {
-            e.preventDefault();
-            e.stopPropagation();
-            tripRow.style.transition = 'transform 0.2s ease-out';
-            tripRow.style.transform = 'translateX(0)';
-            currentX = 0;
-          }
-        });
+            isDragging = false;
+          });
+          
+          // Close swipe on tap outside
+          tripRow.addEventListener('click', (e) => {
+            if (currentX < -40) {
+              e.preventDefault();
+              e.stopPropagation();
+              tripRow.style.transition = 'transform 0.2s ease-out';
+              tripRow.style.transform = 'translateX(0)';
+              currentX = 0;
+            }
+          });
+        }
         
         container.appendChild(deleteBtn);
         container.appendChild(tripRow);
