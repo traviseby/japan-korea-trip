@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.33';
+  const APP_VERSION = '1.34';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -390,7 +390,7 @@
       const docNameEl = tripEl.querySelector('.trip-doc-name');
       if (docNameEl) {
         const originalText = docNameEl.textContent;
-        docNameEl.textContent = 'Syncing trip...';
+        docNameEl.textContent = 'Syncing trip. May take several minutes.';
         docNameEl.dataset.original = originalText;
       }
     }
