@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.30';
+  const APP_VERSION = '1.31';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -409,8 +409,16 @@
           body: JSON.stringify({ docUrl })
         });
 
+        // Check if response is JSON
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await res.text();
+          console.error('Non-JSON response:', text.substring(0, 200));
+          throw new Error('API endpoint not responding correctly. Please wait a minute for deployment to complete.');
+        }
+
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => ({ error: 'Unknown error' }));
           throw new Error(err.error || 'Failed to fetch trip data');
         }
 
