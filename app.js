@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.09';
+  const APP_VERSION = '1.10';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -306,7 +306,6 @@
     const estMB = Math.round(estimate * 25 / 1024); // ~25KB per tile (PNG, mid-detail)
     const card = el('div', { class: 'offline-card', id: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('span', { class: 'oc-icon' }, '⬇'),
         el('div', { class: 'oc-headline' }, 'Offline maps'),
         el('span', { class: 'oc-status', id: 'dl-status' }, '\u2014')
       ),
@@ -324,7 +323,6 @@
   function buildResetCard(){
     const card = el('div', { class: 'offline-card reset-card' },
       el('div', { class: 'oc-head' },
-        el('span', { class: 'oc-icon' }, '↺'),
         el('div', { class: 'oc-headline' }, 'Reset progress'),
         el('span', { class: 'oc-status', id: 'reset-status' }, resetCountLabel())
       ),
@@ -371,7 +369,6 @@
     
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('span', { class: 'oc-icon' }, '📄'),
         el('div', { class: 'oc-headline' }, 'Coda Document'),
         el('span', { class: 'oc-status' }, isConfigured ? 'Configured' : 'Not set')
       ),
@@ -385,7 +382,6 @@
   function buildSyncCard(){
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('span', { class: 'oc-icon' }, '🔄'),
         el('div', { class: 'oc-headline' }, 'Sync from Coda'),
         el('span', { class: 'oc-status', id: 'sync-status' }, 'Ready')
       ),
@@ -398,7 +394,6 @@
   function buildRefreshCard(){
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('span', { class: 'oc-icon' }, '↻'),
         el('div', { class: 'oc-headline' }, 'Refresh app'),
         el('span', { class: 'oc-status' }, '')
       ),
