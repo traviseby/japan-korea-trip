@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.45';
+  const APP_VERSION = '1.46';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -407,8 +407,8 @@
       }
     }
     
-    // Fetch and load data for the new trip
-    await loadTripData(tripUrl);
+    // Fetch and load data for the new trip (force fresh fetch, not from cache)
+    await loadTripData(tripUrl, false);
     
     // Restore the doc name after load completes (success or error)
     if (tripEl) {
