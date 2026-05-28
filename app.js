@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.41';
+  const APP_VERSION = '1.42';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -435,23 +435,35 @@
           body: JSON.stringify({ docUrl })
         });
 
-        // Check if response is JSON
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await res.text();
-          console.error('Non-JSON response:', text.substring(0, 200));
-          throw new Error('API endpoint not responding correctly. Please wait a minute for deployment to complete.');
-        }
+        // Check if we're in local dev (API returns 501)
+        if (res.status === 501) {
+          console.warn('API not available (local dev mode), using static data.js');
+          // Use the static data.js file for local development
+          if (window.DATA) {
+            tripData = window.DATA;
+            toast('Loaded from static data (local dev)');
+          } else {
+            throw new Error('No data available. Deploy to Vercel to test dynamic data loading.');
+          }
+        } else {
+          // Check if response is JSON
+          const contentType = res.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await res.text();
+            console.error('Non-JSON response:', text.substring(0, 200));
+            throw new Error('API endpoint not responding correctly. Please wait a minute for deployment to complete.');
+          }
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(err.error || 'Failed to fetch trip data');
-        }
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(err.error || 'Failed to fetch trip data');
+          }
 
-        tripData = await res.json();
-        
-        // Cache the data
-        localStorage.setItem(`jk26.tripData.${docUrl}`, JSON.stringify(tripData));
+          tripData = await res.json();
+          
+          // Cache the data
+          localStorage.setItem(`jk26.tripData.${docUrl}`, JSON.stringify(tripData));
+        }
       }
       
       // Replace window.DATA with the new trip data
