@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.24';
+  const APP_VERSION = '1.25';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -651,52 +651,82 @@
     // Add new trip button and collapsible form
     const addSection = el('div', { style: { marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' } });
     
-    const buttonRow = el('div', { 
-      id: 'add-trip-buttons',
-      style: { display: 'flex', gap: '8px' } 
-    });
-    
     const addButton = el('button', { 
       class: 'oc-btn',
       id: 'show-add-trip-btn',
-      style: { flex: '1' },
+      style: { width: '100%' },
       onclick: () => {
         const form = $('#add-trip-form');
-        const btnRow = $('#add-trip-buttons');
         const showBtn = $('#show-add-trip-btn');
-        const cancelBtn = $('#cancel-add-trip-btn');
         
         if (form.style.display === 'none') {
           form.style.display = 'block';
-          showBtn.textContent = '+ Add New Trip';
-          cancelBtn.style.display = 'block';
-        } else {
-          form.style.display = 'none';
-          cancelBtn.style.display = 'none';
-          // Clear inputs
-          $('#trip-name-input').value = '';
-          $('#trip-url-input').value = '';
+          showBtn.style.display = 'none';
         }
       }
     }, '+ Add New Trip');
     
+    const formButtonRow = el('div', {
+      style: { display: 'flex', gap: '8px', marginTop: '8px' }
+    });
+    
     const cancelButton = el('button', {
       class: 'oc-btn secondary',
       id: 'cancel-add-trip-btn',
-      style: { flex: '1', display: 'none' },
+      style: { flex: '1' },
       onclick: () => {
         const form = $('#add-trip-form');
-        const cancelBtn = $('#cancel-add-trip-btn');
+        const showBtn = $('#show-add-trip-btn');
         form.style.display = 'none';
-        cancelBtn.style.display = 'none';
+        showBtn.style.display = 'block';
         // Clear inputs
         $('#trip-name-input').value = '';
         $('#trip-url-input').value = '';
       }
     }, 'Cancel');
     
-    buttonRow.appendChild(addButton);
-    buttonRow.appendChild(cancelButton);
+    const submitButton = el('button', { 
+      class: 'oc-btn',
+      id: 'add-trip-submit-btn',
+      style: { flex: '1' },
+      onclick: async () => {
+        const nameInput = $('#trip-name-input');
+        const urlInput = $('#trip-url-input');
+        const submitBtn = $('#add-trip-submit-btn');
+        const showBtn = $('#show-add-trip-btn');
+        const name = nameInput.value.trim();
+        const url = urlInput.value.trim();
+        
+        if (!url) {
+          alert('Please paste a Coda doc URL');
+          return;
+        }
+        
+        // Fetch doc info to get icon and doc name
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Fetching doc info...';
+        
+        const docInfo = await fetchDocInfo(url);
+        const icon = docInfo?.icon || '✈️';
+        const docName = docInfo?.name || name || 'Untitled Trip';
+        const tripName = name || docName;
+        
+        submitBtn.textContent = 'Add Trip';
+        submitBtn.disabled = false;
+        
+        if (await addTrip(tripName, url, icon, docName)) {
+          nameInput.value = '';
+          urlInput.value = '';
+          $('#add-trip-form').style.display = 'none';
+          showBtn.style.display = 'block';
+          renderSettingsTab();
+          toast(`Added ${tripName}`);
+        }
+      }
+    }, 'Add Trip');
+    
+    formButtonRow.appendChild(cancelButton);
+    formButtonRow.appendChild(submitButton);
     
     const addForm = el('div', { 
       id: 'add-trip-form',
@@ -732,48 +762,10 @@
           fontSize: '14px'
         }
       }),
-      el('button', { 
-        class: 'oc-btn',
-        id: 'add-trip-submit-btn',
-        style: { width: '100%' },
-        onclick: async () => {
-          const nameInput = $('#trip-name-input');
-          const urlInput = $('#trip-url-input');
-          const submitBtn = $('#add-trip-submit-btn');
-          const cancelBtn = $('#cancel-add-trip-btn');
-          const name = nameInput.value.trim();
-          const url = urlInput.value.trim();
-          
-          if (!url) {
-            alert('Please paste a Coda doc URL');
-            return;
-          }
-          
-          // Fetch doc info to get icon and doc name
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Fetching doc info...';
-          
-          const docInfo = await fetchDocInfo(url);
-          const icon = docInfo?.icon || '✈️';
-          const docName = docInfo?.name || name || 'Untitled Trip';
-          const tripName = name || docName;
-          
-          submitBtn.textContent = 'Add Trip';
-          submitBtn.disabled = false;
-          
-          if (await addTrip(tripName, url, icon, docName)) {
-            nameInput.value = '';
-            urlInput.value = '';
-            $('#add-trip-form').style.display = 'none';
-            cancelBtn.style.display = 'none';
-            renderSettingsTab();
-            toast(`Added ${tripName}`);
-          }
-        }
-      }, 'Add Trip')
+      formButtonRow
     );
     
-    addSection.appendChild(buttonRow);
+    addSection.appendChild(addButton);
     addSection.appendChild(addForm);
     card.appendChild(addSection);
     
