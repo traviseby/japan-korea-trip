@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.13';
+  const APP_VERSION = '1.14';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -342,7 +342,12 @@
     const stored = localStorage.getItem('jk26.trips');
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const trips = JSON.parse(stored);
+        // Ensure all trips have an icon (migration for existing trips)
+        trips.forEach(trip => {
+          if (!trip.icon) trip.icon = '📄';
+        });
+        return trips;
       } catch (e) {
         return [];
       }
@@ -350,7 +355,7 @@
     // Migrate old single doc URL to new trips array
     const oldUrl = localStorage.getItem('jk26.codaDocUrl');
     if (oldUrl) {
-      const trips = [{ name: 'My Trip', url: oldUrl, active: true }];
+      const trips = [{ name: 'My Trip', url: oldUrl, icon: '📄', active: true }];
       localStorage.setItem('jk26.trips', JSON.stringify(trips));
       localStorage.removeItem('jk26.codaDocUrl');
       return trips;
@@ -373,7 +378,7 @@
     saveTrips(trips);
   }
 
-  function addTrip(name, url){
+  async function addTrip(name, url, icon = null){
     const trips = getTrips();
     // Check if URL already exists
     if (trips.some(t => t.url === url)) {
@@ -382,9 +387,28 @@
     }
     // Set all trips to inactive, make new one active
     trips.forEach(t => t.active = false);
-    trips.push({ name, url, active: true });
+    trips.push({ name, url, icon: icon || '📄', active: true });
     saveTrips(trips);
     return true;
+  }
+
+  async function fetchDocInfo(docUrl){
+    try {
+      const res = await fetch('/api/doc-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docUrl })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch doc info: ${res.status}`);
+      }
+
+      return await res.json();
+    } catch (err) {
+      console.error('Error fetching doc info:', err);
+      return null;
+    }
   }
 
   function removeTrip(tripUrl){
@@ -440,6 +464,13 @@
             }
           }
         },
+          el('div', { 
+            style: { 
+              fontSize: '20px', 
+              marginRight: '12px',
+              flexShrink: '0'
+            } 
+          }, trip.icon || '📄'),
           el('div', { style: { flex: '1', minWidth: 0 } },
             el('div', { style: { fontWeight: trip.active ? '500' : '400', fontSize: '14px', color: 'var(--fg)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
             el('div', { style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.url)
@@ -507,9 +538,11 @@
       }),
       el('button', { 
         class: 'oc-btn secondary',
-        onclick: () => {
+        id: 'add-trip-btn',
+        onclick: async () => {
           const nameInput = $('#trip-name-input');
           const urlInput = $('#trip-url-input');
+          const btn = $('#add-trip-btn');
           const name = nameInput.value.trim();
           const url = urlInput.value.trim();
           
@@ -522,9 +555,20 @@
             return;
           }
           
-          if (addTrip(name, url)) {
+          // Fetch doc info to get icon
+          btn.disabled = true;
+          btn.textContent = 'Fetching doc info...';
+          
+          const docInfo = await fetchDocInfo(url);
+          const icon = docInfo?.icon || '📄';
+          const docName = docInfo?.name || name;
+          
+          btn.textContent = 'Add Trip';
+          btn.disabled = false;
+          
+          if (await addTrip(name || docName, url, icon)) {
             renderSettingsTab();
-            toast(`Added ${name}`);
+            toast(`Added ${name || docName}`);
           }
         }
       }, 'Add Trip')
