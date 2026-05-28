@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.23';
+  const APP_VERSION = '1.24';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -345,7 +345,7 @@
         const trips = JSON.parse(stored);
         // Ensure all trips have required fields (migration for existing trips)
         trips.forEach(trip => {
-          if (!trip.icon) trip.icon = '📄';
+          if (!trip.icon) trip.icon = '✈️';
           if (!trip.docName) trip.docName = trip.name;
         });
         return trips;
@@ -356,7 +356,7 @@
     // Migrate old single doc URL to new trips array
     const oldUrl = localStorage.getItem('jk26.codaDocUrl');
     if (oldUrl) {
-      const trips = [{ name: 'My Trip', url: oldUrl, icon: '📄', docName: 'My Trip', active: true }];
+      const trips = [{ name: 'My Trip', url: oldUrl, icon: '✈️', docName: 'My Trip', active: true }];
       localStorage.setItem('jk26.trips', JSON.stringify(trips));
       localStorage.removeItem('jk26.codaDocUrl');
       return trips;
@@ -391,7 +391,7 @@
     trips.push({ 
       name, 
       url, 
-      icon: icon || '📄', 
+      icon: icon || '✈️', 
       docName: docName || name,
       active: true 
     });
@@ -546,7 +546,7 @@
               flexShrink: '0',
               lineHeight: '1'
             } 
-          }, trip.icon || '📄'),
+          }, trip.icon || '✈️'),
           el('div', { style: { flex: '1', minWidth: 0 } },
             el('div', { style: { fontWeight: '500', fontSize: '15px', color: 'var(--fg)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
             el('div', { style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.docName || trip.name)
@@ -754,7 +754,7 @@
           submitBtn.textContent = 'Fetching doc info...';
           
           const docInfo = await fetchDocInfo(url);
-          const icon = docInfo?.icon || '📄';
+          const icon = docInfo?.icon || '✈️';
           const docName = docInfo?.name || name || 'Untitled Trip';
           const tripName = name || docName;
           

@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     // Return just the info we need
     return res.status(200).json({
       name: data.name || 'Untitled',
-      icon: data.icon || '📄',
+      icon: data.icon || '✈️',
       workspace: data.workspace || null
     });
 
