@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.39';
+  const APP_VERSION = '1.40';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -2267,7 +2267,7 @@
     },
       el('div', { style: { fontSize: '48px', marginBottom: '20px' } }, '✈️'),
       el('h1', { style: { fontSize: '24px', fontWeight: '600', color: 'var(--fg)', marginBottom: '12px', textAlign: 'center' } }, 'Welcome to Superhuman Trips'),
-      el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get started by adding your Superhuman Docs trip document'),
+      el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get Started by adding a link to your trip Doc'),
       
       el('div', { style: { width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' } },
         el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Trip Name'),
