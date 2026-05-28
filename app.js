@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.05';
+  const APP_VERSION = '1.06';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock

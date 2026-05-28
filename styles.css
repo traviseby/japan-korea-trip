@@ -97,6 +97,7 @@ input { font: inherit; color: inherit; }
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  padding-bottom: calc(65px + env(safe-area-inset-bottom));
 }
 .tab-pane {
   display: none;
@@ -140,8 +141,11 @@ input { font: inherit; color: inherit; }
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-top: 1px solid var(--border);
-  padding: 8px 0 calc(var(--sab) + 8px);
-  position: relative;
+  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 40;
 }
 .tabbar button {
