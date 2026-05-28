@@ -44,7 +44,7 @@ console.log(`Using Coda doc: ${DOC}`);
 // Table names we're looking for
 const TABLE_NAMES = {
   itinerary:  'Itinerary',
-  activities: 'All activites',
+  activities: 'All activities',
   todos:      'To do list',
   flights:    'All flights'
 };
