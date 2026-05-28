@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.43';
+  const APP_VERSION = '1.44';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -453,7 +453,7 @@
           // Use the static data.js file for local development
           if (window.DATA) {
             tripData = window.DATA;
-            toast('Loaded from static data (local dev)');
+            toast('⚠️ Local dev mode: Showing static data only. Test on Vercel for dynamic trips.');
           } else {
             throw new Error('No data available. Deploy to Vercel to test dynamic data loading.');
           }
