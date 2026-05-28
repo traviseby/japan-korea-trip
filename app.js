@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.26';
+  const APP_VERSION = '1.27';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -662,7 +662,7 @@
         form.style.display = 'block';
         showBtn.style.display = 'none';
       }
-    }, '+ Add New Trip');
+    }, 'Add New Trip');
     
     const formButtonRow = el('div', {
       style: { display: 'flex', gap: '8px', marginTop: '8px' }
