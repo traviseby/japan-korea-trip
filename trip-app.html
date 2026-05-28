@@ -24,6 +24,19 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
 <link rel="stylesheet" href="styles.css">
+
+<script>
+// iOS viewport height fix - MUST run before page renders
+(function() {
+  function setVH() {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', vh + 'px');
+  }
+  setVH();
+  window.addEventListener('resize', setVH);
+  window.addEventListener('orientationchange', setVH);
+})();
+</script>
 </head>
 <body>
 
@@ -142,17 +155,6 @@
 <div id="filter-tray" class="sheet tray"></div>
 
 </div><!-- /phone-fullscreen -->
-
-<script>
-// iOS viewport height fix for standalone PWA mode
-function setViewportHeight() {
-  const vh = window.innerHeight * 0.01;
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
-}
-setViewportHeight();
-window.addEventListener('resize', setViewportHeight);
-window.addEventListener('orientationchange', setViewportHeight);
-</script>
 
 <script src="data.js"></script>
 <script src="app.js"></script>
