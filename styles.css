@@ -1333,3 +1333,17 @@ input { font: inherit; color: inherit; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* Trip management */
+.trip-row:hover {
+  background: var(--surface) !important;
+  border-color: var(--accent) !important;
+}
+.trip-row.active {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.trip-remove-btn:hover {
+  background: var(--surface) !important;
+  color: var(--fg) !important;
+  border-color: var(--accent) !important;
+}
+

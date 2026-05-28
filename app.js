@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.12';
+  const APP_VERSION = '1.13';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -337,61 +337,221 @@
     return card;
   }
 
-  function buildCodaDocCard(){
-    const currentDoc = localStorage.getItem('jk26.codaDocUrl') || '';
-    const isConfigured = !!currentDoc;
-    
-    const input = el('input', {
-      type: 'text',
-      id: 'coda-doc-input',
-      placeholder: 'Paste Coda doc URL here...',
-      value: currentDoc,
-      style: { 
-        width: '100%', 
-        padding: '10px', 
-        marginTop: '8px',
-        background: 'var(--bg)', 
-        border: '1px solid var(--border)', 
-        borderRadius: '6px',
-        color: 'var(--fg)',
-        fontSize: '14px'
+  // ─── Trip Management ──────────────────────────────────────────────────────
+  function getTrips(){
+    const stored = localStorage.getItem('jk26.trips');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return [];
       }
-    });
+    }
+    // Migrate old single doc URL to new trips array
+    const oldUrl = localStorage.getItem('jk26.codaDocUrl');
+    if (oldUrl) {
+      const trips = [{ name: 'My Trip', url: oldUrl, active: true }];
+      localStorage.setItem('jk26.trips', JSON.stringify(trips));
+      localStorage.removeItem('jk26.codaDocUrl');
+      return trips;
+    }
+    return [];
+  }
+
+  function saveTrips(trips){
+    localStorage.setItem('jk26.trips', JSON.stringify(trips));
+  }
+
+  function getActiveTrip(){
+    const trips = getTrips();
+    return trips.find(t => t.active) || trips[0] || null;
+  }
+
+  function setActiveTrip(tripUrl){
+    const trips = getTrips();
+    trips.forEach(t => t.active = (t.url === tripUrl));
+    saveTrips(trips);
+  }
+
+  function addTrip(name, url){
+    const trips = getTrips();
+    // Check if URL already exists
+    if (trips.some(t => t.url === url)) {
+      alert('This trip URL is already added');
+      return false;
+    }
+    // Set all trips to inactive, make new one active
+    trips.forEach(t => t.active = false);
+    trips.push({ name, url, active: true });
+    saveTrips(trips);
+    return true;
+  }
+
+  function removeTrip(tripUrl){
+    let trips = getTrips();
+    const index = trips.findIndex(t => t.url === tripUrl);
+    if (index === -1) return;
     
-    const saveBtn = el('button', { 
-      class: 'oc-btn secondary', 
-      style: { marginTop: '8px' },
-      onclick: () => {
-        const url = input.value.trim();
-        if (!url) {
-          alert('Please paste a Coda doc URL');
-          return;
-        }
-        localStorage.setItem('jk26.codaDocUrl', url);
-        renderSettingsTab();
-      }
-    }, 'Save');
+    const wasActive = trips[index].active;
+    trips.splice(index, 1);
+    
+    // If removed trip was active, make the first remaining trip active
+    if (wasActive && trips.length > 0) {
+      trips[0].active = true;
+    }
+    
+    saveTrips(trips);
+  }
+
+  function buildTripsCard(){
+    const trips = getTrips();
+    const activeTrip = getActiveTrip();
     
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('div', { class: 'oc-headline' }, 'Coda Document'),
-        el('span', { class: 'oc-status' }, isConfigured ? 'Configured' : 'Not set')
+        el('div', { class: 'oc-headline' }, 'Trips'),
+        el('span', { class: 'oc-status' }, trips.length === 0 ? 'No trips' : `${trips.length} trip${trips.length > 1 ? 's' : ''}`)
       ),
-      el('div', { class: 'oc-desc' }, 'Paste the URL of your Coda trip planning doc. The app will sync from this doc.'),
-      input,
-      saveBtn
+      el('div', { class: 'oc-desc' }, 'Add and manage your Coda trip documents. Switch between different trips to view their itineraries.')
     );
+
+    // List of existing trips
+    if (trips.length > 0) {
+      const tripsList = el('div', { style: { marginTop: '12px' } });
+      trips.forEach(trip => {
+        const tripRow = el('div', { 
+          class: 'trip-row' + (trip.active ? ' active' : ''),
+          style: { 
+            display: 'flex', 
+            alignItems: 'center', 
+            padding: '10px 12px',
+            marginBottom: '6px',
+            background: trip.active ? 'var(--surface)' : 'var(--bg)',
+            border: `1px solid ${trip.active ? 'var(--accent)' : 'var(--border)'}`,
+            borderRadius: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.15s'
+          },
+          onclick: () => {
+            if (!trip.active) {
+              setActiveTrip(trip.url);
+              renderSettingsTab();
+              toast(`Switched to ${trip.name}`);
+            }
+          }
+        },
+          el('div', { style: { flex: '1', minWidth: 0 } },
+            el('div', { style: { fontWeight: trip.active ? '500' : '400', fontSize: '14px', color: 'var(--fg)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
+            el('div', { style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.url)
+          ),
+          trip.active ? el('span', { style: { fontSize: '12px', color: 'var(--accent)', marginLeft: '8px', fontWeight: '500' } }, 'ACTIVE') : null,
+          el('button', {
+            class: 'trip-remove-btn',
+            style: { 
+              marginLeft: '8px',
+              padding: '4px 8px',
+              fontSize: '12px',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: '4px',
+              color: 'var(--fg-mid)',
+              cursor: 'pointer'
+            },
+            onclick: (e) => {
+              e.stopPropagation();
+              if (confirm(`Remove "${trip.name}"?`)) {
+                removeTrip(trip.url);
+                renderSettingsTab();
+                toast(`Removed ${trip.name}`);
+              }
+            }
+          }, '\u00d7')
+        );
+        tripsList.appendChild(tripRow);
+      });
+      card.appendChild(tripsList);
+    }
+
+    // Add new trip form
+    const addForm = el('div', { style: { marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' } },
+      el('div', { style: { fontSize: '13px', fontWeight: '500', marginBottom: '8px', color: 'var(--fg)' } }, 'Add New Trip'),
+      el('input', {
+        type: 'text',
+        id: 'trip-name-input',
+        placeholder: 'Trip name (e.g., "Orlando 2026")',
+        style: { 
+          width: '100%', 
+          padding: '10px', 
+          marginBottom: '8px',
+          background: 'var(--bg)', 
+          border: '1px solid var(--border)', 
+          borderRadius: '6px',
+          color: 'var(--fg)',
+          fontSize: '14px'
+        }
+      }),
+      el('input', {
+        type: 'text',
+        id: 'trip-url-input',
+        placeholder: 'Coda doc URL',
+        style: { 
+          width: '100%', 
+          padding: '10px', 
+          marginBottom: '8px',
+          background: 'var(--bg)', 
+          border: '1px solid var(--border)', 
+          borderRadius: '6px',
+          color: 'var(--fg)',
+          fontSize: '14px'
+        }
+      }),
+      el('button', { 
+        class: 'oc-btn secondary',
+        onclick: () => {
+          const nameInput = $('#trip-name-input');
+          const urlInput = $('#trip-url-input');
+          const name = nameInput.value.trim();
+          const url = urlInput.value.trim();
+          
+          if (!name) {
+            alert('Please enter a trip name');
+            return;
+          }
+          if (!url) {
+            alert('Please paste a Coda doc URL');
+            return;
+          }
+          
+          if (addTrip(name, url)) {
+            renderSettingsTab();
+            toast(`Added ${name}`);
+          }
+        }
+      }, 'Add Trip')
+    );
+    card.appendChild(addForm);
+    
     return card;
   }
 
   function buildSyncCard(){
+    const activeTrip = getActiveTrip();
+    const desc = activeTrip 
+      ? `Pull the latest itinerary updates from "${activeTrip.name}". Takes about 1 minute. Changes will appear after refreshing.`
+      : 'Add a trip above to enable syncing.';
+    
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
         el('div', { class: 'oc-headline' }, 'Sync from Coda'),
-        el('span', { class: 'oc-status', id: 'sync-status' }, 'Ready')
+        el('span', { class: 'oc-status', id: 'sync-status' }, activeTrip ? 'Ready' : 'No trip')
       ),
-      el('div', { class: 'oc-desc' }, 'Pull the latest itinerary updates from your Coda doc. Takes about 1 minute. Changes will appear after refreshing.'),
-      el('button', { class: 'oc-btn secondary', id: 'sync-btn', onclick: triggerCodaSync }, 'Sync now')
+      el('div', { class: 'oc-desc' }, desc),
+      el('button', { 
+        class: 'oc-btn secondary', 
+        id: 'sync-btn', 
+        onclick: triggerCodaSync,
+        disabled: !activeTrip
+      }, 'Sync now')
     );
     return card;
   }
@@ -413,7 +573,12 @@
     const status = $('#sync-status');
     if (!btn || !status) return;
     
-    const docUrl = localStorage.getItem('jk26.codaDocUrl') || '';
+    const activeTrip = getActiveTrip();
+    if (!activeTrip) {
+      toast('Please add a trip first in Settings');
+      return;
+    }
+    const docUrl = activeTrip.url;
 
     btn.disabled = true;
     btn.textContent = 'Syncing...';
@@ -435,7 +600,7 @@
       status.textContent = 'Sync started!';
       btn.textContent = 'Sync now';
       btn.disabled = false;
-      toast('Sync triggered! Check back in ~1 minute for updates.');
+      toast(`Syncing ${activeTrip.name}! Check back in ~1 minute for updates.`);
     } catch (err){
       console.error('Sync error:', err);
       status.textContent = 'Error';
@@ -1405,7 +1570,7 @@
     const root = $('#settings-content');
     root.innerHTML = '';
     root.appendChild(buildOfflineCard());
-    root.appendChild(buildCodaDocCard());
+    root.appendChild(buildTripsCard());
     root.appendChild(buildSyncCard());
     root.appendChild(buildRefreshCard());
     root.appendChild(buildResetCard());
