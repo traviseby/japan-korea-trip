@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.15';
+  const APP_VERSION = '1.16';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -319,7 +319,7 @@
         el('div', { class: 'oc-progress-fill', id: 'dl-fill' })
       ),
       el('div', { class: 'oc-label', id: 'dl-label' }, 'Tap below when you\u2019re on wifi.'),
-      el('button', { class: 'oc-btn', id: 'dl-btn', onclick: downloadOfflineMaps }, 'Download for offline')
+      el('button', { class: 'oc-btn secondary', id: 'dl-btn', onclick: downloadOfflineMaps }, 'Download for offline')
     );
     setTimeout(refreshCacheStatus, 50);
     return card;
@@ -449,6 +449,8 @@
     // List of existing trips as inline select controls
     if (trips.length > 0) {
       const tripsList = el('div', { class: 'trips-select-list', style: { marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' } });
+      const showBorders = trips.length > 1;
+      
       trips.forEach(trip => {
         const tripRow = el('div', { 
           class: 'trip-select-item' + (trip.active ? ' selected' : ''),
@@ -456,10 +458,10 @@
             display: 'flex', 
             alignItems: 'center', 
             padding: '12px',
-            background: trip.active ? 'var(--surface)' : 'transparent',
-            border: `2px solid ${trip.active ? 'var(--accent)' : 'var(--border)'}`,
+            background: trip.active ? 'rgba(255,255,255,0.05)' : 'transparent',
+            border: showBorders ? `2px solid ${trip.active ? 'var(--accent)' : 'var(--border)'}` : '2px solid transparent',
             borderRadius: '8px',
-            cursor: 'pointer',
+            cursor: trips.length > 1 ? 'pointer' : 'default',
             transition: 'all 0.2s',
             position: 'relative'
           },
@@ -516,7 +518,7 @@
     const addSection = el('div', { style: { marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' } });
     
     const addButton = el('button', { 
-      class: 'oc-btn secondary',
+      class: 'oc-btn',
       id: 'show-add-trip-btn',
       style: { width: '100%' },
       onclick: () => {
@@ -1652,8 +1654,8 @@
 
     const root = $('#settings-content');
     root.innerHTML = '';
-    root.appendChild(buildOfflineCard());
     root.appendChild(buildTripsCard());
+    root.appendChild(buildOfflineCard());
     root.appendChild(buildSyncCard());
     root.appendChild(buildRefreshCard());
     root.appendChild(buildResetCard());
