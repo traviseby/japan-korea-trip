@@ -4,7 +4,11 @@ on:
   schedule:
     - cron: '0 14 * * *'
   workflow_dispatch:
-
+    inputs:
+      doc_url:
+        description: 'Coda doc URL (optional - uses default if not provided)'
+        required: false
+        type: string
 permissions:
   contents: write
 
@@ -23,6 +27,7 @@ jobs:
       - name: Pull latest data from Coda
         env:
           CODA_TOKEN: ${{ secrets.CODA_TOKEN }}
+           CODA_DOC_URL: ${{ github.event.inputs.doc_url }}
         run: node sync.mjs
 
       - name: Commit if anything changed
