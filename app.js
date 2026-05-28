@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.32';
+  const APP_VERSION = '1.33';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -374,12 +374,38 @@
   }
 
   async function setActiveTrip(tripUrl){
+    const trip = getTrips().find(t => t.url === tripUrl);
+    if (!trip) return;
+    
     const trips = getTrips();
     trips.forEach(t => t.active = (t.url === tripUrl));
     saveTrips(trips);
     
+    // Immediately re-render to show the new active trip
+    renderSettingsTab();
+    
+    // Show loading state
+    const tripEl = document.querySelector(`.trip-select-item[data-trip-url="${CSS.escape(tripUrl)}"]`);
+    if (tripEl) {
+      const docNameEl = tripEl.querySelector('.trip-doc-name');
+      if (docNameEl) {
+        const originalText = docNameEl.textContent;
+        docNameEl.textContent = 'Syncing trip...';
+        docNameEl.dataset.original = originalText;
+      }
+    }
+    
     // Fetch and load data for the new trip
     await loadTripData(tripUrl);
+    
+    // Restore the doc name after load completes (success or error)
+    if (tripEl) {
+      const docNameEl = tripEl.querySelector('.trip-doc-name');
+      if (docNameEl && docNameEl.dataset.original) {
+        docNameEl.textContent = docNameEl.dataset.original;
+        delete docNameEl.dataset.original;
+      }
+    }
   }
 
   async function loadTripData(docUrl, fromCache = true){
@@ -453,7 +479,20 @@
       }
     } catch (err) {
       console.error('Failed to load trip data:', err);
-      toast('Failed to load trip data: ' + err.message);
+      
+      // Show user-friendly error message
+      let errorMsg = 'Failed to load trip data';
+      if (err.message.includes('deployment')) {
+        errorMsg = 'Still deploying... Try again in a minute';
+      } else if (err.message.includes('CODA_TOKEN')) {
+        errorMsg = 'Server configuration issue';
+      } else if (err.message.includes('not found')) {
+        errorMsg = 'Trip document not found';
+      }
+      
+      toast(errorMsg);
+      
+      // Don't throw - allow app to continue with cached/current data
     }
   }
   
@@ -624,6 +663,7 @@
         // Trip row (swipeable on touch, hoverable on desktop)
         const tripRow = el('div', { 
           class: 'trip-select-item' + (trip.active ? ' selected' : ''),
+          'data-trip-url': trip.url,
           style: { 
             display: 'flex', 
             alignItems: 'center', 
@@ -650,7 +690,7 @@
           }, trip.icon || '✈️'),
           el('div', { style: { flex: '1', minWidth: 0 } },
             el('div', { style: { fontWeight: '500', fontSize: '15px', color: 'var(--fg)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
-            el('div', { style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.docName || trip.name)
+            el('div', { class: 'trip-doc-name', style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.docName || trip.name)
           ),
           desktopDeleteBtn
         );
