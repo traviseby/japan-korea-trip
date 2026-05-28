@@ -13,6 +13,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
+  // Get optional Coda doc URL from request body
+  const { docUrl } = req.body || {};
+
   try {
     const response = await fetch(
       'https://api.github.com/repos/traviseby/japan-korea-trip/actions/workflows/sync-from-coda.yml/dispatches',
@@ -24,7 +27,12 @@ export default async function handler(req, res) {
           'X-GitHub-Api-Version': '2022-11-28',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ ref: 'main' })
+        body: JSON.stringify({ 
+          ref: 'main',
+          inputs: {
+            doc_url: docUrl || ''
+          }
+        })
       }
     );
 

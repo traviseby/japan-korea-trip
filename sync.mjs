@@ -25,14 +25,32 @@ if (!TOKEN){
   console.error('Missing CODA_TOKEN env var. Generate at https://coda.io/account');
   process.exit(1);
 }
-const DOC = 'JMxdg1mRFk';
 
-const TABLES = {
-  itinerary:  'grid-PJ65RQ3-wp',
-  activities: 'grid-okRQmyti4u',
-  todos:      'grid-s8eMJHic23',
-  flights:    'grid-RCHSsWTcX-'
+// Extract doc ID from URL or use directly
+function parseDocId(input) {
+  if (!input) return null;
+  // Handle full URL: https://coda.io/d/Doc-Name_dDOC_ID or https://coda.io/d/Doc-Name_dDOC_ID/Page_suPAGE_ID
+  const urlMatch = input.match(/_d([a-zA-Z0-9_-]+)/);
+  if (urlMatch) return urlMatch[1];
+  // If it looks like a doc ID already (no slashes/protocol), use as-is
+  if (!input.includes('/') && !input.includes(':')) return input;
+  return null;
+}
+
+const DOC_INPUT = process.env.CODA_DOC_URL || process.env.CODA_DOC_ID || 'JMxdg1mRFk';
+const DOC = parseDocId(DOC_INPUT) || DOC_INPUT;
+console.log(`Using Coda doc: ${DOC}`);
+
+// Table names we're looking for
+const TABLE_NAMES = {
+  itinerary:  'Itinerary',
+  activities: 'Activities',
+  todos:      'To-do',
+  flights:    'Flights'
 };
+
+// Will be populated dynamically
+const TABLES = {};
 
 // Itinerary column IDs (Coda)
 const ITN = {
@@ -243,7 +261,111 @@ function cellToDate(cell){
   return null;
 }
 
+// ── Dynamic table & column lookup ──────────────────────────────────────────
+async function fetchTables() {
+  const res = await fetch(`https://coda.io/apis/v1/docs/${DOC}/tables`, {
+    headers: { 'Authorization': `Bearer ${TOKEN}` }
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch tables: ${res.status} ${await res.text()}`);
+  }
+  const json = await res.json();
+  return json.items;
+}
+
+async function fetchColumns(tableId) {
+  const res = await fetch(`https://coda.io/apis/v1/docs/${DOC}/tables/${tableId}/columns`, {
+    headers: { 'Authorization': `Bearer ${TOKEN}` }
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch columns for table ${tableId}: ${res.status}`);
+  }
+  const json = await res.json();
+  return json.items;
+}
+
+// Build column name → ID mapping
+function buildColumnMap(columns) {
+  const map = {};
+  for (const col of columns) {
+    map[col.name] = col.id;
+  }
+  return map;
+}
+
+// ── Initialize tables & columns ────────────────────────────────────────────
+console.log('Fetching tables from Coda...');
+const allTables = await fetchTables();
+
+for (const [key, name] of Object.entries(TABLE_NAMES)) {
+  const table = allTables.find(t => t.name === name);
+  if (!table) {
+    console.error(`Table "${name}" not found in doc. Available tables:`, allTables.map(t => t.name));
+    process.exit(1);
+  }
+  TABLES[key] = table.id;
+  console.log(`Found table "${name}" → ${table.id}`);
+}
+
+// Fetch columns for each table
+console.log('Fetching columns...');
+const [itnCols, actCols, todoCols, flCols] = await Promise.all([
+  fetchColumns(TABLES.itinerary),
+  fetchColumns(TABLES.activities),
+  fetchColumns(TABLES.todos),
+  fetchColumns(TABLES.flights)
+]);
+
+const ITN_MAP = buildColumnMap(itnCols);
+const ACT_MAP = buildColumnMap(actCols);
+const TODO_MAP = buildColumnMap(todoCols);
+const FL_MAP = buildColumnMap(flCols);
+
+// Update hardcoded column ID objects with dynamic lookups
+// Itinerary
+ITN.date = ITN_MAP['Date'] || ITN.date;
+ITN.overview = ITN_MAP['Overview'] || ITN.overview;
+ITN.location = ITN_MAP['Location'] || ITN.location;
+ITN.morning = ITN_MAP['Morning'] || ITN.morning;
+ITN.afternoon = ITN_MAP['Afternoon'] || ITN.afternoon;
+ITN.evening = ITN_MAP['Evening'] || ITN.evening;
+ITN.notes = ITN_MAP['Notes'] || ITN.notes;
+ITN.imageUrl = ITN_MAP['Image'] || ITN.imageUrl;
+
+// Activities
+ACT.date = ACT_MAP['Date'] || ACT.date;
+ACT.timeOfDay = ACT_MAP['Time of Day'] || ACT.timeOfDay;
+ACT.activity = ACT_MAP['Activity'] || ACT.activity;
+ACT.description = ACT_MAP['Description'] || ACT.description;
+ACT.moreInfo = ACT_MAP['More Info'] || ACT.moreInfo;
+ACT.category = ACT_MAP['Category'] || ACT.category;
+
+// To-do
+TODO.priority = TODO_MAP['Priority'] || TODO.priority;
+TODO.item = TODO_MAP['Item'] || TODO.item;
+TODO.type = TODO_MAP['Type'] || TODO.type;
+TODO.day = TODO_MAP['Day'] || TODO.day;
+TODO.whenToBook = TODO_MAP['When to Book'] || TODO.whenToBook;
+TODO.link = TODO_MAP['Link'] || TODO.link;
+TODO.why = TODO_MAP['Why'] || TODO.why;
+TODO.rec = TODO_MAP['Recommendation'] || TODO.rec;
+
+// Flights
+FL.trip = FL_MAP['Trip'] || FL.trip;
+FL.airline = FL_MAP['Airline'] || FL.airline;
+FL.fromCode = FL_MAP['From Code'] || FL.fromCode;
+FL.toCode = FL_MAP['To Code'] || FL.toCode;
+FL.number = FL_MAP['Flight Number'] || FL.number;
+FL.date = FL_MAP['Date'] || FL.date;
+FL.fromCity = FL_MAP['From'] || FL.fromCity;
+FL.departTime = FL_MAP['Departure'] || FL.departTime;
+FL.toCity = FL_MAP['To'] || FL.toCity;
+FL.arriveTime = FL_MAP['Arrival'] || FL.arriveTime;
+
+console.log('Column mappings complete.');
+
 // ── Main ───────────────────────────────────────────────────────────────────
+console.log('Fetching table data...');
 const [itnRows, actRows, todoRows, flightRows] = await Promise.all([
   fetchAllRows(TABLES.itinerary),
   fetchAllRows(TABLES.activities),

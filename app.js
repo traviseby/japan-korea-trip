@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.07';
+  const APP_VERSION = '1.08';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -328,6 +328,54 @@
     return card;
   }
 
+  function buildCodaDocCard(){
+    const currentDoc = localStorage.getItem('jk26.codaDocUrl') || '';
+    const isConfigured = !!currentDoc;
+    
+    const input = el('input', {
+      type: 'text',
+      id: 'coda-doc-input',
+      placeholder: 'Paste Coda doc URL here...',
+      value: currentDoc,
+      style: { 
+        width: '100%', 
+        padding: '10px', 
+        marginTop: '8px',
+        background: 'var(--bg)', 
+        border: '1px solid var(--border)', 
+        borderRadius: '6px',
+        color: 'var(--fg)',
+        fontSize: '14px'
+      }
+    });
+    
+    const saveBtn = el('button', { 
+      class: 'oc-btn secondary', 
+      style: { marginTop: '8px' },
+      onclick: () => {
+        const url = input.value.trim();
+        if (!url) {
+          alert('Please paste a Coda doc URL');
+          return;
+        }
+        localStorage.setItem('jk26.codaDocUrl', url);
+        renderSettingsTab();
+      }
+    }, 'Save');
+    
+    const card = el('div', { class: 'offline-card' },
+      el('div', { class: 'oc-head' },
+        el('span', { class: 'oc-icon' }, '📄'),
+        el('div', { class: 'oc-headline' }, 'Coda Document'),
+        el('span', { class: 'oc-status' }, isConfigured ? 'Configured' : 'Not set')
+      ),
+      el('div', { class: 'oc-desc' }, 'Paste the URL of your Coda trip planning doc. The app will sync from this doc.'),
+      input,
+      saveBtn
+    );
+    return card;
+  }
+
   function buildSyncCard(){
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
@@ -358,6 +406,8 @@
     const btn = $('#sync-btn');
     const status = $('#sync-status');
     if (!btn || !status) return;
+    
+    const docUrl = localStorage.getItem('jk26.codaDocUrl') || '';
 
     btn.disabled = true;
     btn.textContent = 'Syncing...';
@@ -365,7 +415,9 @@
 
     try {
       const res = await fetch('/api/sync', {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docUrl })
       });
 
       const data = await res.json();
@@ -1318,6 +1370,7 @@
     const root = $('#settings-content');
     root.innerHTML = '';
     root.appendChild(buildOfflineCard());
+    root.appendChild(buildCodaDocCard());
     root.appendChild(buildSyncCard());
     root.appendChild(buildRefreshCard());
     root.appendChild(buildResetCard());
