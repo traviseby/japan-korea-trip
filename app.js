@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.08';
+  const APP_VERSION = '1.09';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -223,6 +223,12 @@
       if (!w) { wEl.style.display = 'none'; return; }
       wEl.innerHTML = `<span class="ico">${weatherIcon(w.code)}</span><span class="temp">${w.temp}°F</span>`;
     });
+
+    // Description (expandable)
+    if (day.desc && day.desc.trim()) {
+      const descCard = buildDayDescription(day);
+      if (descCard) root.appendChild(descCard);
+    }
 
     // Flight card if travel day
     const flight = D.flights.find(f => f.day === day.n);
@@ -511,6 +517,35 @@
       }
     }, 30);
     return wrap;
+  }
+
+  function buildDayDescription(day){
+    const desc = day.desc.trim();
+    if (!desc) return null;
+    
+    const id = `day-desc-${day.n}`;
+    const maxLines = 3;
+    
+    const body = el('div', { class: 'day-desc-body', id: id }, desc);
+    const expandBtn = el('button', { 
+      class: 'day-desc-expand',
+      onclick: function(e) {
+        const bodyEl = document.getElementById(id);
+        const isExpanded = bodyEl.classList.contains('expanded');
+        if (isExpanded) {
+          bodyEl.classList.remove('expanded');
+          this.textContent = 'more';
+        } else {
+          bodyEl.classList.add('expanded');
+          this.textContent = 'less';
+        }
+      }
+    }, 'more');
+    
+    return el('div', { class: 'day-desc' },
+      body,
+      expandBtn
+    );
   }
 
   function buildFlightCard(f){

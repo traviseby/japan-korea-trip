@@ -54,14 +54,15 @@ const TABLES = {};
 
 // Itinerary column IDs (Coda)
 const ITN = {
-  date:     'c-z0sjOYlzr_',
-  overview: 'c-82EtXiid8b',
-  location: 'c-Rau3re8Ruw',
-  morning:  'c-5_TVnWBUEA',
-  afternoon:'c-H7lvfl48II',
-  evening:  'c-8pHRFZ82UL',
-  notes:    'c-4eW8mULlU8',
-  imageUrl: 'c--8ucXZYkAF'
+  date:        'c-z0sjOYlzr_',
+  overview:    'c-82EtXiid8b',
+  location:    'c-Rau3re8Ruw',
+  morning:     'c-5_TVnWBUEA',
+  afternoon:   'c-H7lvfl48II',
+  evening:     'c-8pHRFZ82UL',
+  notes:       'c-4eW8mULlU8',
+  imageUrl:    'c--8ucXZYkAF',
+  description: 'c-CvEOHfZnM_'
 };
 
 // Activities column IDs
@@ -331,6 +332,7 @@ ITN.afternoon = ITN_MAP['Afternoon'] || ITN.afternoon;
 ITN.evening = ITN_MAP['Evening'] || ITN.evening;
 ITN.notes = ITN_MAP['Notes'] || ITN.notes;
 ITN.imageUrl = ITN_MAP['Image'] || ITN.imageUrl;
+ITN.description = ITN_MAP['Description'] || ITN.description;
 
 // Activities
 ACT.date = ACT_MAP['Date'] || ACT.date;
@@ -394,7 +396,8 @@ const days = itnRows
       color: meta.color,
       overview: stripFence(v[ITN.overview]),
       notes: stripFence(v[ITN.notes] || ''),
-      hero: stripFence(v[ITN.imageUrl] || '')
+      hero: stripFence(v[ITN.imageUrl] || ''),
+      desc: stripFence(v[ITN.description] || '')
     };
   })
   .filter(Boolean)

@@ -209,6 +209,46 @@ input { font: inherit; color: inherit; }
 .hero .day-num .name { font-size: 28px; font-weight: 400; color: var(--fg); letter-spacing: 0.005em; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
 .hero .sub { margin-top: 6px; font-size: 13px; color: var(--fg-mid); }
 
+/* Day description (expandable) */
+.day-desc {
+  margin: 14px var(--pad) 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--fg-mid);
+  position: relative;
+}
+.day-desc-body {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.day-desc-body.expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+.day-desc-expand {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg);
+  font-weight: 500;
+  opacity: 0.7;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.day-desc-expand:hover {
+  opacity: 1;
+}
+
 /* Section card */
 .section { padding: 0 var(--pad); margin-top: 20px; }
 .section.tight { margin-top: 14px; }
