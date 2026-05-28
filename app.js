@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.40';
+  const APP_VERSION = '1.41';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -2348,15 +2348,8 @@
                 // Load the trip data
                 await loadTripData(url, false);
                 
-                // Remove onboarding screen
-                const onboardingEl = $('#onboarding');
-                if (onboardingEl) onboardingEl.remove();
-                
-                // Show main app
-                $('#app').style.display = 'block';
-                
-                // Initialize the app
-                switchTab('today');
+                // Reload the page to ensure everything initializes properly
+                window.location.reload();
               }
             } catch (err) {
               console.error('Onboarding error:', err);
