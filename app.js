@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.11';
+  const APP_VERSION = '1.12';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -283,7 +283,6 @@
     groups.forEach(g => {
       if (!grouped[g] || grouped[g].length === 0) return;
       root.appendChild(el('div', { class: 'tod-head' },
-        el('span', { class: 'emoji' }, todEmoji(g)),
         el('span', null, g),
         el('span', { class: 'line' })
       ));
