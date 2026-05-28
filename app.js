@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.28';
+  const APP_VERSION = '1.29';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -373,10 +373,89 @@
     return trips.find(t => t.active) || trips[0] || null;
   }
 
-  function setActiveTrip(tripUrl){
+  async function setActiveTrip(tripUrl){
     const trips = getTrips();
     trips.forEach(t => t.active = (t.url === tripUrl));
     saveTrips(trips);
+    
+    // Fetch and load data for the new trip
+    await loadTripData(tripUrl);
+  }
+
+  async function loadTripData(docUrl, fromCache = true){
+    try {
+      let tripData;
+      
+      // Try to load from cache first
+      if (fromCache) {
+        const cached = localStorage.getItem(`jk26.tripData.${docUrl}`);
+        if (cached) {
+          try {
+            tripData = JSON.parse(cached);
+            console.log('Loaded trip data from cache');
+          } catch (e) {
+            console.warn('Failed to parse cached trip data');
+          }
+        }
+      }
+      
+      // If not in cache or cache disabled, fetch from API
+      if (!tripData) {
+        toast('Loading trip data...');
+        
+        const res = await fetch('/api/fetch-trip-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ docUrl })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to fetch trip data');
+        }
+
+        tripData = await res.json();
+        
+        // Cache the data
+        localStorage.setItem(`jk26.tripData.${docUrl}`, JSON.stringify(tripData));
+      }
+      
+      // Replace window.DATA with the new trip data
+      window.DATA = tripData;
+      
+      // Reset state
+      state.todayDay = currentDay();
+      state.tab = 'today';
+      state.region = null;
+      state.sheet = null;
+      state.fullscreenMap = null;
+      state.searching = false;
+      state.filterTray = null;
+      
+      // Clear filters
+      filterState.day = new Set();
+      filterState.time = new Set();
+      filterState.type = new Set();
+      
+      // Re-render the entire app
+      render();
+      
+      if (!fromCache || tripData) {
+        toast('Trip data loaded!');
+      }
+    } catch (err) {
+      console.error('Failed to load trip data:', err);
+      toast('Failed to load trip data: ' + err.message);
+    }
+  }
+  
+  // Initialize trip data on page load
+  async function initTripData(){
+    const activeTrip = getActiveTrip();
+    if (activeTrip && activeTrip.url) {
+      // Load the active trip's data
+      await loadTripData(activeTrip.url, true);
+    }
   }
 
   async function addTrip(name, url, icon = null, docName = null){
@@ -418,20 +497,31 @@
     }
   }
 
-  function removeTrip(tripUrl){
+  async function removeTrip(tripUrl){
     let trips = getTrips();
     const index = trips.findIndex(t => t.url === tripUrl);
     if (index === -1) return;
     
     const wasActive = trips[index].active;
+    
+    // Clear cached data for this trip
+    localStorage.removeItem(`jk26.tripData.${tripUrl}`);
+    
     trips.splice(index, 1);
     
     // If removed trip was active, make the first remaining trip active
     if (wasActive && trips.length > 0) {
       trips[0].active = true;
+      saveTrips(trips);
+      // Load the new active trip's data
+      await loadTripData(trips[0].url);
+    } else {
+      saveTrips(trips);
+      if (trips.length === 0) {
+        // No trips left, reload to show default data
+        location.reload();
+      }
     }
-    
-    saveTrips(trips);
   }
 
   function buildTripsCard(){
@@ -484,10 +574,9 @@
             cursor: 'pointer',
             zIndex: '0'
           },
-          onclick: () => {
+          onclick: async () => {
             if (confirm(`Remove "${trip.name}"?`)) {
-              removeTrip(trip.url);
-              renderSettingsTab();
+              await removeTrip(trip.url);
               toast(`Removed ${trip.name}`);
             }
           }
@@ -510,11 +599,10 @@
             opacity: '0',
             pointerEvents: 'none'
           },
-          onclick: (e) => {
+          onclick: async (e) => {
             e.stopPropagation();
             if (confirm(`Remove "${trip.name}"?`)) {
-              removeTrip(trip.url);
-              renderSettingsTab();
+              await removeTrip(trip.url);
               toast(`Removed ${trip.name}`);
             }
           }
@@ -568,11 +656,9 @@
         
         // Desktop click handler to switch trips
         if (!isTouchDevice) {
-          tripRow.addEventListener('click', () => {
+          tripRow.addEventListener('click', async () => {
             if (!trip.active && trips.length > 1) {
-              setActiveTrip(trip.url);
-              renderSettingsTab();
-              toast(`Switched to ${trip.name}`);
+              await setActiveTrip(trip.url);
             }
           });
         }
@@ -616,13 +702,11 @@
           }
         });
         
-        tripRow.addEventListener('touchend', () => {
+        tripRow.addEventListener('touchend', async () => {
           if (!isDragging) {
             // Treat as a click
             if (!trip.active && trips.length > 1) {
-              setActiveTrip(trip.url);
-              renderSettingsTab();
-              toast(`Switched to ${trip.name}`);
+              await setActiveTrip(trip.url);
             }
             return;
           }
@@ -728,8 +812,9 @@
           urlInput.value = '';
           $('#add-trip-form').style.display = 'none';
           showBtn.style.display = 'block';
-          renderSettingsTab();
-          toast(`Added ${tripName}`);
+          
+          // Load the trip data since it's now active
+          await loadTripData(url);
         }
       }
     }, 'Add Trip');
@@ -829,25 +914,19 @@
 
     btn.disabled = true;
     btn.textContent = 'Syncing...';
-    status.textContent = 'Triggering...';
+    status.textContent = 'Fetching latest data...';
 
     try {
-      const res = await fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ docUrl })
-      });
+      // Clear cached data for this trip to force fresh fetch
+      localStorage.removeItem(`jk26.tripData.${docUrl}`);
+      
+      // Fetch fresh data from Coda
+      await loadTripData(docUrl, false);
 
-      const data = await res.json();
-
-      if (!res.ok){
-        throw new Error(data.error || `Sync failed with status ${res.status}`);
-      }
-
-      status.textContent = 'Sync started!';
+      status.textContent = 'Synced!';
       btn.textContent = 'Sync now';
       btn.disabled = false;
-      toast(`Syncing ${activeTrip.name}! Check back in ~1 minute for updates.`);
+      toast(`${activeTrip.name} data updated!`);
     } catch (err){
       console.error('Sync error:', err);
       status.textContent = 'Error';
@@ -2135,6 +2214,6 @@
     updateOnline();
     registerSW();
     checkForUpdates();
-    switchTab('today');
+    initTripData().then(() => switchTab('today'));
   });
 })();
