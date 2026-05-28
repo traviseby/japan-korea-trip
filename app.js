@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.46';
+  const APP_VERSION = '1.47';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -422,12 +422,14 @@
 
   async function loadTripData(docUrl, fromCache = true){
     try {
-      console.log('loadTripData called with:', { docUrl, fromCache });
+      // Normalize URL by removing fragments/query params for consistent cache keys
+      const normalizedUrl = docUrl.split('#')[0].split('?')[0];
+      console.log('loadTripData called with:', { docUrl, normalizedUrl, fromCache });
       let tripData;
       
       // Try to load from cache first
       if (fromCache) {
-        const cacheKey = `jk26.tripData.${docUrl}`;
+        const cacheKey = `jk26.tripData.${normalizedUrl}`;
         console.log('Checking cache for key:', cacheKey);
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
@@ -480,8 +482,8 @@
           
           console.log('Fetched trip data:', tripData.trip?.title || 'Unknown', 'Days:', tripData.days?.length);
           
-          // Cache the data
-          const cacheKey = `jk26.tripData.${docUrl}`;
+          // Cache the data using normalized URL
+          const cacheKey = `jk26.tripData.${normalizedUrl}`;
           localStorage.setItem(cacheKey, JSON.stringify(tripData));
           console.log('Cached trip data with key:', cacheKey);
         }
@@ -619,7 +621,7 @@
       trips[0].active = true;
       saveTrips(trips);
       // Load the new active trip's data
-      await loadTripData(trips[0].url);
+      await loadTripData(trips[0].url, false);
     } else {
       saveTrips(trips);
       if (trips.length === 0) {
@@ -924,7 +926,7 @@
           showBtn.style.display = 'block';
           
           // Load the trip data since it's now active
-          await loadTripData(url);
+          await loadTripData(url, false);
         }
       }
     }, 'Add Trip');
