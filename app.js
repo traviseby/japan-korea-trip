@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.35';
+  const APP_VERSION = '1.36';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -328,11 +328,11 @@
   function buildResetCard(){
     const card = el('div', { class: 'offline-card reset-card' },
       el('div', { class: 'oc-head' },
-        el('div', { class: 'oc-headline' }, 'Reset progress'),
-        el('span', { class: 'oc-status', id: 'reset-status' }, resetCountLabel())
+        el('div', { class: 'oc-headline' }, 'Reset App'),
+        el('span', { class: 'oc-status', id: 'reset-status' }, '')
       ),
-      el('div', { class: 'oc-desc' }, 'Unchecks every completed activity and to-do. Offline map tiles and other settings are not affected.'),
-      el('button', { class: 'oc-btn reset-btn', id: 'reset-btn', onclick: confirmReset }, 'Reset checked items')
+      el('div', { class: 'oc-desc' }, 'Removes all trips, clears progress, and returns to the welcome screen. This cannot be undone.'),
+      el('button', { class: 'oc-btn reset-btn', id: 'reset-btn', onclick: confirmReset }, 'Reset App')
     );
     return card;
   }
@@ -1015,20 +1015,31 @@
       resetArmTimer = setTimeout(() => {
         resetArmed = false;
         btn.classList.remove('armed');
-        btn.textContent = 'Reset checked items';
+        btn.textContent = 'Reset App';
       }, 3500);
       return;
     }
     clearTimeout(resetArmTimer);
     resetArmed = false;
+    
+    // Clear all app data
     checkedActs.clear();
     checkedTodos.clear();
     saveSet(STORAGE.activityChecks, checkedActs);
     saveSet(STORAGE.todoChecks, checkedTodos);
-    btn.classList.remove('armed');
-    btn.textContent = 'Reset checked items';
-    const status = $('#reset-status');
-    if (status) status.textContent = resetCountLabel();
+    
+    // Clear all trips and cached trip data
+    const trips = getTrips();
+    trips.forEach(trip => {
+      localStorage.removeItem(`jk26.tripData.${trip.url}`);
+    });
+    localStorage.removeItem('jk26.trips');
+    localStorage.removeItem('jk26.dismissedUpdate');
+    
+    // Show onboarding screen
+    showOnboarding();
+    
+    toast('App reset complete');
     // Re-render whichever tab is visible so the UI reflects the reset.
     if (state.tab === 'today') renderToday();
     if (state.tab === 'activities') renderActivitiesTab();
