@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.34';
+  const APP_VERSION = '1.35';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -498,6 +498,14 @@
   
   // Initialize trip data on page load
   async function initTripData(){
+    const trips = getTrips();
+    
+    // If no trips, show onboarding
+    if (trips.length === 0) {
+      showOnboarding();
+      return;
+    }
+    
     const activeTrip = getActiveTrip();
     if (activeTrip && activeTrip.url) {
       try {
@@ -2223,6 +2231,142 @@
     }
   }
 
+  // ─── Onboarding ───────────────────────────────────────────────────────────
+  function showOnboarding(){
+    // Hide the main app
+    $('#app').style.display = 'none';
+    
+    // Create onboarding screen
+    const onboarding = el('div', {
+      id: 'onboarding',
+      style: {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        right: '0',
+        bottom: '0',
+        background: 'var(--bg)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 20px',
+        zIndex: '9999'
+      }
+    },
+      el('div', { style: { fontSize: '48px', marginBottom: '20px' } }, '✈️'),
+      el('h1', { style: { fontSize: '24px', fontWeight: '600', color: 'var(--fg)', marginBottom: '12px', textAlign: 'center' } }, 'Welcome to Trip Planner'),
+      el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get started by adding your Coda trip document'),
+      
+      el('div', { style: { width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' } },
+        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Trip Name (optional)'),
+        el('input', {
+          type: 'text',
+          id: 'onboarding-name-input',
+          placeholder: 'My Amazing Trip',
+          style: {
+            width: '100%',
+            padding: '12px',
+            marginBottom: '16px',
+            background: 'var(--bg)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            color: 'var(--fg)',
+            fontSize: '15px',
+            boxSizing: 'border-box'
+          }
+        }),
+        
+        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Coda Document URL'),
+        el('input', {
+          type: 'text',
+          id: 'onboarding-url-input',
+          placeholder: 'https://coda.io/d/...',
+          style: {
+            width: '100%',
+            padding: '12px',
+            marginBottom: '20px',
+            background: 'var(--bg)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            color: 'var(--fg)',
+            fontSize: '15px',
+            boxSizing: 'border-box'
+          }
+        }),
+        
+        el('button', {
+          id: 'onboarding-submit-btn',
+          class: 'oc-btn',
+          style: {
+            width: '100%',
+            padding: '14px',
+            fontSize: '16px',
+            fontWeight: '600'
+          },
+          onclick: async () => {
+            const nameInput = $('#onboarding-name-input');
+            const urlInput = $('#onboarding-url-input');
+            const submitBtn = $('#onboarding-submit-btn');
+            
+            const url = urlInput.value.trim();
+            if (!url) {
+              alert('Please paste a Coda doc URL');
+              return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Fetching trip info...';
+            
+            try {
+              // Fetch doc info
+              const docInfo = await fetchDocInfo(url);
+              const icon = docInfo?.icon || '✈️';
+              const docName = docInfo?.name || 'Untitled Trip';
+              const name = nameInput.value.trim() || docName;
+              
+              submitBtn.textContent = 'Loading trip data...';
+              
+              // Add the trip
+              if (await addTrip(name, url, icon, docName)) {
+                // Load the trip data
+                await loadTripData(url, false);
+                
+                // Remove onboarding screen
+                const onboardingEl = $('#onboarding');
+                if (onboardingEl) onboardingEl.remove();
+                
+                // Show main app
+                $('#app').style.display = 'block';
+                
+                // Initialize the app
+                switchTab('today');
+              }
+            } catch (err) {
+              console.error('Onboarding error:', err);
+              alert('Failed to load trip: ' + err.message);
+              submitBtn.textContent = 'Add Trip';
+              submitBtn.disabled = false;
+            }
+          }
+        }, 'Add Trip')
+      )
+    );
+    
+    document.body.appendChild(onboarding);
+  }
+  
+  function hideOnboarding(){
+    const onboarding = $('#onboarding');
+    if (onboarding) onboarding.remove();
+    $('#app').style.display = 'block';
+  }
+  
+  function render(){
+    // Re-render current tab
+    switchTab(state.tab);
+  }
+
   // ─── Wire up ──────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     // tab bar
@@ -2267,6 +2411,11 @@
     updateOnline();
     registerSW();
     checkForUpdates();
-    initTripData().then(() => switchTab('today'));
+    initTripData().then(() => {
+      // Only switch tab if we have trips (not showing onboarding)
+      if (getTrips().length > 0) {
+        switchTab('today');
+      }
+    });
   });
 })();
