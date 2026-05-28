@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.42';
+  const APP_VERSION = '1.43';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -344,10 +344,22 @@
       try {
         const trips = JSON.parse(stored);
         // Ensure all trips have required fields (migration for existing trips)
+        let needsSave = false;
         trips.forEach(trip => {
-          if (!trip.icon) trip.icon = '✈️';
-          if (!trip.docName) trip.docName = trip.name;
+          // Fix icon if it's an object or missing
+          if (!trip.icon || typeof trip.icon !== 'string') {
+            trip.icon = '✈️';
+            needsSave = true;
+          }
+          if (!trip.docName) {
+            trip.docName = trip.name;
+            needsSave = true;
+          }
         });
+        // Save if we made any fixes
+        if (needsSave) {
+          localStorage.setItem('jk26.trips', JSON.stringify(trips));
+        }
         return trips;
       } catch (e) {
         return [];
@@ -879,7 +891,11 @@
         submitBtn.textContent = 'Fetching doc info...';
         
         const docInfo = await fetchDocInfo(url);
-        const icon = docInfo?.icon || '✈️';
+        // Ensure icon is a string, not an object
+        let icon = '✈️';
+        if (docInfo?.icon && typeof docInfo.icon === 'string') {
+          icon = docInfo.icon;
+        }
         const docName = docInfo?.name || name || 'Untitled Trip';
         const tripName = name || docName;
         
@@ -2355,7 +2371,11 @@
             try {
               // Fetch doc info
               const docInfo = await fetchDocInfo(url);
-              const icon = docInfo?.icon || '✈️';
+              // Ensure icon is a string, not an object
+              let icon = '✈️';
+              if (docInfo?.icon && typeof docInfo.icon === 'string') {
+                icon = docInfo.icon;
+              }
               const docName = docInfo?.name || 'Untitled Trip';
               const name = nameInput.value.trim() || docName;
               
