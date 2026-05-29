@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.48';
+  const APP_VERSION = '1.49';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -392,6 +392,12 @@
     const trips = getTrips();
     trips.forEach(t => t.active = (t.url === tripUrl));
     saveTrips(trips);
+    
+    // Clear the cache for this trip to force fresh fetch
+    const normalizedUrl = tripUrl.split('#')[0].split('?')[0];
+    const cacheKey = `jk26.tripData.${normalizedUrl}`;
+    console.log('Clearing cache for trip switch:', cacheKey);
+    localStorage.removeItem(cacheKey);
     
     // Immediately re-render to show the new active trip
     renderSettingsTab();
