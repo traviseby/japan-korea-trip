@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.49';
+  const APP_VERSION = '1.50';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -393,30 +393,19 @@
     trips.forEach(t => t.active = (t.url === tripUrl));
     saveTrips(trips);
     
-    // Clear the cache for this trip to force fresh fetch
-    const normalizedUrl = tripUrl.split('#')[0].split('?')[0];
-    const cacheKey = `jk26.tripData.${normalizedUrl}`;
-    console.log('Clearing cache for trip switch:', cacheKey);
-    localStorage.removeItem(cacheKey);
+    // Set flag to force fresh fetch on next load
+    localStorage.setItem('jk26.justSwitched', 'true');
     
-    // Immediately re-render to show the new active trip
-    renderSettingsTab();
-    
-    // Show loading state
-    const tripEl = document.querySelector(`.trip-select-item[data-trip-url="${CSS.escape(tripUrl)}"]`);
-    if (tripEl) {
-      const docNameEl = tripEl.querySelector('.trip-doc-name');
-      if (docNameEl) {
-        const originalText = docNameEl.textContent;
-        docNameEl.textContent = 'Syncing trip. May take several minutes.';
-        docNameEl.dataset.original = originalText;
+    // Clear ALL cached trip data to force fresh fetch
+    const allKeys = Object.keys(localStorage);
+    allKeys.forEach(key => {
+      if (key.startsWith('jk26.tripData.')) {
+        console.log('Clearing cache:', key);
+        localStorage.removeItem(key);
       }
-    }
+    });
     
-    // Fetch and load data for the new trip (force fresh fetch, not from cache)
-    await loadTripData(tripUrl, false);
-    
-    // Reload the page to ensure all UI updates with the new trip data
+    // Reload the page to fetch fresh data
     window.location.reload();
   }
 
@@ -550,8 +539,17 @@
     const activeTrip = getActiveTrip();
     if (activeTrip && activeTrip.url) {
       try {
+        // Check if we just switched trips - if so, force fresh fetch
+        const justSwitched = localStorage.getItem('jk26.justSwitched');
+        const useCache = !justSwitched;
+        
+        if (justSwitched) {
+          console.log('Just switched trips - forcing fresh fetch');
+          localStorage.removeItem('jk26.justSwitched');
+        }
+        
         // Load the active trip's data
-        await loadTripData(activeTrip.url, true);
+        await loadTripData(activeTrip.url, useCache);
       } catch (err) {
         console.warn('Failed to initialize trip data, using default:', err);
         // Continue with default data.js - don't block app startup
