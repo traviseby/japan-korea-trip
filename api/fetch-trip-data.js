@@ -139,18 +139,63 @@ export default async function handler(req, res) {
     // Helper to strip markdown code fences
     function stripFence(str) {
       if (!str) return '';
-      return str.replace(/^```[\s\S]*?\n/, '').replace(/\n```$/, '').trim();
+      return str.replace(/```/g, '').trim();
     }
 
+    // Helper to convert Coda date to YYYY-MM-DD
+    function cellToDate(cell) {
+      if (!cell) return null;
+      const s = typeof cell === 'string' ? cell : cell?.value;
+      if (typeof s === 'string') {
+        const d = new Date(s);
+        if (isFinite(d)) return d.toISOString().slice(0, 10);
+      }
+      return null;
+    }
+
+    // Helper to format time from seconds
+    function fmtTimeSeconds(sec) {
+      if (!sec && sec !== 0) return '';
+      const d = new Date(sec * 1000);
+      const h = d.getUTCHours();
+      const m = d.getUTCMinutes();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+    }
+
+    // Helper to extract airport code from city name
+    function deriveAirportCode(city) {
+      if (!city) return '';
+      const match = city.match(/\(([A-Z]{3})\)/);
+      return match ? match[1] : '';
+    }
+
+    // Generic color palette for days
+    const COLORS = ['#5c6f87', '#1e6a9a', '#8e44ad', '#c0392b', '#b25a14', '#0e7560', '#c56c94', '#2980b9', '#16a085', '#d35400', '#7f8c8d'];
+
     // Build days array
-    const days = itnRows.map(row => {
+    const days = itnRows.map((row, index) => {
       const v = row.values;
+      const overview = stripFence(v[ITN_MAP['Overview']] || '');
+      const dayNum = parseInt(overview.match(/Day (\d+)/)?.[1] ?? (index + 1), 10);
+      const title = overview.replace(/^Day \d+:\s*/, '');
+      const locRaw = v[ITN_MAP['Location']]?.name || v[ITN_MAP['Location']] || '';
+      const loc = locRaw.replace(/^[^\w]+\s*/, '').trim();
+      
       return {
-        date: v[ITN_MAP['Date']] || '',
-        overview: v[ITN_MAP['Overview']] || '',
-        location: v[ITN_MAP['Location']] || '',
-        notes: v[ITN_MAP['Notes']] || '',
-        imageUrl: v[ITN_MAP['Image']] || '',
+        n: dayNum,
+        date: cellToDate(v[ITN_MAP['Date']]) || '',
+        title: title,
+        loc: loc,
+        country: '',
+        flag: '',
+        lat: null,
+        lng: null,
+        color: COLORS[dayNum % COLORS.length],
+        overview: overview,
+        notes: stripFence(v[ITN_MAP['Notes']] || ''),
+        hero: stripFence(v[ITN_MAP['Image']] || ''),
         desc: stripFence(v[ITN_MAP['Description']] || '')
       };
     });
@@ -158,26 +203,36 @@ export default async function handler(req, res) {
     // Build activities array
     const activities = actRows.map(row => {
       const v = row.values;
+      const actDate = cellToDate(v[ACT_MAP['Date']]);
+      if (!actDate) return null;
+      const day = days.find(d => d.date === actDate)?.n;
+      if (!day) return null;
+      
       return {
-        date: v[ACT_MAP['Date']] || '',
-        timeOfDay: v[ACT_MAP['Time of Day']] || '',
-        activity: v[ACT_MAP['Activity']] || '',
-        description: v[ACT_MAP['Description']] || '',
-        moreInfo: v[ACT_MAP['More Info']] || '',
-        category: v[ACT_MAP['Category']] || ''
+        id: row.id,
+        day: day,
+        time: v[ACT_MAP['Time of Day']]?.name || v[ACT_MAP['Time of Day']] || '',
+        name: stripFence(v[ACT_MAP['Activity']] || ''),
+        desc: stripFence(v[ACT_MAP['Description']] || ''),
+        url: stripFence(v[ACT_MAP['More Info']] || ''),
+        cat: stripFence(v[ACT_MAP['Category']]?.name || v[ACT_MAP['Category']] || ''),
+        lat: null,
+        lng: null
       };
-    });
+    }).filter(Boolean);
 
     // Build todos array
     const todos = todoRows.map(row => {
       const v = row.values;
+      const priority = (v[TODO_MAP['Priority']]?.name || v[TODO_MAP['Priority']] || '').replace(/^[^\w]+\s*/, '').trim();
       return {
-        priority: v[TODO_MAP['Priority']] || '',
+        id: row.id,
+        priority: priority,
         item: v[TODO_MAP['Item']] || '',
-        type: v[TODO_MAP['Type']] || '',
+        type: v[TODO_MAP['Type']]?.name || v[TODO_MAP['Type']] || '',
         day: v[TODO_MAP['Day']] || '',
         whenToBook: v[TODO_MAP['When to Book']] || '',
-        link: v[TODO_MAP['Link']] || '',
+        link: v[TODO_MAP['Link']]?.url || v[TODO_MAP['Link']] || '',
         why: v[TODO_MAP['Why']] || '',
         rec: v[TODO_MAP['Rec']] || ''
       };
@@ -186,19 +241,22 @@ export default async function handler(req, res) {
     // Build flights array
     const flights = flRows.map(row => {
       const v = row.values;
+      const airline = v[FL_MAP['Airline']] || '';
+      const flightNum = v[FL_MAP['Flight #']] || '';
+      const fromCity = v[FL_MAP['From']] || '';
+      const toCity = v[FL_MAP['To']] || '';
+      
       return {
         trip: v[FL_MAP['Trip']] || '',
-        airline: v[FL_MAP['Airline']] || '',
-        fromCode: v[FL_MAP['From (code)']] || '',
-        toCode: v[FL_MAP['To (code)']] || '',
-        number: v[FL_MAP['Flight #']] || '',
-        date: v[FL_MAP['Date']] || '',
-        fromCity: v[FL_MAP['From']] || '',
-        departTime: v[FL_MAP['Depart Time']] || '',
-        toCity: v[FL_MAP['To']] || '',
-        arriveTime: v[FL_MAP['Arrive Time']] || '',
-        terminal: v[FL_MAP['Terminal']] || '',
-        arriveNext: v[FL_MAP['Arrive Next Day']] ? 'Yes' : ''
+        airline: airline,
+        number: `${airline ? airline.split(' ')[0] : ''} ${flightNum}`.trim(),
+        from: v[FL_MAP['From (code)']] || deriveAirportCode(fromCity),
+        to: v[FL_MAP['To (code)']] || deriveAirportCode(toCity),
+        fromCity: fromCity,
+        toCity: toCity,
+        date: cellToDate(v[FL_MAP['Date']]) || '',
+        depart: fmtTimeSeconds(v[FL_MAP['Depart Time']]?.seconds),
+        arrive: fmtTimeSeconds(v[FL_MAP['Arrive Time']]?.seconds)
       };
     });
 
