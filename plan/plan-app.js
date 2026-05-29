@@ -145,9 +145,15 @@
   function showSurvey() {
     const planData = getPlanData();
     
-    // Don't show if already completed
+    console.log('showSurvey called', { surveyComplete: planData.surveyComplete });
+    
+    // Don't show if already completed (but allow manual restart)
     if (planData.surveyComplete) {
-      return;
+      console.log('Survey already completed, resetting...');
+      // Reset survey to allow retaking it
+      planData.surveyComplete = false;
+      planData.survey = null;
+      savePlanData(planData);
     }
 
     // Initialize answers from saved data if available
@@ -159,6 +165,7 @@
       class: 'plan-survey-overlay show'
     });
 
+    console.log('Appending survey overlay', overlay);
     document.body.appendChild(overlay);
     renderSurveyQuestion();
   }
