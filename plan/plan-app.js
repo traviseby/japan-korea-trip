@@ -429,6 +429,272 @@
     });
   }
 
+  // ─── Hotels Tab ───────────────────────────────────────────────────────────
+  function renderHotelsTab() {
+    const hotelsScreen = $('#plan-hotels');
+    if (!hotelsScreen) return;
+
+    const planData = getPlanData();
+    const hotels = planData.hotels || [];
+
+    hotelsScreen.innerHTML = '';
+    
+    // Filter bar with add button
+    const filterBar = el('div', { class: 'filter-bar' },
+      el('div', { class: 'filter-label' }, 'Hotels'),
+      el('button', {
+        class: 'filter-btn',
+        onclick: () => showAddHotelForm()
+      }, '+ Add')
+    );
+    
+    // Scrollable content
+    const scroll = el('div', { 
+      class: 'scroll',
+      style: { padding: 'var(--pad)' }
+    });
+
+    if (hotels.length === 0) {
+      scroll.appendChild(el('div', {
+        style: { 
+          textAlign: 'center', 
+          padding: '60px 20px', 
+          color: 'var(--fg-mid)' 
+        }
+      }, 
+        el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '🏨'),
+        el('div', { style: { marginBottom: '8px' } }, 'No hotels yet'),
+        el('div', { style: { fontSize: '14px', color: 'var(--fg-mute)' } }, 
+          'Tap + Add to book your stay'
+        )
+      ));
+    } else {
+      // Sort hotels by check-in date
+      const sorted = [...hotels].sort((a, b) => 
+        new Date(a.checkIn) - new Date(b.checkIn)
+      );
+      
+      sorted.forEach(hotel => {
+        scroll.appendChild(buildHotelCard(hotel));
+      });
+    }
+    
+    hotelsScreen.appendChild(filterBar);
+    hotelsScreen.appendChild(scroll);
+  }
+
+  function buildHotelCard(hotel) {
+    const checkIn = new Date(hotel.checkIn);
+    const checkOut = new Date(hotel.checkOut);
+    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+    
+    return el('div', { 
+      class: 'offline-card',
+      style: { marginBottom: '12px' }
+    },
+      el('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+        el('div', { style: { flex: '1' } },
+          el('div', { class: 'oc-title' }, hotel.name),
+          el('div', { style: { color: 'var(--fg-mid)', fontSize: '14px', marginTop: '4px' } },
+            hotel.city || ''
+          ),
+          el('div', { style: { color: 'var(--fg-mute)', fontSize: '13px', marginTop: '8px' } },
+            `${checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} → ${checkOut.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${nights} night${nights !== 1 ? 's' : ''}`
+          ),
+          hotel.roomType ? el('div', { style: { color: 'var(--fg-mute)', fontSize: '13px', marginTop: '4px' } },
+            hotel.roomType
+          ) : null
+        ),
+        el('div', { style: { display: 'flex', gap: '8px' } },
+          el('button', {
+            class: 'oc-btn',
+            style: { padding: '8px 12px', fontSize: '13px' },
+            onclick: () => showAddHotelForm(hotel)
+          }, 'Edit'),
+          el('button', {
+            class: 'oc-btn',
+            style: { padding: '8px 12px', fontSize: '13px', background: 'var(--p-critical)', color: 'var(--fg)' },
+            onclick: () => {
+              if (confirm(`Delete ${hotel.name}?`)) {
+                deleteHotel(hotel.id);
+              }
+            }
+          }, 'Delete')
+        )
+      )
+    );
+  }
+
+  function showAddHotelForm(existingHotel = null) {
+    const hotelsScreen = $('#plan-hotels');
+    if (!hotelsScreen) return;
+
+    const isEdit = !!existingHotel;
+    const hotel = existingHotel || {
+      id: Date.now().toString(),
+      name: '',
+      city: '',
+      checkIn: '',
+      checkOut: '',
+      roomType: '',
+      address: '',
+      notes: ''
+    };
+
+    hotelsScreen.innerHTML = '';
+    
+    // Filter bar with back button
+    const filterBar = el('div', { class: 'filter-bar' },
+      el('button', {
+        class: 'filter-btn',
+        onclick: () => renderHotelsTab()
+      }, '← Back'),
+      el('div', { class: 'filter-label' }, isEdit ? 'Edit Hotel' : 'Add Hotel')
+    );
+    
+    // Form
+    const form = el('div', { 
+      class: 'scroll',
+      style: { padding: 'var(--pad)' }
+    },
+      // Hotel Name
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Hotel Name'),
+        el('input', {
+          type: 'text',
+          id: 'hotel-name',
+          class: 'survey-text-input',
+          value: hotel.name,
+          placeholder: 'The Grand Hotel'
+        })
+      ),
+      
+      // City
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'City'),
+        el('input', {
+          type: 'text',
+          id: 'hotel-city',
+          class: 'survey-text-input',
+          value: hotel.city,
+          placeholder: 'Tokyo'
+        })
+      ),
+      
+      // Dates
+      el('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' } },
+        el('div', {},
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Check-in'),
+          el('input', {
+            type: 'date',
+            id: 'hotel-checkin',
+            class: 'survey-text-input',
+            value: hotel.checkIn
+          })
+        ),
+        el('div', {},
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Check-out'),
+          el('input', {
+            type: 'date',
+            id: 'hotel-checkout',
+            class: 'survey-text-input',
+            value: hotel.checkOut
+          })
+        )
+      ),
+      
+      // Room Type
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Room Type (optional)'),
+        el('input', {
+          type: 'text',
+          id: 'hotel-roomtype',
+          class: 'survey-text-input',
+          value: hotel.roomType,
+          placeholder: 'Deluxe Double Room'
+        })
+      ),
+      
+      // Address
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Address (optional)'),
+        el('input', {
+          type: 'text',
+          id: 'hotel-address',
+          class: 'survey-text-input',
+          value: hotel.address,
+          placeholder: '123 Main Street'
+        })
+      ),
+      
+      // Notes
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Notes (optional)'),
+        el('textarea', {
+          id: 'hotel-notes',
+          class: 'survey-textarea',
+          value: hotel.notes,
+          placeholder: 'Confirmation number, special requests, etc.'
+        })
+      ),
+      
+      // Save button
+      el('button', {
+        class: 'oc-btn',
+        style: { width: '100%', padding: '16px', fontSize: '16px', fontWeight: '600' },
+        onclick: () => {
+          const newHotel = {
+            id: hotel.id,
+            name: $('#hotel-name').value.trim(),
+            city: $('#hotel-city').value.trim(),
+            checkIn: $('#hotel-checkin').value,
+            checkOut: $('#hotel-checkout').value,
+            roomType: $('#hotel-roomtype').value.trim(),
+            address: $('#hotel-address').value.trim(),
+            notes: $('#hotel-notes').value.trim()
+          };
+          
+          if (!newHotel.name) {
+            alert('Please enter a hotel name');
+            return;
+          }
+          if (!newHotel.checkIn || !newHotel.checkOut) {
+            alert('Please select check-in and check-out dates');
+            return;
+          }
+          
+          saveHotel(newHotel);
+          renderHotelsTab();
+        }
+      }, isEdit ? 'Save Changes' : 'Add Hotel')
+    );
+    
+    hotelsScreen.appendChild(filterBar);
+    hotelsScreen.appendChild(form);
+  }
+
+  function saveHotel(hotel) {
+    const planData = getPlanData();
+    const hotels = planData.hotels || [];
+    
+    const existingIndex = hotels.findIndex(h => h.id === hotel.id);
+    if (existingIndex >= 0) {
+      hotels[existingIndex] = hotel;
+    } else {
+      hotels.push(hotel);
+    }
+    
+    planData.hotels = hotels;
+    savePlanData(planData);
+  }
+
+  function deleteHotel(hotelId) {
+    const planData = getPlanData();
+    planData.hotels = (planData.hotels || []).filter(h => h.id !== hotelId);
+    savePlanData(planData);
+    renderHotelsTab();
+  }
+
   // ─── Initialization ───────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const planData = getPlanData();
@@ -439,9 +705,11 @@
         const tabId = btn.dataset.planTab;
         if (tabId) {
           switchPlanTab(tabId);
-          // Render About tab content when switching to it
+          // Render tab content when switching
           if (tabId === 'about') {
             renderAboutTab();
+          } else if (tabId === 'hotels') {
+            renderHotelsTab();
           }
         }
       });
@@ -459,6 +727,7 @@
     showSurvey,
     switchPlanTab,
     renderAboutTab,
+    renderHotelsTab,
     getPlanData,
     savePlanData
   };
