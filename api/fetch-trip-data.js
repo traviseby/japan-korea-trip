@@ -216,8 +216,8 @@ export default async function handler(req, res) {
         desc: stripFence(v[ACT_MAP['Description']] || ''),
         url: stripFence(v[ACT_MAP['More Info']] || ''),
         cat: stripFence(v[ACT_MAP['Category']]?.name || v[ACT_MAP['Category']] || ''),
-        lat: null,
-        lng: null
+        lat: v[ACT_MAP['Latitude']] || null,
+        lng: v[ACT_MAP['Longitude']] || null
       };
     }).filter(Boolean);
 
