@@ -183,6 +183,10 @@ export default async function handler(req, res) {
       const locRaw = v[ITN_MAP['Location']]?.name || v[ITN_MAP['Location']] || '';
       const loc = String(locRaw).replace(/^[^\w]+\s*/, '').trim();
       
+      // Extract image URL (Coda returns image as object with url property)
+      const imageCell = v[ITN_MAP['Image']];
+      const heroUrl = imageCell?.url || imageCell || '';
+      
       return {
         n: dayNum,
         date: cellToDate(v[ITN_MAP['Date']]) || '',
@@ -195,7 +199,7 @@ export default async function handler(req, res) {
         color: COLORS[dayNum % COLORS.length],
         overview: overview,
         notes: stripFence(v[ITN_MAP['Notes']] || ''),
-        hero: stripFence(v[ITN_MAP['Image']] || ''),
+        hero: String(heroUrl),
         desc: stripFence(v[ITN_MAP['Description']] || '')
       };
     });
