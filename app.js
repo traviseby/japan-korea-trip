@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.56';
+  const APP_VERSION = '1.57';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -506,6 +506,16 @@
       console.log('Setting window.DATA to:', tripData.trip?.title || 'Unknown');
       // Replace window.DATA with the new trip data
       window.DATA = tripData;
+      
+      // Build lookup objects (same as data.js does)
+      window.DATA.byId = {};
+      window.DATA.activities.forEach(a => window.DATA.byId[a.id] = a);
+      window.DATA.byDay = {};
+      window.DATA.days.forEach(d => window.DATA.byDay[d.n] = d);
+      window.DATA.dayActivities = {};
+      window.DATA.activities.forEach(a => {
+        (window.DATA.dayActivities[a.day] = window.DATA.dayActivities[a.day] || []).push(a);
+      });
       
       // Reset state
       state.todayDay = currentDay();

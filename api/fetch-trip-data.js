@@ -266,22 +266,27 @@ export default async function handler(req, res) {
     const tripStart = allDates.length > 0 ? allDates[0] : '';
     const tripEnd = allDates.length > 0 ? allDates[allDates.length - 1] : '';
 
-    // Build categories and timesOfDay
+    // Build categories and timesOfDay (match data.js structure)
     const categories = {
-      'Food': '🍜',
-      'Temple': '⛩️',
-      'Hotel': '🏨',
-      'Transit': '🚆',
-      'Culture': '🎭',
-      'Nature': '🌿',
-      'Sightseeing': '📍',
-      'Shopping': '🛍️',
-      'Entertainment': '🎟️',
-      'Wellness': '💆',
-      'Flight': '✈️'
+      'Food': { label: 'Food', emoji: '🍜' },
+      'Temple': { label: 'Temple', emoji: '⛩️' },
+      'Hotel': { label: 'Hotel', emoji: '🏨' },
+      'Transit': { label: 'Transit', emoji: '🚆' },
+      'Culture': { label: 'Culture', emoji: '🎭' },
+      'Nature': { label: 'Nature', emoji: '🌿' },
+      'Sightseeing': { label: 'Sightseeing', emoji: '📍' },
+      'Shopping': { label: 'Shopping', emoji: '🛍️' },
+      'Entertainment': { label: 'Entertainment', emoji: '🎟️' },
+      'Wellness': { label: 'Wellness', emoji: '💆' },
+      'Flight': { label: 'Flight', emoji: '✈️' }
     };
 
-    const timesOfDay = ['Morning', 'Afternoon', 'Evening', 'Late Night'];
+    const timesOfDay = [
+      { id: 'Morning', emoji: '🌅' },
+      { id: 'Afternoon', emoji: '☀️' },
+      { id: 'Evening', emoji: '🌆' },
+      { id: 'Late Night', emoji: '🌙' }
+    ];
 
     // Return the data structure
     return res.status(200).json({
