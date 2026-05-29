@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.63';
+  const APP_VERSION = '1.64';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -2134,7 +2134,7 @@
     root.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
     root.appendChild(el('div', { class: 'settings-about' },
       el('div', null, 'Superhuman Trips'),
-      el('div', { class: 'sub' }, 'Trip companion powered by Superhuman Docs'),
+      el('div', { class: 'sub' }, 'Created by TJ Eby'),
       el('div', { class: 'sub', style: 'margin-top: 8px; opacity: 0.6;' }, `Version ${APP_VERSION}`)
     ));
     root.appendChild(el('div', { class: 'bottom-pad' }));
