@@ -182,6 +182,9 @@
   function renderAboutContent(container) {
     const planData = getPlanData();
     const survey = planData.survey || {};
+    const hotels = planData.hotels || [];
+    const flights = planData.flights || [];
+    const activities = planData.activities || [];
     
     container.innerHTML = '';
     
@@ -190,34 +193,107 @@
       el('div', { class: 'filter-label' }, 'About')
     );
     
+    // Helper function to create info cards
+    const infoCard = (title, value) => {
+      if (!value) return null;
+      return el('div', { class: 'offline-card', style: { marginBottom: '12px' } },
+        el('div', { style: { fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--fg-mute)', marginBottom: '6px' } }, title),
+        el('div', { style: { color: 'var(--fg)', fontSize: '15px' } }, value)
+      );
+    };
+    
     // Scrollable content
     const scroll = el('div', { class: 'scroll', style: { padding: 'var(--pad)' } },
       el('h1', { 
-        class: 'survey-title',
-        style: { marginBottom: '24px' }
-      }, 'Your Trip Plan'),
-      el('p', { 
-        style: { fontSize: '15px', color: 'var(--fg-mid)', lineHeight: '1.6', marginBottom: '32px' }
-      }, 'Here\'s what you\'re planning. You can update any details as you go.'),
+        style: { fontFamily: 'var(--serif)', fontSize: '32px', fontWeight: '400', lineHeight: '1.15', marginBottom: '8px' }
+      }, survey.destinations && survey.destinations[0] ? survey.destinations[0] : 'Your Trip'),
       
-      // Survey answers summary
-      el('div', { class: 'offline-card', style: { marginBottom: '12px' } },
-        el('div', { class: 'oc-title' }, 'Destination'),
-        el('div', { style: { color: 'var(--fg-mid)', marginTop: '4px' } }, 
-          (survey.destinations || []).join(', ') || 'Not specified'
+      // Trip stats
+      el('div', { 
+        style: { 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(3, 1fr)', 
+          gap: '12px', 
+          marginBottom: '32px',
+          marginTop: '24px'
+        } 
+      },
+        el('div', { 
+          style: { 
+            padding: '16px', 
+            background: 'var(--surface)', 
+            borderRadius: 'var(--r)', 
+            textAlign: 'center' 
+          } 
+        },
+          el('div', { style: { fontSize: '28px', fontWeight: '600', color: 'var(--fg)', fontFamily: 'var(--serif)' } }, hotels.length),
+          el('div', { style: { fontSize: '12px', color: 'var(--fg-mute)', marginTop: '4px' } }, 'Hotels')
+        ),
+        el('div', { 
+          style: { 
+            padding: '16px', 
+            background: 'var(--surface)', 
+            borderRadius: 'var(--r)', 
+            textAlign: 'center' 
+          } 
+        },
+          el('div', { style: { fontSize: '28px', fontWeight: '600', color: 'var(--fg)', fontFamily: 'var(--serif)' } }, flights.length),
+          el('div', { style: { fontSize: '12px', color: 'var(--fg-mute)', marginTop: '4px' } }, 'Flights')
+        ),
+        el('div', { 
+          style: { 
+            padding: '16px', 
+            background: 'var(--surface)', 
+            borderRadius: 'var(--r)', 
+            textAlign: 'center' 
+          } 
+        },
+          el('div', { style: { fontSize: '28px', fontWeight: '600', color: 'var(--fg)', fontFamily: 'var(--serif)' } }, activities.length),
+          el('div', { style: { fontSize: '12px', color: 'var(--fg-mute)', marginTop: '4px' } }, 'Activities')
         )
       ),
       
+      // Survey details section header
+      el('div', { 
+        style: { 
+          fontSize: '13px', 
+          fontWeight: '600', 
+          textTransform: 'uppercase', 
+          letterSpacing: '0.05em',
+          color: 'var(--fg-mid)', 
+          marginBottom: '16px',
+          marginTop: '8px'
+        } 
+      }, 'Trip Details'),
+      
+      // Survey answers
+      infoCard('Travelers', survey.travelers ? 
+        SURVEY_QUESTIONS.find(q => q.id === 'travelers')?.options.find(o => o.id === survey.travelers)?.label : null),
+      
+      infoCard('Duration', survey.duration ? 
+        `${survey.duration} ${survey.duration === 1 ? 'day' : 'days'}` : null),
+      
+      infoCard('Budget', survey.budget ? 
+        SURVEY_QUESTIONS.find(q => q.id === 'budget')?.options.find(o => o.id === survey.budget)?.label : null),
+      
+      infoCard('Vibes', survey.vibes && survey.vibes.length > 0 ?
+        survey.vibes.map(v => 
+          SURVEY_QUESTIONS.find(q => q.id === 'vibes')?.options.find(o => o.id === v)?.label
+        ).filter(Boolean).join(', ') : null),
+      
+      infoCard('Notes', survey.notes || null),
+      
+      // Retake survey button
       el('button', {
         class: 'oc-btn',
-        style: { marginTop: '24px' },
+        style: { width: '100%', marginTop: '24px', padding: '14px' },
         onclick: () => {
           const planData = getPlanData();
           planData.surveyComplete = false;
           savePlanData(planData);
           renderAboutTab();
         }
-      }, 'Retake Survey')
+      }, 'Edit Trip Details')
     );
     
     container.appendChild(filterBar);

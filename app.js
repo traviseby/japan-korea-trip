@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.75';
+  const APP_VERSION = '1.76';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
