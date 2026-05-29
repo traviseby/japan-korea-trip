@@ -32,12 +32,34 @@
   }
 
   function savePlanData(data) {
-    localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(data));
+    try {
+      localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.error('Failed to save plan data:', e);
+      // If quota exceeded, try to clear old data
+      if (e.name === 'QuotaExceededError') {
+        console.warn('localStorage quota exceeded');
+      }
+    }
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+  
+  function formatDate(dateString, options = { month: 'short', day: 'numeric' }) {
+    if (!dateString) return '';
+    try {
+      return new Date(dateString + 'T00:00:00').toLocaleDateString('en-US', options);
+    } catch {
+      return dateString;
+    }
+  }
+  
+  function formatTime(timeString) {
+    if (!timeString) return '--:--';
+    return timeString;
+  }
   
   function el(tag, attrs, ...children){
     const e = document.createElement(tag);
