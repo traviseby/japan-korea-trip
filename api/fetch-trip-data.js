@@ -195,7 +195,7 @@ export default async function handler(req, res) {
         color: COLORS[dayNum % COLORS.length],
         overview: overview,
         notes: stripFence(v[ITN_MAP['Notes']] || ''),
-        hero: stripFence(v[ITN_MAP['Image']] || ''),
+        hero: stripFence(v[ITN_MAP['Image URL']] || ''),
         desc: stripFence(v[ITN_MAP['Description']] || '')
       };
     });

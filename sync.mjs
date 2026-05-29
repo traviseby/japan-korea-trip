@@ -331,7 +331,7 @@ ITN.morning = ITN_MAP['Morning'] || ITN.morning;
 ITN.afternoon = ITN_MAP['Afternoon'] || ITN.afternoon;
 ITN.evening = ITN_MAP['Evening'] || ITN.evening;
 ITN.notes = ITN_MAP['Notes'] || ITN.notes;
-ITN.imageUrl = ITN_MAP['Image'] || ITN.imageUrl;
+ITN.imageUrl = ITN_MAP['Image URL'] || ITN.imageUrl;
 ITN.description = ITN_MAP['Description'] || ITN.description;
 
 // Activities
