@@ -1,4 +1,4 @@
-/* Japan & Korea 2026 — companion app logic
+/* Superhuman Trips — companion app logic
  * Vanilla JS. Reads from window.DATA. Single source of truth: filterState.
  */
 (function(){
@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.62';
+  const APP_VERSION = '1.63';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -2133,8 +2133,8 @@
     root.appendChild(buildResetCard());
     root.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
     root.appendChild(el('div', { class: 'settings-about' },
-      el('div', null, 'Japan & Korea 2026'),
-      el('div', { class: 'sub' }, 'Eby family trip companion \u00b7 Jul 22 \u2013 Aug 5'),
+      el('div', null, 'Superhuman Trips'),
+      el('div', { class: 'sub' }, 'Trip companion powered by Superhuman Docs'),
       el('div', { class: 'sub', style: 'margin-top: 8px; opacity: 0.6;' }, `Version ${APP_VERSION}`)
     ));
     root.appendChild(el('div', { class: 'bottom-pad' }));
