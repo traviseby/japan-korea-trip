@@ -4,7 +4,7 @@
 (function(){
   'use strict';
   const D = window.DATA;
-  const APP_VERSION = '1.47';
+  const APP_VERSION = '1.48';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -410,14 +410,8 @@
     // Fetch and load data for the new trip (force fresh fetch, not from cache)
     await loadTripData(tripUrl, false);
     
-    // Restore the doc name after load completes (success or error)
-    if (tripEl) {
-      const docNameEl = tripEl.querySelector('.trip-doc-name');
-      if (docNameEl && docNameEl.dataset.original) {
-        docNameEl.textContent = docNameEl.dataset.original;
-        delete docNameEl.dataset.original;
-      }
-    }
+    // Reload the page to ensure all UI updates with the new trip data
+    window.location.reload();
   }
 
   async function loadTripData(docUrl, fromCache = true){
