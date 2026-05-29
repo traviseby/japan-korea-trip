@@ -94,6 +94,8 @@
   transition: all 0.2s ease;
   -webkit-appearance: none;
   appearance: none;
+  /* Prevent iOS zoom on focus */
+  touch-action: manipulation;
 }
 
 .survey-text-input:focus {

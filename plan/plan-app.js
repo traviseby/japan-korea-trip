@@ -1619,6 +1619,36 @@
     generateScreen.appendChild(scroll);
   }
 
+  // ─── Keyboard Shortcuts ──────────────────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    // Only handle shortcuts in plan mode
+    const currentMode = localStorage.getItem('jk26.appMode') || 'travel';
+    if (currentMode !== 'plan') return;
+    
+    // Don't interfere with form inputs
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+      // Escape to blur input
+      if (e.key === 'Escape') {
+        e.target.blur();
+      }
+      return;
+    }
+    
+    // Global shortcuts
+    if (e.key === 'Escape') {
+      // Close any open forms by going back to tab view
+      const activeTab = $('.plan-screen.active');
+      if (activeTab) {
+        const tabId = activeTab.id.replace('plan-', '');
+        if (tabId === 'about') renderAboutTab();
+        else if (tabId === 'hotels') renderHotelsTab();
+        else if (tabId === 'flights') renderFlightsTab();
+        else if (tabId === 'activities') renderActivitiesTab();
+        else if (tabId === 'generate') renderGenerateTab();
+      }
+    }
+  });
+
   // ─── Initialization ───────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const planData = getPlanData();
