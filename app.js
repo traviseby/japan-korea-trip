@@ -3,8 +3,12 @@
  */
 (function(){
   'use strict';
-  const D = window.DATA;
-  const APP_VERSION = '1.50';
+  // Make D always reference the current window.DATA (so it updates when we load new trip data)
+  Object.defineProperty(window, 'D', {
+    get() { return window.DATA; }
+  });
+  const D = window.D;
+  const APP_VERSION = '1.51';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -496,10 +500,10 @@
       state.searching = false;
       state.filterTray = null;
       
-      // Clear filters
-      filterState.day = new Set();
-      filterState.time = new Set();
-      filterState.type = new Set();
+      // Clear filters (reset to empty arrays)
+      filterState.day = [];
+      filterState.timeOfDay = [];
+      filterState.category = [];
       
       // Re-render the entire app
       render();
