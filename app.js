@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.80';
+  const APP_VERSION = '1.81';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -2250,9 +2250,9 @@
     if (travelTabbar && planTabbar) {
       if (mode === 'plan') {
         travelTabbar.style.display = 'none';
-        planTabbar.style.display = '';
+        planTabbar.style.display = 'flex';
       } else {
-        travelTabbar.style.display = '';
+        travelTabbar.style.display = 'flex';
         planTabbar.style.display = 'none';
       }
     }
