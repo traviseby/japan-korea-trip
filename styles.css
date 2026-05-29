@@ -314,6 +314,67 @@ input { font: inherit; color: inherit; }
   font-size: 11px; color: var(--fg-mute); margin-top: 2px;
 }
 
+/* Hotel card */
+.hotel-card {
+  margin: 0 var(--pad);
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hotel-card .hc-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.hotel-card .hc-emoji {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.hotel-card .hc-info {
+  flex: 1;
+  min-width: 0;
+}
+.hotel-card .hc-name {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.hotel-card .hc-meta {
+  font-size: 11px;
+  color: var(--fg-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.hotel-card .hc-room {
+  font-size: 13px;
+  color: var(--fg-mid);
+  padding-left: 40px;
+}
+.hotel-card .hc-address {
+  font-size: 12px;
+  color: var(--fg-mute);
+  padding-left: 40px;
+  line-height: 1.4;
+}
+.hotel-card .hc-map-link {
+  font-size: 13px;
+  color: var(--accent);
+  padding-left: 40px;
+  cursor: pointer;
+  display: inline-block;
+  margin-top: 4px;
+}
+.hotel-card .hc-map-link:active {
+  opacity: 0.7;
+}
+
 /* Mini map */
 .mini-map {
   margin: 0 var(--pad);
@@ -571,6 +632,70 @@ input { font: inherit; color: inherit; }
   color: var(--fg);
   border: 1px solid var(--border);
 }
+.offline-card .oc-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.offline-card .oc-left .oc-icon {
+  font-size: 20px;
+  width: auto;
+  height: auto;
+  border: none;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.offline-card .oc-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: var(--fg);
+}
+.offline-card .oc-desc {
+  font-size: 12px;
+  color: var(--fg-mid);
+  line-height: 1.4;
+  margin-bottom: 0;
+}
+
+/* Mode card */
+.mode-card {
+  display: flex;
+  flex-direction: column;
+}
+.mode-card-header {
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Mode segment control */
+.mode-segment {
+  display: flex;
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+.mode-segment button {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  color: var(--fg-mid);
+  transition: all 0.2s ease;
+}
+.mode-segment button.active {
+  background: var(--fg);
+  color: var(--bg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.mode-segment button:active:not(.active) {
+  opacity: 0.7;
+}
+
 .notes {
   margin: 4px var(--pad) 20px;
   background: var(--surface);

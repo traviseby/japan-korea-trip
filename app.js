@@ -9,7 +9,20 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.67';
+  const APP_VERSION = '1.68';
+
+  // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
+  function getAppMode() {
+    return localStorage.getItem('jk26.appMode') || 'travel';
+  }
+  function setAppMode(mode) {
+    localStorage.setItem('jk26.appMode', mode);
+    updateTabBarForMode();
+    // If switching to plan mode and not on settings, switch to settings
+    if (mode === 'plan' && state.tab !== 'settings') {
+      switchTab('settings');
+    }
+  }
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -251,6 +264,18 @@
       );
       root.appendChild(section);
       root.appendChild(buildFlightCard(flight));
+    }
+
+    // Hotel card if check-in day
+    const hotel = D.hotels?.find(h => h.startDate === day.date);
+    if (hotel){
+      const section = el('div', { class: 'section tight' },
+        el('div', { class: 'section-head' },
+          el('h3', null, 'Check-in Today')
+        )
+      );
+      root.appendChild(section);
+      root.appendChild(buildHotelCard(hotel));
     }
 
     // Mini map
@@ -1298,6 +1323,27 @@
     );
   }
 
+  function buildHotelCard(h){
+    const nightsText = h.nights === 1 ? '1 night' : `${h.nights} nights`;
+    return el('div', { class: 'hotel-card' },
+      el('div', { class: 'hc-header' },
+        el('div', { class: 'hc-emoji' }, '🏨'),
+        el('div', { class: 'hc-info' },
+          el('div', { class: 'hc-name' }, h.name),
+          el('div', { class: 'hc-meta' }, `${h.city} · ${nightsText}`)
+        )
+      ),
+      h.roomType ? el('div', { class: 'hc-room' }, h.roomType) : null,
+      h.address ? el('div', { class: 'hc-address' }, h.address) : null,
+      (h.lat && h.lng) ? el('div', { class: 'hc-map-link', onclick: () => openMapLink(h.lat, h.lng, h.name) }, '📍 View on map') : null
+    );
+  }
+
+  function openMapLink(lat, lng, name){
+    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    window.open(url, '_blank');
+  }
+
   function buildActivityRow(a, day){
     const id = a.id;
     const checked = checkedActs.has(id);
@@ -2127,6 +2173,7 @@
 
     const root = $('#settings-content');
     root.innerHTML = '';
+    root.appendChild(buildAppModeCard());
     root.appendChild(buildTripsCard());
     root.appendChild(buildOfflineCard());
     root.appendChild(buildSyncCard());
@@ -2139,6 +2186,58 @@
     ));
     root.appendChild(el('div', { class: 'bottom-pad' }));
     setTimeout(refreshCacheStatus, 60);
+  }
+
+  function buildAppModeCard(){
+    const currentMode = getAppMode();
+    return el('div', { class: 'offline-card mode-card' },
+      el('div', { class: 'mode-card-header' },
+        el('div', { class: 'oc-left' },
+          el('div', { class: 'oc-icon' }, '🎯'),
+          el('div', null,
+            el('div', { class: 'oc-title' }, 'App Mode'),
+            el('div', { class: 'oc-desc' }, 'Switch between planning and traveling')
+          )
+        )
+      ),
+      el('div', { class: 'mode-segment', style: { marginTop: '12px' } },
+        el('button', {
+          class: currentMode === 'plan' ? 'active' : '',
+          onclick: () => {
+            setAppMode('plan');
+            renderSettingsTab();
+          }
+        }, 'Plan'),
+        el('button', {
+          class: currentMode === 'travel' ? 'active' : '',
+          onclick: () => {
+            setAppMode('travel');
+            renderSettingsTab();
+          }
+        }, 'Travel')
+      )
+    );
+  }
+
+  function updateTabBarForMode(){
+    const mode = getAppMode();
+    const tabbar = $('.tabbar');
+    if (!tabbar) return;
+    
+    $$('.tabbar button').forEach(btn => {
+      const tab = btn.dataset.tab;
+      if (mode === 'plan') {
+        // In plan mode, only show settings
+        if (tab !== 'settings') {
+          btn.style.display = 'none';
+        } else {
+          btn.style.display = '';
+        }
+      } else {
+        // In travel mode, show all tabs
+        btn.style.display = '';
+      }
+    });
   }
 
   function fitMapToVisibleActivities(){
@@ -2541,6 +2640,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     // tab bar
     $$('.tabbar button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+    // Update tab bar based on app mode
+    updateTabBarForMode();
     // segmented (map)
     $$('#segmented button').forEach(b => b.addEventListener('click', () => {
       state.region = b.dataset.region;
@@ -2584,7 +2685,10 @@
     initTripData().then(() => {
       // Only switch tab if we have trips (not showing onboarding)
       if (getTrips().length > 0) {
-        switchTab('today');
+        const mode = getAppMode();
+        // In plan mode, always start on settings
+        const defaultTab = mode === 'plan' ? 'settings' : 'today';
+        switchTab(defaultTab);
       }
     });
   });

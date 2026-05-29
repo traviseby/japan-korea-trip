@@ -57,7 +57,8 @@ export default async function handler(req, res) {
       itinerary: 'Itinerary',
       activities: 'All activities',
       todos: 'To do list',
-      flights: 'All flights'
+      flights: 'All flights',
+      hotels: 'All Hotels'
     };
 
     for (const [key, name] of Object.entries(TABLE_NAMES)) {
@@ -95,11 +96,13 @@ export default async function handler(req, res) {
     const actCols = await fetchColumns(tables.activities);
     const todoCols = await fetchColumns(tables.todos);
     const flCols = await fetchColumns(tables.flights);
+    const htlCols = await fetchColumns(tables.hotels);
 
     const ITN_MAP = buildColumnMap(itnCols);
     const ACT_MAP = buildColumnMap(actCols);
     const TODO_MAP = buildColumnMap(todoCols);
     const FL_MAP = buildColumnMap(flCols);
+    const HTL_MAP = buildColumnMap(htlCols);
 
     // Helper to fetch rows with pagination
     async function fetchAllRows(tableId) {
@@ -129,11 +132,12 @@ export default async function handler(req, res) {
     }
 
     // Fetch all rows
-    const [itnRows, actRows, todoRows, flRows] = await Promise.all([
+    const [itnRows, actRows, todoRows, flRows, htlRows] = await Promise.all([
       fetchAllRows(tables.itinerary),
       fetchAllRows(tables.activities),
       fetchAllRows(tables.todos),
-      fetchAllRows(tables.flights)
+      fetchAllRows(tables.flights),
+      fetchAllRows(tables.hotels)
     ]);
 
     // Helper to strip markdown code fences
@@ -261,6 +265,21 @@ export default async function handler(req, res) {
       };
     });
 
+    const hotels = htlRows.map(row => {
+      const v = row.values;
+      return {
+        name: v[HTL_MAP['Hotel Name']]?.name || String(v[HTL_MAP['Hotel Name']] || ''),
+        city: v[HTL_MAP['City']]?.name || String(v[HTL_MAP['City']] || ''),
+        startDate: cellToDate(v[HTL_MAP['Start Date']]) || '',
+        endDate: cellToDate(v[HTL_MAP['End Date']]) || '',
+        nights: v[HTL_MAP['Nights']] || 0,
+        roomType: String(v[HTL_MAP['Room Type']] || ''),
+        address: String(v[HTL_MAP['Address']] || ''),
+        lat: v[HTL_MAP['Latitude']] || null,
+        lng: v[HTL_MAP['Longitude']] || null
+      };
+    });
+
     // Calculate trip metadata
     const allDates = days.map(d => d.date).filter(Boolean);
     const tripStart = allDates.length > 0 ? allDates[0] : '';
@@ -299,6 +318,7 @@ export default async function handler(req, res) {
       activities,
       todos,
       flights,
+      hotels,
       categories,
       timesOfDay,
       lastGenerated: new Date().toISOString()
