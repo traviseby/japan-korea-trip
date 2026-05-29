@@ -185,15 +185,13 @@
     const question = SURVEY_QUESTIONS[currentQuestionIndex];
     const isFirst = currentQuestionIndex === 0;
     const isLast = currentQuestionIndex === SURVEY_QUESTIONS.length - 1;
+    const progress = Math.round(((currentQuestionIndex + 1) / SURVEY_QUESTIONS.length) * 100);
 
     overlay.innerHTML = '';
+    overlay.style.setProperty('--progress', `${progress}%`);
     
-    // Progress dots
-    const progress = el('div', { class: 'survey-progress' },
-      ...SURVEY_QUESTIONS.map((q, i) => 
-        el('div', { class: 'progress-dot' + (i === currentQuestionIndex ? ' active' : i < currentQuestionIndex ? ' done' : '') })
-      )
-    );
+    // Progress bar
+    const progressBar = el('div', { class: 'survey-progress' });
 
     // Back button
     const backBtn = !isFirst ? el('button', { 
@@ -223,7 +221,7 @@
       }, isLast ? 'Build my trip →' : 'Next')
     );
 
-    overlay.appendChild(progress);
+    overlay.appendChild(progressBar);
     if (backBtn) overlay.appendChild(backBtn);
     overlay.appendChild(card);
     overlay.appendChild(actions);
@@ -258,8 +256,10 @@
             }
           },
             el('div', { class: 'option-emoji' }, opt.emoji),
-            el('div', { class: 'option-label' }, opt.label),
-            opt.subtitle ? el('div', { class: 'option-subtitle' }, opt.subtitle) : null
+            el('div', { class: 'option-content' },
+              el('div', { class: 'option-label' }, opt.label),
+              opt.subtitle ? el('div', { class: 'option-subtitle' }, opt.subtitle) : null
+            )
           );
           container.appendChild(card);
         });
@@ -283,8 +283,10 @@
             }
           },
             el('div', { class: 'option-emoji' }, opt.emoji),
-            el('div', { class: 'option-label' }, opt.label),
-            opt.subtitle ? el('div', { class: 'option-subtitle' }, opt.subtitle) : null
+            el('div', { class: 'option-content' },
+              el('div', { class: 'option-label' }, opt.label),
+              opt.subtitle ? el('div', { class: 'option-subtitle' }, opt.subtitle) : null
+            )
           );
           container.appendChild(card);
         });
