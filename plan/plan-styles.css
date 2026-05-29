@@ -283,12 +283,23 @@
 /* ─── Plan Mode Screens ─────────────────────────────────────────────────── */
 .plan-screen {
   display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: 100%;
-  overflow: auto;
+  background: var(--bg);
 }
 
 .plan-screen.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-screen .scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* TODO: Add screen-specific styles for About, Hotels, Flights, Activities, Generate */

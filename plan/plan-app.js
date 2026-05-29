@@ -351,13 +351,46 @@
 
     closeSurvey();
     
-    // TODO: Navigate to About tab
+    // Navigate to About tab
+    switchPlanTab('about');
     console.log('Survey complete!', surveyAnswers);
+  }
+
+  // ─── Plan Mode Tab Switching ──────────────────────────────────────────────
+  function switchPlanTab(tabId) {
+    // Hide all plan screens
+    $$('.plan-screen').forEach(screen => {
+      screen.classList.remove('active');
+    });
+    
+    // Show the target screen
+    const target = $(`#plan-${tabId}`);
+    if (target) {
+      target.classList.add('active');
+    }
+    
+    // Update tab bar buttons
+    $$('.plan-tabbar button').forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.planTab === tabId) {
+        btn.classList.add('active');
+      }
+    });
   }
 
   // ─── Initialization ───────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const planData = getPlanData();
+    
+    // Set up Plan mode tab bar event listeners
+    $$('.plan-tabbar button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabId = btn.dataset.planTab;
+        if (tabId) {
+          switchPlanTab(tabId);
+        }
+      });
+    });
     
     // Show survey on first launch in plan mode
     if (!planData.surveyComplete) {
@@ -371,6 +404,7 @@
   // Export for testing
   window.PlanMode = {
     showSurvey,
+    switchPlanTab,
     getPlanData,
     savePlanData
   };

@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.69';
+  const APP_VERSION = '1.70';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -18,9 +18,28 @@
   function setAppMode(mode) {
     localStorage.setItem('jk26.appMode', mode);
     updateTabBarForMode();
-    // If switching to plan mode and not on settings, switch to settings
-    if (mode === 'plan' && state.tab !== 'settings') {
-      switchTab('settings');
+    
+    // If switching to plan mode, show Generate tab
+    if (mode === 'plan') {
+      // Hide all travel tabs
+      $$('.tab-pane:not(.plan-screen)').forEach(t => t.classList.remove('active'));
+      // Show plan-generate tab
+      const generateTab = $('#plan-generate');
+      if (generateTab) {
+        generateTab.classList.add('active');
+      }
+      // Activate generate button in plan tabbar
+      $$('.plan-tabbar button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.planTab === 'generate') {
+          btn.classList.add('active');
+        }
+      });
+    } else {
+      // Hide all plan screens
+      $$('.plan-screen').forEach(s => s.classList.remove('active'));
+      // Show default travel tab (today)
+      switchTab('today');
     }
   }
 
@@ -2221,23 +2240,18 @@
 
   function updateTabBarForMode(){
     const mode = getAppMode();
-    const tabbar = $('.tabbar');
-    if (!tabbar) return;
+    const travelTabbar = $('.travel-tabbar');
+    const planTabbar = $('.plan-tabbar');
     
-    $$('.tabbar button').forEach(btn => {
-      const tab = btn.dataset.tab;
+    if (travelTabbar && planTabbar) {
       if (mode === 'plan') {
-        // In plan mode, only show settings
-        if (tab !== 'settings') {
-          btn.style.display = 'none';
-        } else {
-          btn.style.display = '';
-        }
+        travelTabbar.style.display = 'none';
+        planTabbar.style.display = '';
       } else {
-        // In travel mode, show all tabs
-        btn.style.display = '';
+        travelTabbar.style.display = '';
+        planTabbar.style.display = 'none';
       }
-    });
+    }
   }
 
   function fitMapToVisibleActivities(){
@@ -2686,9 +2700,17 @@
       // Only switch tab if we have trips (not showing onboarding)
       if (getTrips().length > 0) {
         const mode = getAppMode();
-        // In plan mode, always start on settings
-        const defaultTab = mode === 'plan' ? 'settings' : 'today';
-        switchTab(defaultTab);
+        if (mode === 'plan') {
+          // Hide all travel tabs, show plan-generate
+          $$('.tab-pane:not(.plan-screen)').forEach(t => t.classList.remove('active'));
+          const generateTab = $('#plan-generate');
+          if (generateTab) {
+            generateTab.classList.add('active');
+          }
+        } else {
+          // Travel mode: show today tab
+          switchTab('today');
+        }
       }
     });
   });
