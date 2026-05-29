@@ -1391,6 +1391,144 @@
     renderActivitiesTab();
   }
 
+  // ─── Generate Tab ─────────────────────────────────────────────────────────
+  function renderGenerateTab() {
+    const generateScreen = $('#plan-generate');
+    if (!generateScreen) return;
+
+    const planData = getPlanData();
+    const hasData = (planData.hotels?.length || 0) + (planData.flights?.length || 0) + (planData.activities?.length || 0) > 0;
+
+    generateScreen.innerHTML = '';
+    
+    // Filter bar
+    const filterBar = el('div', { class: 'filter-bar' },
+      el('div', { class: 'filter-label' }, 'Generate')
+    );
+    
+    // Scrollable content
+    const scroll = el('div', { 
+      class: 'scroll',
+      style: { padding: 'var(--pad)' }
+    });
+
+    if (!planData.surveyComplete) {
+      // Show message to complete survey first
+      scroll.appendChild(el('div', {
+        style: { 
+          textAlign: 'center', 
+          padding: '60px 20px', 
+          color: 'var(--fg-mid)' 
+        }
+      }, 
+        el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '📋'),
+        el('div', { style: { marginBottom: '12px', fontSize: '18px', fontWeight: '500' } }, 'Complete your trip details first'),
+        el('div', { style: { fontSize: '14px', color: 'var(--fg-mute)', marginBottom: '24px' } }, 
+          'Head to the About tab to answer a few questions about your trip'
+        ),
+        el('button', {
+          class: 'oc-btn',
+          style: { padding: '14px 32px' },
+          onclick: () => window.PlanMode?.switchPlanTab('about')
+        }, 'Go to About')
+      ));
+    } else {
+      // Show generate interface
+      scroll.appendChild(
+        el('div', { style: { marginBottom: '32px' } },
+          el('h1', { 
+            style: { fontFamily: 'var(--serif)', fontSize: '32px', fontWeight: '400', lineHeight: '1.15', marginBottom: '12px' }
+          }, 'AI Itinerary Generator'),
+          el('p', { 
+            style: { fontSize: '15px', color: 'var(--fg-mid)', lineHeight: '1.6' }
+          }, 'Let AI create a detailed itinerary based on your trip details and preferences.')
+        )
+      );
+
+      // Current trip summary
+      scroll.appendChild(
+        el('div', { 
+          class: 'offline-card',
+          style: { marginBottom: '24px', background: 'var(--surface-2)' }
+        },
+          el('div', { style: { fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--fg-mute)', marginBottom: '12px' } }, 'Current Trip'),
+          el('div', { style: { fontSize: '15px', color: 'var(--fg)', marginBottom: '4px' } }, 
+            planData.survey.destinations?.[0] || 'Destination'
+          ),
+          el('div', { style: { fontSize: '14px', color: 'var(--fg-mid)' } }, 
+            `${planData.survey.duration || 0} days · ${planData.survey.travelers || 'solo'}`
+          )
+        )
+      );
+
+      // Additional preferences
+      scroll.appendChild(
+        el('div', { style: { marginBottom: '24px' } },
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 
+            'Additional Preferences (optional)'
+          ),
+          el('textarea', {
+            id: 'generate-preferences',
+            class: 'survey-textarea',
+            placeholder: 'E.g., "I want to visit the best ramen shops" or "Include kid-friendly activities"...',
+            style: { minHeight: '100px' }
+          })
+        )
+      );
+
+      // Generate button
+      const generateBtn = el('button', {
+        class: 'oc-btn',
+        style: { 
+          width: '100%', 
+          padding: '18px', 
+          fontSize: '16px', 
+          fontWeight: '600',
+          background: 'var(--fg)',
+          color: 'var(--bg)'
+        },
+        onclick: () => {
+          alert('AI generation coming soon! For now, manually add your hotels, flights, and activities in their respective tabs.');
+        }
+      }, '✨ Generate Itinerary');
+
+      scroll.appendChild(generateBtn);
+
+      // Info card
+      if (hasData) {
+        scroll.appendChild(
+          el('div', { 
+            class: 'offline-card',
+            style: { 
+              marginTop: '24px', 
+              background: 'var(--surface)',
+              border: '1px solid var(--border-strong)'
+            }
+          },
+            el('div', { style: { fontSize: '14px', color: 'var(--fg-mid)', lineHeight: '1.6' } }, 
+              '⚠️ Generating a new itinerary will replace your existing hotels, flights, and activities. Consider exporting your current plan first.'
+            )
+          )
+        );
+      }
+
+      // How it works
+      scroll.appendChild(
+        el('div', { style: { marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border)' } },
+          el('div', { style: { fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--fg-mid)', marginBottom: '16px' } }, 
+            'How it Works'
+          ),
+          el('div', { style: { fontSize: '14px', color: 'var(--fg-mute)', lineHeight: '1.7' } },
+            '1. AI analyzes your trip details and preferences\n\n2. Creates a day-by-day itinerary with activities\n\n3. Suggests hotels and books flights\n\n4. You can edit and refine everything afterwards'
+          )
+        )
+      );
+    }
+    
+    generateScreen.appendChild(filterBar);
+    generateScreen.appendChild(scroll);
+  }
+
   // ─── Initialization ───────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const planData = getPlanData();
@@ -1410,6 +1548,8 @@
             renderFlightsTab();
           } else if (tabId === 'activities') {
             renderActivitiesTab();
+          } else if (tabId === 'generate') {
+            renderGenerateTab();
           }
         }
       });
@@ -1430,6 +1570,7 @@
     renderHotelsTab,
     renderFlightsTab,
     renderActivitiesTab,
+    renderGenerateTab,
     getPlanData,
     savePlanData
   };
