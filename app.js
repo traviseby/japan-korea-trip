@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.61';
+  const APP_VERSION = '1.62';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -1219,7 +1219,6 @@
     const wrap = el('div', { class: 'lt-sticky' });
     const pills = el('div', { class: 'chips chips-single day-pills' });
     D.days.forEach(d => {
-      if (d.n === 11) pills.appendChild(el('div', { class: 'day-pill-sep' }, '\ud83c\uddef\ud83c\uddf5\u2192\ud83c\uddf0\ud83c\uddf7'));
       const p = el('button', {
         class: 'chip day-pill' + (d.n === day.n ? ' active' : ''),
         style: { '--day-accent': d.color },
@@ -1340,7 +1339,6 @@
 
     const pills = el('div', { class: 'day-pills' });
     D.days.forEach(d => {
-      if (d.n === 11) pills.appendChild(el('div', { class: 'day-pill-sep' }, '🇯🇵→🇰🇷'));
       const p = el('button', {
         class: 'day-pill' + (d.n === day.n ? ' active' : ''),
         style: { '--day-accent': d.color },
