@@ -1026,6 +1026,295 @@
     renderFlightsTab();
   }
 
+  // ─── Activities Tab ───────────────────────────────────────────────────────
+  function renderActivitiesTab() {
+    const activitiesScreen = $('#plan-activities');
+    if (!activitiesScreen) return;
+
+    const planData = getPlanData();
+    const activities = planData.activities || [];
+
+    activitiesScreen.innerHTML = '';
+    
+    // Filter bar with add button
+    const filterBar = el('div', { class: 'filter-bar' },
+      el('div', { class: 'filter-label' }, 'Activities'),
+      el('button', {
+        class: 'filter-btn',
+        onclick: () => showAddActivityForm()
+      }, '+ Add')
+    );
+    
+    // Scrollable content
+    const scroll = el('div', { 
+      class: 'scroll',
+      style: { padding: 'var(--pad)' }
+    });
+
+    if (activities.length === 0) {
+      scroll.appendChild(el('div', {
+        style: { 
+          textAlign: 'center', 
+          padding: '60px 20px', 
+          color: 'var(--fg-mid)' 
+        }
+      }, 
+        el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '🎯'),
+        el('div', { style: { marginBottom: '8px' } }, 'No activities yet'),
+        el('div', { style: { fontSize: '14px', color: 'var(--fg-mute)' } }, 
+          'Tap + Add to plan your itinerary'
+        )
+      ));
+    } else {
+      // Group by date
+      const byDate = {};
+      activities.forEach(activity => {
+        const dateKey = activity.date || 'No date';
+        if (!byDate[dateKey]) byDate[dateKey] = [];
+        byDate[dateKey].push(activity);
+      });
+      
+      // Sort dates
+      const sortedDates = Object.keys(byDate).sort((a, b) => {
+        if (a === 'No date') return 1;
+        if (b === 'No date') return -1;
+        return new Date(a) - new Date(b);
+      });
+      
+      sortedDates.forEach(dateKey => {
+        const dateActivities = byDate[dateKey];
+        
+        // Date header
+        let dateLabel = dateKey;
+        if (dateKey !== 'No date') {
+          const date = new Date(dateKey + 'T00:00:00');
+          dateLabel = date.toLocaleDateString('en-US', { 
+            weekday: 'short',
+            month: 'short', 
+            day: 'numeric',
+            year: 'numeric'
+          });
+        }
+        
+        scroll.appendChild(el('div', { 
+          style: { 
+            fontSize: '13px', 
+            fontWeight: '600', 
+            textTransform: 'uppercase', 
+            letterSpacing: '0.05em',
+            color: 'var(--fg-mid)', 
+            marginBottom: '12px',
+            marginTop: dateKey === sortedDates[0] ? '0' : '24px',
+            paddingTop: dateKey === sortedDates[0] ? '0' : '12px',
+            borderTop: dateKey === sortedDates[0] ? 'none' : '1px solid var(--border)'
+          } 
+        }, dateLabel));
+        
+        // Sort activities by time
+        const sorted = [...dateActivities].sort((a, b) => {
+          if (!a.time && !b.time) return 0;
+          if (!a.time) return 1;
+          if (!b.time) return -1;
+          return a.time.localeCompare(b.time);
+        });
+        
+        sorted.forEach(activity => {
+          scroll.appendChild(buildActivityCard(activity));
+        });
+      });
+    }
+    
+    activitiesScreen.appendChild(filterBar);
+    activitiesScreen.appendChild(scroll);
+  }
+
+  function buildActivityCard(activity) {
+    return el('div', { 
+      class: 'offline-card',
+      style: { marginBottom: '12px' }
+    },
+      el('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+        el('div', { style: { flex: '1' } },
+          el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' } },
+            activity.time ? el('div', { 
+              style: { 
+                fontSize: '13px', 
+                color: 'var(--fg-mute)', 
+                fontWeight: '600',
+                fontVariantNumeric: 'tabular-nums'
+              } 
+            }, activity.time) : null,
+            el('div', { class: 'oc-title', style: { flex: '1' } }, activity.name)
+          ),
+          activity.location ? el('div', { style: { color: 'var(--fg-mid)', fontSize: '14px', marginTop: '6px' } },
+            `📍 ${activity.location}`
+          ) : null,
+          activity.notes ? el('div', { style: { color: 'var(--fg-mute)', fontSize: '13px', marginTop: '6px', lineHeight: '1.5' } },
+            activity.notes
+          ) : null
+        ),
+        el('div', { style: { display: 'flex', gap: '8px', flexShrink: '0', marginLeft: '12px' } },
+          el('button', {
+            class: 'oc-btn',
+            style: { padding: '8px 12px', fontSize: '13px' },
+            onclick: () => showAddActivityForm(activity)
+          }, 'Edit'),
+          el('button', {
+            class: 'oc-btn',
+            style: { padding: '8px 12px', fontSize: '13px', background: 'var(--p-critical)', color: 'var(--fg)' },
+            onclick: () => {
+              if (confirm(`Delete ${activity.name}?`)) {
+                deleteActivity(activity.id);
+              }
+            }
+          }, 'Delete')
+        )
+      )
+    );
+  }
+
+  function showAddActivityForm(existingActivity = null) {
+    const activitiesScreen = $('#plan-activities');
+    if (!activitiesScreen) return;
+
+    const isEdit = !!existingActivity;
+    const activity = existingActivity || {
+      id: Date.now().toString(),
+      name: '',
+      date: '',
+      time: '',
+      location: '',
+      notes: ''
+    };
+
+    activitiesScreen.innerHTML = '';
+    
+    // Filter bar with back button
+    const filterBar = el('div', { class: 'filter-bar' },
+      el('button', {
+        class: 'filter-btn',
+        onclick: () => renderActivitiesTab()
+      }, '← Back'),
+      el('div', { class: 'filter-label' }, isEdit ? 'Edit Activity' : 'Add Activity')
+    );
+    
+    // Form
+    const form = el('div', { 
+      class: 'scroll',
+      style: { padding: 'var(--pad)' }
+    },
+      // Activity Name
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Activity Name'),
+        el('input', {
+          type: 'text',
+          id: 'activity-name',
+          class: 'survey-text-input',
+          value: activity.name,
+          placeholder: 'Visit Senso-ji Temple'
+        })
+      ),
+      
+      // Date and Time
+      el('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' } },
+        el('div', {},
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Date'),
+          el('input', {
+            type: 'date',
+            id: 'activity-date',
+            class: 'survey-text-input',
+            value: activity.date
+          })
+        ),
+        el('div', {},
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Time (optional)'),
+          el('input', {
+            type: 'time',
+            id: 'activity-time',
+            class: 'survey-text-input',
+            value: activity.time
+          })
+        )
+      ),
+      
+      // Location
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Location (optional)'),
+        el('input', {
+          type: 'text',
+          id: 'activity-location',
+          class: 'survey-text-input',
+          value: activity.location,
+          placeholder: 'Asakusa, Tokyo'
+        })
+      ),
+      
+      // Notes
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Notes (optional)'),
+        el('textarea', {
+          id: 'activity-notes',
+          class: 'survey-textarea',
+          value: activity.notes,
+          placeholder: 'Details, reservations, tips...'
+        })
+      ),
+      
+      // Save button
+      el('button', {
+        class: 'oc-btn',
+        style: { width: '100%', padding: '16px', fontSize: '16px', fontWeight: '600' },
+        onclick: () => {
+          const newActivity = {
+            id: activity.id,
+            name: $('#activity-name').value.trim(),
+            date: $('#activity-date').value,
+            time: $('#activity-time').value,
+            location: $('#activity-location').value.trim(),
+            notes: $('#activity-notes').value.trim()
+          };
+          
+          if (!newActivity.name) {
+            alert('Please enter an activity name');
+            return;
+          }
+          if (!newActivity.date) {
+            alert('Please select a date');
+            return;
+          }
+          
+          saveActivity(newActivity);
+          renderActivitiesTab();
+        }
+      }, isEdit ? 'Save Changes' : 'Add Activity')
+    );
+    
+    activitiesScreen.appendChild(filterBar);
+    activitiesScreen.appendChild(form);
+  }
+
+  function saveActivity(activity) {
+    const planData = getPlanData();
+    const activities = planData.activities || [];
+    
+    const existingIndex = activities.findIndex(a => a.id === activity.id);
+    if (existingIndex >= 0) {
+      activities[existingIndex] = activity;
+    } else {
+      activities.push(activity);
+    }
+    
+    planData.activities = activities;
+    savePlanData(planData);
+  }
+
+  function deleteActivity(activityId) {
+    const planData = getPlanData();
+    planData.activities = (planData.activities || []).filter(a => a.id !== activityId);
+    savePlanData(planData);
+    renderActivitiesTab();
+  }
+
   // ─── Initialization ───────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const planData = getPlanData();
@@ -1043,6 +1332,8 @@
             renderHotelsTab();
           } else if (tabId === 'flights') {
             renderFlightsTab();
+          } else if (tabId === 'activities') {
+            renderActivitiesTab();
           }
         }
       });
@@ -1062,6 +1353,7 @@
     renderAboutTab,
     renderHotelsTab,
     renderFlightsTab,
+    renderActivitiesTab,
     getPlanData,
     savePlanData
   };
