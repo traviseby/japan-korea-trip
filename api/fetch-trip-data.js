@@ -139,7 +139,7 @@ export default async function handler(req, res) {
     // Helper to strip markdown code fences
     function stripFence(str) {
       if (!str) return '';
-      return str.replace(/```/g, '').trim();
+      return String(str).replace(/```/g, '').trim();
     }
 
     // Helper to convert Coda date to YYYY-MM-DD
@@ -181,7 +181,7 @@ export default async function handler(req, res) {
       const dayNum = parseInt(overview.match(/Day (\d+)/)?.[1] ?? (index + 1), 10);
       const title = overview.replace(/^Day \d+:\s*/, '');
       const locRaw = v[ITN_MAP['Location']]?.name || v[ITN_MAP['Location']] || '';
-      const loc = locRaw.replace(/^[^\w]+\s*/, '').trim();
+      const loc = String(locRaw).replace(/^[^\w]+\s*/, '').trim();
       
       return {
         n: dayNum,
@@ -211,7 +211,7 @@ export default async function handler(req, res) {
       return {
         id: row.id,
         day: day,
-        time: v[ACT_MAP['Time of Day']]?.name || v[ACT_MAP['Time of Day']] || '',
+        time: String(v[ACT_MAP['Time of Day']]?.name || v[ACT_MAP['Time of Day']] || ''),
         name: stripFence(v[ACT_MAP['Activity']] || ''),
         desc: stripFence(v[ACT_MAP['Description']] || ''),
         url: stripFence(v[ACT_MAP['More Info']] || ''),
@@ -224,34 +224,35 @@ export default async function handler(req, res) {
     // Build todos array
     const todos = todoRows.map(row => {
       const v = row.values;
-      const priority = (v[TODO_MAP['Priority']]?.name || v[TODO_MAP['Priority']] || '').replace(/^[^\w]+\s*/, '').trim();
+      const priorityRaw = v[TODO_MAP['Priority']]?.name || v[TODO_MAP['Priority']] || '';
+      const priority = String(priorityRaw).replace(/^[^\w]+\s*/, '').trim();
       return {
         id: row.id,
         priority: priority,
-        item: v[TODO_MAP['Item']] || '',
-        type: v[TODO_MAP['Type']]?.name || v[TODO_MAP['Type']] || '',
-        day: v[TODO_MAP['Day']] || '',
-        whenToBook: v[TODO_MAP['When to Book']] || '',
-        link: v[TODO_MAP['Link']]?.url || v[TODO_MAP['Link']] || '',
-        why: v[TODO_MAP['Why']] || '',
-        rec: v[TODO_MAP['Rec']] || ''
+        item: String(v[TODO_MAP['Item']] || ''),
+        type: String(v[TODO_MAP['Type']]?.name || v[TODO_MAP['Type']] || ''),
+        day: String(v[TODO_MAP['Day']] || ''),
+        whenToBook: String(v[TODO_MAP['When to Book']] || ''),
+        link: String(v[TODO_MAP['Link']]?.url || v[TODO_MAP['Link']] || ''),
+        why: String(v[TODO_MAP['Why']] || ''),
+        rec: String(v[TODO_MAP['Rec']] || '')
       };
     });
 
     // Build flights array
     const flights = flRows.map(row => {
       const v = row.values;
-      const airline = v[FL_MAP['Airline']] || '';
-      const flightNum = v[FL_MAP['Flight #']] || '';
-      const fromCity = v[FL_MAP['From']] || '';
-      const toCity = v[FL_MAP['To']] || '';
+      const airline = String(v[FL_MAP['Airline']] || '');
+      const flightNum = String(v[FL_MAP['Flight #']] || '');
+      const fromCity = String(v[FL_MAP['From']] || '');
+      const toCity = String(v[FL_MAP['To']] || '');
       
       return {
-        trip: v[FL_MAP['Trip']] || '',
+        trip: String(v[FL_MAP['Trip']] || ''),
         airline: airline,
         number: `${airline ? airline.split(' ')[0] : ''} ${flightNum}`.trim(),
-        from: v[FL_MAP['From (code)']] || deriveAirportCode(fromCity),
-        to: v[FL_MAP['To (code)']] || deriveAirportCode(toCity),
+        from: String(v[FL_MAP['From (code)']] || '') || deriveAirportCode(fromCity),
+        to: String(v[FL_MAP['To (code)']] || '') || deriveAirportCode(toCity),
         fromCity: fromCity,
         toCity: toCity,
         date: cellToDate(v[FL_MAP['Date']]) || '',
