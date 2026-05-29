@@ -695,6 +695,337 @@
     renderHotelsTab();
   }
 
+  // ─── Flights Tab ──────────────────────────────────────────────────────────
+  function renderFlightsTab() {
+    const flightsScreen = $('#plan-flights');
+    if (!flightsScreen) return;
+
+    const planData = getPlanData();
+    const flights = planData.flights || [];
+
+    flightsScreen.innerHTML = '';
+    
+    // Filter bar with add button
+    const filterBar = el('div', { class: 'filter-bar' },
+      el('div', { class: 'filter-label' }, 'Flights'),
+      el('button', {
+        class: 'filter-btn',
+        onclick: () => showAddFlightForm()
+      }, '+ Add')
+    );
+    
+    // Scrollable content
+    const scroll = el('div', { 
+      class: 'scroll',
+      style: { padding: 'var(--pad)' }
+    });
+
+    if (flights.length === 0) {
+      scroll.appendChild(el('div', {
+        style: { 
+          textAlign: 'center', 
+          padding: '60px 20px', 
+          color: 'var(--fg-mid)' 
+        }
+      }, 
+        el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '✈️'),
+        el('div', { style: { marginBottom: '8px' } }, 'No flights yet'),
+        el('div', { style: { fontSize: '14px', color: 'var(--fg-mute)' } }, 
+          'Tap + Add to book your flight'
+        )
+      ));
+    } else {
+      // Group flights: outbound vs return
+      const sorted = [...flights].sort((a, b) => 
+        new Date(a.departureDate + 'T' + a.departureTime) - 
+        new Date(b.departureDate + 'T' + b.departureTime)
+      );
+      
+      // Section header for outbound
+      if (sorted.length > 0) {
+        scroll.appendChild(el('div', { 
+          style: { 
+            fontSize: '12px', 
+            fontWeight: '600', 
+            textTransform: 'uppercase', 
+            letterSpacing: '0.05em',
+            color: 'var(--fg-mute)', 
+            marginBottom: '12px',
+            marginTop: '8px'
+          } 
+        }, 'All Flights'));
+      }
+      
+      sorted.forEach(flight => {
+        scroll.appendChild(buildFlightCard(flight));
+      });
+    }
+    
+    flightsScreen.appendChild(filterBar);
+    flightsScreen.appendChild(scroll);
+  }
+
+  function buildFlightCard(flight) {
+    const depDate = new Date(flight.departureDate + 'T' + (flight.departureTime || '00:00'));
+    const arrDate = new Date(flight.arrivalDate + 'T' + (flight.arrivalTime || '00:00'));
+    
+    return el('div', { 
+      class: 'offline-card',
+      style: { marginBottom: '12px' }
+    },
+      el('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+        el('div', { style: { flex: '1' } },
+          el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' } },
+            el('div', { class: 'oc-title' }, flight.airline),
+            flight.flightNumber ? el('div', { 
+              style: { 
+                fontSize: '13px', 
+                color: 'var(--fg-mute)', 
+                padding: '2px 8px', 
+                background: 'var(--surface-2)', 
+                borderRadius: '4px' 
+              } 
+            }, flight.flightNumber) : null
+          ),
+          el('div', { style: { color: 'var(--fg-mid)', fontSize: '14px', marginTop: '8px' } },
+            `${flight.departureAirport} → ${flight.arrivalAirport}`
+          ),
+          el('div', { style: { color: 'var(--fg-mute)', fontSize: '13px', marginTop: '4px' } },
+            `${depDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${flight.departureTime || '--:--'} → ${arrDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${flight.arrivalTime || '--:--'}`
+          )
+        ),
+        el('div', { style: { display: 'flex', gap: '8px' } },
+          el('button', {
+            class: 'oc-btn',
+            style: { padding: '8px 12px', fontSize: '13px' },
+            onclick: () => showAddFlightForm(flight)
+          }, 'Edit'),
+          el('button', {
+            class: 'oc-btn',
+            style: { padding: '8px 12px', fontSize: '13px', background: 'var(--p-critical)', color: 'var(--fg)' },
+            onclick: () => {
+              if (confirm(`Delete ${flight.airline} ${flight.flightNumber}?`)) {
+                deleteFlight(flight.id);
+              }
+            }
+          }, 'Delete')
+        )
+      )
+    );
+  }
+
+  function showAddFlightForm(existingFlight = null) {
+    const flightsScreen = $('#plan-flights');
+    if (!flightsScreen) return;
+
+    const isEdit = !!existingFlight;
+    const flight = existingFlight || {
+      id: Date.now().toString(),
+      airline: '',
+      flightNumber: '',
+      departureAirport: '',
+      arrivalAirport: '',
+      departureDate: '',
+      departureTime: '',
+      arrivalDate: '',
+      arrivalTime: '',
+      confirmationNumber: '',
+      notes: ''
+    };
+
+    flightsScreen.innerHTML = '';
+    
+    // Filter bar with back button
+    const filterBar = el('div', { class: 'filter-bar' },
+      el('button', {
+        class: 'filter-btn',
+        onclick: () => renderFlightsTab()
+      }, '← Back'),
+      el('div', { class: 'filter-label' }, isEdit ? 'Edit Flight' : 'Add Flight')
+    );
+    
+    // Form
+    const form = el('div', { 
+      class: 'scroll',
+      style: { padding: 'var(--pad)' }
+    },
+      // Airline
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Airline'),
+        el('input', {
+          type: 'text',
+          id: 'flight-airline',
+          class: 'survey-text-input',
+          value: flight.airline,
+          placeholder: 'United Airlines'
+        })
+      ),
+      
+      // Flight Number
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Flight Number (optional)'),
+        el('input', {
+          type: 'text',
+          id: 'flight-number',
+          class: 'survey-text-input',
+          value: flight.flightNumber,
+          placeholder: 'UA 123'
+        })
+      ),
+      
+      // Departure
+      el('div', { style: { marginBottom: '12px', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--fg-mid)', letterSpacing: '0.05em' } }, 'Departure'),
+      el('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' } },
+        el('div', {},
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Airport'),
+          el('input', {
+            type: 'text',
+            id: 'flight-dep-airport',
+            class: 'survey-text-input',
+            value: flight.departureAirport,
+            placeholder: 'JFK'
+          })
+        ),
+        el('div', {},
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Date'),
+          el('input', {
+            type: 'date',
+            id: 'flight-dep-date',
+            class: 'survey-text-input',
+            value: flight.departureDate
+          })
+        )
+      ),
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Time'),
+        el('input', {
+          type: 'time',
+          id: 'flight-dep-time',
+          class: 'survey-text-input',
+          value: flight.departureTime
+        })
+      ),
+      
+      // Arrival
+      el('div', { style: { marginBottom: '12px', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', color: 'var(--fg-mid)', letterSpacing: '0.05em' } }, 'Arrival'),
+      el('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' } },
+        el('div', {},
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Airport'),
+          el('input', {
+            type: 'text',
+            id: 'flight-arr-airport',
+            class: 'survey-text-input',
+            value: flight.arrivalAirport,
+            placeholder: 'NRT'
+          })
+        ),
+        el('div', {},
+          el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Date'),
+          el('input', {
+            type: 'date',
+            id: 'flight-arr-date',
+            class: 'survey-text-input',
+            value: flight.arrivalDate
+          })
+        )
+      ),
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Time'),
+        el('input', {
+          type: 'time',
+          id: 'flight-arr-time',
+          class: 'survey-text-input',
+          value: flight.arrivalTime
+        })
+      ),
+      
+      // Confirmation Number
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Confirmation Number (optional)'),
+        el('input', {
+          type: 'text',
+          id: 'flight-confirmation',
+          class: 'survey-text-input',
+          value: flight.confirmationNumber,
+          placeholder: 'ABC123'
+        })
+      ),
+      
+      // Notes
+      el('div', { style: { marginBottom: '20px' } },
+        el('label', { style: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' } }, 'Notes (optional)'),
+        el('textarea', {
+          id: 'flight-notes',
+          class: 'survey-textarea',
+          value: flight.notes,
+          placeholder: 'Seat preferences, meal requests, etc.'
+        })
+      ),
+      
+      // Save button
+      el('button', {
+        class: 'oc-btn',
+        style: { width: '100%', padding: '16px', fontSize: '16px', fontWeight: '600' },
+        onclick: () => {
+          const newFlight = {
+            id: flight.id,
+            airline: $('#flight-airline').value.trim(),
+            flightNumber: $('#flight-number').value.trim(),
+            departureAirport: $('#flight-dep-airport').value.trim(),
+            arrivalAirport: $('#flight-arr-airport').value.trim(),
+            departureDate: $('#flight-dep-date').value,
+            departureTime: $('#flight-dep-time').value,
+            arrivalDate: $('#flight-arr-date').value,
+            arrivalTime: $('#flight-arr-time').value,
+            confirmationNumber: $('#flight-confirmation').value.trim(),
+            notes: $('#flight-notes').value.trim()
+          };
+          
+          if (!newFlight.airline) {
+            alert('Please enter an airline');
+            return;
+          }
+          if (!newFlight.departureAirport || !newFlight.arrivalAirport) {
+            alert('Please enter departure and arrival airports');
+            return;
+          }
+          if (!newFlight.departureDate || !newFlight.arrivalDate) {
+            alert('Please select departure and arrival dates');
+            return;
+          }
+          
+          saveFlight(newFlight);
+          renderFlightsTab();
+        }
+      }, isEdit ? 'Save Changes' : 'Add Flight')
+    );
+    
+    flightsScreen.appendChild(filterBar);
+    flightsScreen.appendChild(form);
+  }
+
+  function saveFlight(flight) {
+    const planData = getPlanData();
+    const flights = planData.flights || [];
+    
+    const existingIndex = flights.findIndex(f => f.id === flight.id);
+    if (existingIndex >= 0) {
+      flights[existingIndex] = flight;
+    } else {
+      flights.push(flight);
+    }
+    
+    planData.flights = flights;
+    savePlanData(planData);
+  }
+
+  function deleteFlight(flightId) {
+    const planData = getPlanData();
+    planData.flights = (planData.flights || []).filter(f => f.id !== flightId);
+    savePlanData(planData);
+    renderFlightsTab();
+  }
+
   // ─── Initialization ───────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const planData = getPlanData();
@@ -710,6 +1041,8 @@
             renderAboutTab();
           } else if (tabId === 'hotels') {
             renderHotelsTab();
+          } else if (tabId === 'flights') {
+            renderFlightsTab();
           }
         }
       });
@@ -728,6 +1061,7 @@
     switchPlanTab,
     renderAboutTab,
     renderHotelsTab,
+    renderFlightsTab,
     getPlanData,
     savePlanData
   };
