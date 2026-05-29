@@ -96,15 +96,8 @@
     </div>
 
     <!-- Plan Mode Screens -->
-    <div id="plan-about" class="tab-pane plan-screen">
-      <div class="filter-bar">
-        <div class="filter-label">About</div>
-      </div>
-      <div class="scroll">
-        <div style="padding: 40px 20px; text-align: center; color: var(--fg-mid);">
-          About screen coming soon...
-        </div>
-      </div>
+    <div id="plan-about" class="tab-pane plan-screen active">
+      <!-- Survey or about content will be rendered here by plan-app.js -->
     </div>
 
     <div id="plan-hotels" class="tab-pane plan-screen">
@@ -140,18 +133,13 @@
       </div>
     </div>
 
-    <div id="plan-generate" class="tab-pane plan-screen active">
+    <div id="plan-generate" class="tab-pane plan-screen">
       <div class="filter-bar">
         <div class="filter-label">Generate</div>
       </div>
       <div class="scroll">
-        <div style="padding: 40px 20px; text-align: center;">
-          <div style="font-size: 48px; margin-bottom: 16px;">✨</div>
-          <h2 style="font-family: var(--serif); font-size: 24px; margin-bottom: 12px;">Ready to plan your trip?</h2>
-          <p style="color: var(--fg-mid); margin-bottom: 24px;">Complete the survey to get started</p>
-          <button onclick="window.PlanMode?.showSurvey()" style="padding: 14px 28px; background: var(--fg); color: var(--bg); border: none; border-radius: var(--r); font-size: 16px; font-weight: 600; cursor: pointer;">
-            Start Survey
-          </button>
+        <div style="padding: 40px 20px; text-align: center; color: var(--fg-mid);">
+          Generate screen coming soon...
         </div>
       </div>
     </div>
@@ -194,7 +182,7 @@
 
   <!-- Bottom tab bar (Plan Mode) -->
   <nav class="tabbar plan-tabbar" style="display: none;">
-    <button data-plan-tab="about">
+    <button data-plan-tab="about" class="active">
       <span class="tab-icon">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       </span>
@@ -218,7 +206,7 @@
       </span>
       <span class="tab-label">Activities</span>
     </button>
-    <button data-plan-tab="generate" class="active">
+    <button data-plan-tab="generate">
       <span class="tab-icon">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
       </span>

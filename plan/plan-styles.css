@@ -3,27 +3,9 @@
  * Tinder-style card interactions
  */
 
-/* ─── Survey Overlay ─────────────────────────────────────────────────────── */
-.plan-survey-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-.plan-survey-overlay.show {
-  opacity: 1;
-  pointer-events: all;
-}
-
 /* Progress Bar */
 .survey-progress {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -45,8 +27,8 @@
 
 /* Back Button */
 .survey-back {
-  position: fixed;
-  top: max(var(--sat, 0px) + 16px, 16px);
+  position: absolute;
+  top: 16px;
   left: var(--pad);
   font-size: 15px;
   color: var(--fg-mid);
@@ -67,7 +49,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: max(var(--sat, 0px) + 64px, 64px) var(--pad) 0;
+  padding: 64px var(--pad) 0;
   max-width: 520px;
   margin: 0 auto;
   width: 100%;
@@ -293,8 +275,8 @@
 
 /* Survey Actions */
 .survey-actions {
-  position: fixed;
-  bottom: max(var(--sab, 0px) + 20px, 20px);
+  position: absolute;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -302,7 +284,6 @@
   align-items: center;
   max-width: 520px;
   width: calc(100% - (var(--pad) * 2));
-  padding: 0 var(--pad);
 }
 
 .survey-skip {
@@ -357,10 +338,16 @@
 .plan-screen.active {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .plan-screen .scroll {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Survey in About tab */
+#plan-about.plan-screen.active {
+  position: absolute;
 }

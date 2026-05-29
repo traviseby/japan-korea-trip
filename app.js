@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.71';
+  const APP_VERSION = '1.72';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -19,22 +19,26 @@
     localStorage.setItem('jk26.appMode', mode);
     updateTabBarForMode();
     
-    // If switching to plan mode, show Generate tab
+    // If switching to plan mode, show About tab
     if (mode === 'plan') {
       // Hide all travel tabs
       $$('.tab-pane:not(.plan-screen)').forEach(t => t.classList.remove('active'));
-      // Show plan-generate tab
-      const generateTab = $('#plan-generate');
-      if (generateTab) {
-        generateTab.classList.add('active');
+      // Show plan-about tab
+      const aboutTab = $('#plan-about');
+      if (aboutTab) {
+        aboutTab.classList.add('active');
       }
-      // Activate generate button in plan tabbar
+      // Activate about button in plan tabbar
       $$('.plan-tabbar button').forEach(btn => {
         btn.classList.remove('active');
-        if (btn.dataset.planTab === 'generate') {
+        if (btn.dataset.planTab === 'about') {
           btn.classList.add('active');
         }
       });
+      // Render About tab content
+      if (window.PlanMode) {
+        window.PlanMode.renderAboutTab();
+      }
     } else {
       // Hide all plan screens
       $$('.plan-screen').forEach(s => s.classList.remove('active'));
@@ -2701,11 +2705,15 @@
       if (getTrips().length > 0) {
         const mode = getAppMode();
         if (mode === 'plan') {
-          // Hide all travel tabs, show plan-generate
+          // Hide all travel tabs, show plan-about
           $$('.tab-pane:not(.plan-screen)').forEach(t => t.classList.remove('active'));
-          const generateTab = $('#plan-generate');
-          if (generateTab) {
-            generateTab.classList.add('active');
+          const aboutTab = $('#plan-about');
+          if (aboutTab) {
+            aboutTab.classList.add('active');
+          }
+          // Render About tab content
+          if (window.PlanMode) {
+            window.PlanMode.renderAboutTab();
           }
         } else {
           // Travel mode: show today tab

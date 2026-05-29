@@ -160,35 +160,78 @@
     surveyAnswers = planData.survey || {};
     currentQuestionIndex = 0;
 
-    const overlay = el('div', { 
-      id: 'plan-survey-overlay',
-      class: 'plan-survey-overlay show'
-    });
-
-    console.log('Appending survey overlay', overlay);
-    document.body.appendChild(overlay);
-    renderSurveyQuestion();
+    // Render survey in About tab
+    renderAboutTab();
   }
 
-  function closeSurvey() {
-    const overlay = $('#plan-survey-overlay');
-    if (!overlay) return;
+  function renderAboutTab() {
+    const aboutScreen = $('#plan-about');
+    if (!aboutScreen) return;
+
+    const planData = getPlanData();
     
-    overlay.classList.remove('show');
-    setTimeout(() => overlay.remove(), 300);
+    if (planData.surveyComplete) {
+      // Show about content
+      renderAboutContent(aboutScreen);
+    } else {
+      // Show survey
+      renderSurveyQuestion(aboutScreen);
+    }
   }
 
-  function renderSurveyQuestion() {
-    const overlay = $('#plan-survey-overlay');
-    if (!overlay) return;
+  function renderAboutContent(container) {
+    const planData = getPlanData();
+    const survey = planData.survey || {};
+    
+    container.innerHTML = '';
+    
+    // Filter bar (tab header)
+    const filterBar = el('div', { class: 'filter-bar' },
+      el('div', { class: 'filter-label' }, 'About')
+    );
+    
+    // Scrollable content
+    const scroll = el('div', { class: 'scroll', style: { padding: 'var(--pad)' } },
+      el('h1', { 
+        class: 'survey-title',
+        style: { marginBottom: '24px' }
+      }, 'Your Trip Plan'),
+      el('p', { 
+        style: { fontSize: '15px', color: 'var(--fg-mid)', lineHeight: '1.6', marginBottom: '32px' }
+      }, 'Here\'s what you\'re planning. You can update any details as you go.'),
+      
+      // Survey answers summary
+      el('div', { class: 'offline-card', style: { marginBottom: '12px' } },
+        el('div', { class: 'oc-title' }, 'Destination'),
+        el('div', { style: { color: 'var(--fg-mid)', marginTop: '4px' } }, 
+          (survey.destinations || []).join(', ') || 'Not specified'
+        )
+      ),
+      
+      el('button', {
+        class: 'oc-btn',
+        style: { marginTop: '24px' },
+        onclick: () => {
+          const planData = getPlanData();
+          planData.surveyComplete = false;
+          savePlanData(planData);
+          renderAboutTab();
+        }
+      }, 'Retake Survey')
+    );
+    
+    container.appendChild(filterBar);
+    container.appendChild(scroll);
+  }
 
+  function renderSurveyQuestion(container) {
     const question = SURVEY_QUESTIONS[currentQuestionIndex];
     const isFirst = currentQuestionIndex === 0;
     const isLast = currentQuestionIndex === SURVEY_QUESTIONS.length - 1;
     const progress = Math.round(((currentQuestionIndex + 1) / SURVEY_QUESTIONS.length) * 100);
 
-    overlay.innerHTML = '';
-    overlay.style.setProperty('--progress', `${progress}%`);
+    container.innerHTML = '';
+    container.style.setProperty('--progress', `${progress}%`);
     
     // Progress bar
     const progressBar = el('div', { class: 'survey-progress' });
@@ -198,7 +241,7 @@
       class: 'survey-back',
       onclick: () => {
         currentQuestionIndex--;
-        renderSurveyQuestion();
+        renderSurveyQuestion(container);
       }
     }, '← Back') : null;
 
@@ -213,18 +256,18 @@
     const actions = el('div', { class: 'survey-actions' },
       question.skippable ? el('button', { 
         class: 'survey-skip',
-        onclick: () => nextQuestion()
+        onclick: () => nextQuestion(container)
       }, 'Skip') : null,
       el('button', { 
         class: 'survey-next',
-        onclick: () => nextQuestion()
+        onclick: () => nextQuestion(container)
       }, isLast ? 'Build my trip →' : 'Next')
     );
 
-    overlay.appendChild(progressBar);
-    if (backBtn) overlay.appendChild(backBtn);
-    overlay.appendChild(card);
-    overlay.appendChild(actions);
+    container.appendChild(progressBar);
+    if (backBtn) container.appendChild(backBtn);
+    container.appendChild(card);
+    container.appendChild(actions);
   }
 
   function buildQuestionInput(question) {
@@ -335,7 +378,7 @@
     return container;
   }
 
-  function nextQuestion() {
+  function nextQuestion(container) {
     // Save current answer
     const planData = getPlanData();
     planData.survey = surveyAnswers;
@@ -349,7 +392,7 @@
 
     // Move to next question
     currentQuestionIndex++;
-    renderSurveyQuestion();
+    renderSurveyQuestion(container);
   }
 
   function completeSurvey() {
@@ -357,12 +400,11 @@
     planData.survey = surveyAnswers;
     planData.surveyComplete = true;
     savePlanData(planData);
-
-    closeSurvey();
     
-    // Navigate to About tab
-    switchPlanTab('about');
     console.log('Survey complete!', surveyAnswers);
+    
+    // Re-render About tab to show about content
+    renderAboutTab();
   }
 
   // ─── Plan Mode Tab Switching ──────────────────────────────────────────────
@@ -397,16 +439,18 @@
         const tabId = btn.dataset.planTab;
         if (tabId) {
           switchPlanTab(tabId);
+          // Render About tab content when switching to it
+          if (tabId === 'about') {
+            renderAboutTab();
+          }
         }
       });
     });
     
-    // Show survey on first launch in plan mode
-    if (!planData.surveyComplete) {
-      const currentMode = localStorage.getItem('jk26.appMode') || 'travel';
-      if (currentMode === 'plan') {
-        setTimeout(() => showSurvey(), 500);
-      }
+    // Render About tab on init if in plan mode
+    const currentMode = localStorage.getItem('jk26.appMode') || 'travel';
+    if (currentMode === 'plan') {
+      setTimeout(() => renderAboutTab(), 100);
     }
   });
 
@@ -414,6 +458,7 @@
   window.PlanMode = {
     showSurvey,
     switchPlanTab,
+    renderAboutTab,
     getPlanData,
     savePlanData
   };
