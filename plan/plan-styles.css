@@ -27,7 +27,7 @@
 /* Progress Dots */
 .survey-progress {
   position: absolute;
-  top: max(var(--safe-top), 20px);
+  top: max(var(--sat), 20px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -56,12 +56,15 @@
 /* Back Button */
 .survey-back {
   position: absolute;
-  top: max(var(--safe-top), 20px);
+  top: max(var(--sat), 20px);
   left: var(--pad);
   font-size: 15px;
   color: var(--accent);
   padding: 8px;
   z-index: 10;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
 /* Survey Card */
@@ -234,19 +237,24 @@
 /* Survey Actions */
 .survey-actions {
   position: absolute;
-  bottom: max(var(--safe-bottom), 20px);
-  left: var(--pad);
-  right: var(--pad);
+  bottom: max(var(--sab), 20px);
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   gap: 12px;
   justify-content: space-between;
   align-items: center;
+  max-width: 500px;
+  width: calc(100% - (var(--pad) * 2));
 }
 
 .survey-skip {
   font-size: 15px;
   color: var(--fg-mid);
   padding: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
 .survey-next {
@@ -258,7 +266,9 @@
   font-weight: 600;
   background: var(--fg);
   color: var(--bg);
+  border: none;
   border-radius: var(--r);
+  cursor: pointer;
 }
 
 .survey-next:active {
