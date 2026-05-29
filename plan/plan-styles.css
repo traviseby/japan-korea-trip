@@ -1,0 +1,294 @@
+/* Plan Mode Styles
+ * Loaded alongside main styles.css
+ * All plan-specific UI components
+ */
+
+/* ─── Survey Overlay ─────────────────────────────────────────────────────── */
+.plan-survey-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pad);
+  opacity: 0;
+  transform: translateY(100%);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.plan-survey-overlay.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Progress Dots */
+.survey-progress {
+  position: absolute;
+  top: max(var(--safe-top), 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: all 0.3s ease;
+}
+
+.progress-dot.active {
+  background: var(--fg);
+  width: 24px;
+  border-radius: 4px;
+}
+
+.progress-dot.done {
+  background: var(--fg-mid);
+}
+
+/* Back Button */
+.survey-back {
+  position: absolute;
+  top: max(var(--safe-top), 20px);
+  left: var(--pad);
+  font-size: 15px;
+  color: var(--accent);
+  padding: 8px;
+  z-index: 10;
+}
+
+/* Survey Card */
+.survey-card {
+  max-width: 500px;
+  width: 100%;
+  margin: auto;
+}
+
+.survey-title {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 8px;
+  color: var(--fg);
+}
+
+.survey-subtitle {
+  font-size: 15px;
+  color: var(--fg-mid);
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+/* Survey Input Containers */
+.survey-input {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.survey-text-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--fg);
+}
+
+.survey-text-input:focus {
+  outline: none;
+  border-color: var(--fg-mid);
+}
+
+.survey-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 14px 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--fg);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.survey-textarea:focus {
+  outline: none;
+  border-color: var(--fg-mid);
+}
+
+/* Option Cards */
+.survey-option-card {
+  width: 100%;
+  padding: 20px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.survey-option-card.small {
+  padding: 16px 12px;
+}
+
+.survey-option-card:active {
+  transform: scale(0.98);
+}
+
+.survey-option-card.selected {
+  border-color: var(--fg);
+  background: var(--surface-2);
+}
+
+.option-emoji {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.survey-option-card.small .option-emoji {
+  font-size: 24px;
+}
+
+.option-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.survey-option-card.small .option-label {
+  font-size: 14px;
+}
+
+.option-subtitle {
+  font-size: 13px;
+  color: var(--fg-mid);
+  line-height: 1.3;
+}
+
+.selection-count {
+  font-size: 12px;
+  color: var(--fg-mute);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Duration Slider */
+.duration-display {
+  font-family: var(--serif);
+  font-size: 48px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 16px;
+  color: var(--fg);
+}
+
+.survey-slider {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--surface-2);
+  border-radius: 2px;
+  outline: none;
+}
+
+.survey-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--fg);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.survey-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--fg);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Survey Actions */
+.survey-actions {
+  position: absolute;
+  bottom: max(var(--safe-bottom), 20px);
+  left: var(--pad);
+  right: var(--pad);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.survey-skip {
+  font-size: 15px;
+  color: var(--fg-mid);
+  padding: 8px;
+}
+
+.survey-next {
+  flex: 1;
+  max-width: 300px;
+  margin-left: auto;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: var(--r);
+}
+
+.survey-next:active {
+  opacity: 0.8;
+}
+
+/* ─── Plan Mode Tab Visibility ──────────────────────────────────────────── */
+/* Hide/show different tab sets based on mode */
+.mode-plan .travel-tabs {
+  display: none;
+}
+
+.mode-travel .plan-tabs {
+  display: none;
+}
+
+/* Plan tab bar (to be added to HTML) */
+.plan-tabbar {
+  /* Same styling as .tabbar from main styles.css */
+}
+
+/* ─── Plan Mode Screens ─────────────────────────────────────────────────── */
+.plan-screen {
+  display: none;
+  height: 100%;
+  overflow: auto;
+}
+
+.plan-screen.active {
+  display: block;
+}
+
+/* TODO: Add screen-specific styles for About, Hotels, Flights, Activities, Generate */
