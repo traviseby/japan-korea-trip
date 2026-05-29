@@ -61,6 +61,63 @@
     return timeString;
   }
   
+  function showToast(message, duration = 3000) {
+    // Simple toast notification
+    const existingToast = $('.plan-toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = el('div', { 
+      class: 'plan-toast',
+      style: {
+        position: 'fixed',
+        bottom: 'calc(var(--sab, 0px) + 80px)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        padding: '12px 20px',
+        background: 'var(--surface-2)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 'var(--r)',
+        fontSize: '14px',
+        color: 'var(--fg)',
+        zIndex: '10000',
+        opacity: '0',
+        transition: 'opacity 0.2s ease',
+        maxWidth: 'calc(100% - 40px)',
+        textAlign: 'center'
+      }
+    }, message);
+    
+    document.body.appendChild(toast);
+    
+    // Fade in
+    setTimeout(() => {
+      toast.style.opacity = '1';
+    }, 10);
+    
+    // Fade out and remove
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 200);
+    }, duration);
+  }
+  
+  function validateDates(checkIn, checkOut, fieldName = 'dates') {
+    if (!checkIn || !checkOut) {
+      showToast(`Please select both ${fieldName}`);
+      return false;
+    }
+    
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    
+    if (checkOutDate <= checkInDate) {
+      showToast('Check-out must be after check-in');
+      return false;
+    }
+    
+    return true;
+  }
+  
   function el(tag, attrs, ...children){
     const e = document.createElement(tag);
     if (attrs) for (const k in attrs){
@@ -753,16 +810,17 @@
           };
           
           if (!newHotel.name) {
-            alert('Please enter a hotel name');
+            showToast('Please enter a hotel name');
+            $('#hotel-name').focus();
             return;
           }
-          if (!newHotel.checkIn || !newHotel.checkOut) {
-            alert('Please select check-in and check-out dates');
+          if (!validateDates(newHotel.checkIn, newHotel.checkOut, 'check-in and check-out dates')) {
             return;
           }
           
           saveHotel(newHotel);
-          renderHotelsTab();
+          showToast(`Hotel ${isEdit ? 'updated' : 'added'} successfully`);
+          setTimeout(() => renderHotelsTab(), 500);
         }
       }, isEdit ? 'Save Changes' : 'Add Hotel')
     );
@@ -1080,20 +1138,27 @@
           };
           
           if (!newFlight.airline) {
-            alert('Please enter an airline');
+            showToast('Please enter an airline');
+            $('#flight-airline').focus();
             return;
           }
-          if (!newFlight.departureAirport || !newFlight.arrivalAirport) {
-            alert('Please enter departure and arrival airports');
+          if (!newFlight.departureAirport) {
+            showToast('Please enter departure airport');
+            $('#flight-dep-airport').focus();
             return;
           }
-          if (!newFlight.departureDate || !newFlight.arrivalDate) {
-            alert('Please select departure and arrival dates');
+          if (!newFlight.arrivalAirport) {
+            showToast('Please enter arrival airport');
+            $('#flight-arr-airport').focus();
+            return;
+          }
+          if (!validateDates(newFlight.departureDate, newFlight.arrivalDate, 'departure and arrival dates')) {
             return;
           }
           
           saveFlight(newFlight);
-          renderFlightsTab();
+          showToast(`Flight ${isEdit ? 'updated' : 'added'} successfully`);
+          setTimeout(() => renderFlightsTab(), 500);
         }
       }, isEdit ? 'Save Changes' : 'Add Flight')
     );
@@ -1373,16 +1438,19 @@
           };
           
           if (!newActivity.name) {
-            alert('Please enter an activity name');
+            showToast('Please enter an activity name');
+            $('#activity-name').focus();
             return;
           }
           if (!newActivity.date) {
-            alert('Please select a date');
+            showToast('Please select a date');
+            $('#activity-date').focus();
             return;
           }
           
           saveActivity(newActivity);
-          renderActivitiesTab();
+          showToast(`Activity ${isEdit ? 'updated' : 'added'} successfully`);
+          setTimeout(() => renderActivitiesTab(), 500);
         }
       }, isEdit ? 'Save Changes' : 'Add Activity')
     );
