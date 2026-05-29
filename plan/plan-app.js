@@ -69,7 +69,7 @@
     },
     {
       id: 'travelers',
-      title: 'Who's coming?',
+      title: 'Who\'s coming?',
       type: 'travelers',
       skippable: true,
       options: [
@@ -81,8 +81,8 @@
     },
     {
       id: 'vibes',
-      title: 'What's your vibe?',
-      subtitle: 'On vacation, I like to…',
+      title: 'What\'s your vibe?',
+      subtitle: 'On vacation, I like to...',
       type: 'multi-select',
       max: 2,
       skippable: true,
@@ -134,7 +134,7 @@
       title: 'Anything else we should know?',
       type: 'free-text',
       skippable: true,
-      placeholder: 'Dietary restrictions, accessibility needs, a special occasion…'
+      placeholder: 'Dietary restrictions, accessibility needs, a special occasion...'
     }
   ];
 
