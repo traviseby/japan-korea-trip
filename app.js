@@ -8,7 +8,7 @@
     get() { return window.DATA; }
   });
   const D = window.D;
-  const APP_VERSION = '1.51';
+  const APP_VERSION = '1.52';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -526,7 +526,8 @@
       
       toast(errorMsg);
       
-      // Don't throw - allow app to continue with cached/current data
+      // Re-throw so caller can handle it
+      throw err;
     }
   }
   
@@ -542,21 +543,43 @@
     
     const activeTrip = getActiveTrip();
     if (activeTrip && activeTrip.url) {
+      // Check if we just switched trips - if so, force fresh fetch
+      const justSwitched = localStorage.getItem('jk26.justSwitched');
+      const useCache = !justSwitched;
+      
+      if (justSwitched) {
+        console.log('Just switched trips - forcing fresh fetch');
+        localStorage.removeItem('jk26.justSwitched');
+      }
+      
       try {
-        // Check if we just switched trips - if so, force fresh fetch
-        const justSwitched = localStorage.getItem('jk26.justSwitched');
-        const useCache = !justSwitched;
-        
-        if (justSwitched) {
-          console.log('Just switched trips - forcing fresh fetch');
-          localStorage.removeItem('jk26.justSwitched');
-        }
-        
         // Load the active trip's data
         await loadTripData(activeTrip.url, useCache);
       } catch (err) {
-        console.warn('Failed to initialize trip data, using default:', err);
-        // Continue with default data.js - don't block app startup
+        console.error('Failed to load trip data on init:', err);
+        
+        // Show error banner to user instead of silently falling back
+        const banner = el('div', {
+          style: {
+            position: 'fixed',
+            top: 'env(safe-area-inset-top)',
+            left: '0',
+            right: '0',
+            background: '#ff6b6b',
+            color: 'white',
+            padding: '12px 20px',
+            textAlign: 'center',
+            fontSize: '14px',
+            fontWeight: '600',
+            zIndex: '9999',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }
+        }, `⚠️ Failed to load ${activeTrip.name || 'trip'} data. Using default data. Try "Sync from Superhuman Docs" in Settings.`);
+        
+        document.body.appendChild(banner);
+        
+        // Auto-hide after 10 seconds
+        setTimeout(() => banner.remove(), 10000);
       }
     }
   }
@@ -623,7 +646,12 @@
       trips[0].active = true;
       saveTrips(trips);
       // Load the new active trip's data
-      await loadTripData(trips[0].url, false);
+      try {
+        await loadTripData(trips[0].url, false);
+      } catch (err) {
+        console.error('Failed to load next trip after removal:', err);
+        toast('Failed to load next trip. Try syncing from Settings.');
+      }
     } else {
       saveTrips(trips);
       if (trips.length === 0) {
@@ -905,30 +933,37 @@
           return;
         }
         
-        // Fetch doc info to get icon and doc name
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Fetching doc info...';
-        
-        const docInfo = await fetchDocInfo(url);
-        // Ensure icon is a string, not an object
-        let icon = '✈️';
-        if (docInfo?.icon && typeof docInfo.icon === 'string') {
-          icon = docInfo.icon;
-        }
-        const docName = docInfo?.name || name || 'Untitled Trip';
-        const tripName = name || docName;
-        
-        submitBtn.textContent = 'Add Trip';
-        submitBtn.disabled = false;
-        
-        if (await addTrip(tripName, url, icon, docName)) {
-          nameInput.value = '';
-          urlInput.value = '';
-          $('#add-trip-form').style.display = 'none';
-          showBtn.style.display = 'block';
+        try {
+          // Fetch doc info to get icon and doc name
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Fetching doc info...';
           
-          // Load the trip data since it's now active
-          await loadTripData(url, false);
+          const docInfo = await fetchDocInfo(url);
+          // Ensure icon is a string, not an object
+          let icon = '✈️';
+          if (docInfo?.icon && typeof docInfo.icon === 'string') {
+            icon = docInfo.icon;
+          }
+          const docName = docInfo?.name || name || 'Untitled Trip';
+          const tripName = name || docName;
+          
+          submitBtn.textContent = 'Add Trip';
+          submitBtn.disabled = false;
+          
+          if (await addTrip(tripName, url, icon, docName)) {
+            nameInput.value = '';
+            urlInput.value = '';
+            $('#add-trip-form').style.display = 'none';
+            showBtn.style.display = 'block';
+            
+            // Load the trip data since it's now active
+            await loadTripData(url, false);
+          }
+        } catch (err) {
+          console.error('Failed to add trip:', err);
+          submitBtn.textContent = 'Add Trip';
+          submitBtn.disabled = false;
+          toast('Failed to add trip: ' + err.message);
         }
       }
     }, 'Add Trip');
@@ -2398,14 +2433,12 @@
               const docName = docInfo?.name || 'Untitled Trip';
               const name = nameInput.value.trim() || docName;
               
-              submitBtn.textContent = 'Loading trip data...';
-              
-              // Add the trip
+              // Add the trip (don't load data yet - reload will handle it)
               if (await addTrip(name, url, icon, docName)) {
-                // Load the trip data
-                await loadTripData(url, false);
+                // Set flag to force fresh fetch after reload
+                localStorage.setItem('jk26.justSwitched', 'true');
                 
-                // Reload the page to ensure everything initializes properly
+                // Reload the page to load trip data
                 window.location.reload();
               }
             } catch (err) {
