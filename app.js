@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.64';
+  const APP_VERSION = '1.65';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -1091,7 +1091,7 @@
   function buildSyncCard(){
     const activeTrip = getActiveTrip();
     const desc = activeTrip 
-      ? `Fetch the latest updates from "${activeTrip.name}". Data will refresh instantly.`
+      ? `Fetch the latest updates from "${activeTrip.name}". The app will automatically refresh.`
       : 'Add a trip above to enable syncing.';
     
     const card = el('div', { class: 'offline-card' },
@@ -1141,14 +1141,15 @@
     try {
       // Clear cached data for this trip to force fresh fetch
       localStorage.removeItem(`jk26.tripData.${docUrl}`);
-      
+
       // Fetch fresh data from Coda
       await loadTripData(docUrl, false);
 
       status.textContent = 'Synced!';
-      btn.textContent = 'Sync now';
-      btn.disabled = false;
-      toast(`${activeTrip.name} data updated!`);
+      toast(`${activeTrip.name} data updated! Refreshing...`);
+      
+      // Reload the app to display fresh data
+      setTimeout(() => location.reload(), 500);
     } catch (err){
       console.error('Sync error:', err);
       status.textContent = 'Error';
@@ -2129,7 +2130,6 @@
     root.appendChild(buildTripsCard());
     root.appendChild(buildOfflineCard());
     root.appendChild(buildSyncCard());
-    root.appendChild(buildRefreshCard());
     root.appendChild(buildResetCard());
     root.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
     root.appendChild(el('div', { class: 'settings-about' },
