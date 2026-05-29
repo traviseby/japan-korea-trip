@@ -8,7 +8,7 @@
     get() { return window.DATA; }
   });
   const D = window.D;
-  const APP_VERSION = '1.52';
+  const APP_VERSION = '1.53';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
@@ -441,11 +441,26 @@
       if (!tripData) {
         toast('Loading trip data...');
         
-        const res = await fetch('/api/fetch-trip-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ docUrl })
-        });
+        // Add timeout to fetch (30 seconds max)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
+        let res;
+        try {
+          res = await fetch('/api/fetch-trip-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ docUrl }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === 'AbortError') {
+            throw new Error('Request timed out after 30 seconds. The server may be slow or experiencing issues.');
+          }
+          throw fetchErr;
+        }
 
         // Check if we're in local dev (API returns 501)
         if (res.status === 501) {
@@ -550,13 +565,60 @@
       if (justSwitched) {
         console.log('Just switched trips - forcing fresh fetch');
         localStorage.removeItem('jk26.justSwitched');
+        
+        // Show loading overlay for fresh fetches
+        const loadingOverlay = el('div', {
+          id: 'trip-loading',
+          style: {
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            background: 'var(--bg)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: '9998',
+            gap: '20px'
+          }
+        },
+          el('div', { style: { fontSize: '48px' } }, '✈️'),
+          el('div', { 
+            id: 'trip-loading-text',
+            style: { 
+              fontSize: '16px', 
+              color: 'var(--fg-mid)',
+              textAlign: 'center',
+              padding: '0 20px'
+            } 
+          }, `Loading ${activeTrip.name || 'trip'} data...`),
+          el('div', { 
+            style: { 
+              fontSize: '13px', 
+              color: 'var(--fg-dim)',
+              marginTop: '8px'
+            } 
+          }, 'This may take up to 30 seconds')
+        );
+        
+        document.body.appendChild(loadingOverlay);
       }
       
       try {
         // Load the active trip's data
         await loadTripData(activeTrip.url, useCache);
+        
+        // Remove loading overlay if it exists
+        const overlay = $('#trip-loading');
+        if (overlay) overlay.remove();
       } catch (err) {
         console.error('Failed to load trip data on init:', err);
+        
+        // Remove loading overlay if it exists
+        const overlay = $('#trip-loading');
+        if (overlay) overlay.remove();
         
         // Show error banner to user instead of silently falling back
         const banner = el('div', {
