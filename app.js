@@ -3,12 +3,13 @@
  */
 (function(){
   'use strict';
-  // Make D always reference the current window.DATA (so it updates when we load new trip data)
-  Object.defineProperty(window, 'D', {
-    get() { return window.DATA; }
+  // Make D a Proxy that always forwards to window.DATA (so it updates when we load new trip data)
+  const D = new Proxy({}, {
+    get(target, prop) {
+      return window.DATA?.[prop];
+    }
   });
-  const D = window.D;
-  const APP_VERSION = '1.53';
+  const APP_VERSION = '1.54';
 
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
