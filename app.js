@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.02';
+  const APP_VERSION = '2.03';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -639,10 +639,15 @@
       });
       
       if (existingTrip) {
-        console.log('✅ Trip already exists, loading normally');
+        console.log('✅ Trip already exists, loading normally (keeping ?doc= in URL)');
         // Trip already exists, just load it normally (don't auto-load again)
-        // Remove the doc param to prevent loop
-        window.history.replaceState({}, '', window.location.pathname);
+        // Keep the doc param in URL for easy sharing
+        // Make sure this trip is active
+        if (!existingTrip.active) {
+          const trips = getTrips();
+          trips.forEach(t => t.active = (t.url === existingTrip.url));
+          saveTrips(trips);
+        }
         // Continue to normal trip loading below
       } else {
         console.log('🚀 Trip not found, auto-loading from URL param');
