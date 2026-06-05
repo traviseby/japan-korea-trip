@@ -2728,7 +2728,7 @@
       loading.remove();
 
       // Show error and fall back to onboarding
-      toast('Could not load trip. Please add it manually.', 5000);
+      toast('Could not load trip. Please add it manually.');
       showOnboarding();
     }
   }
