@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.01';
+  const APP_VERSION = '2.02';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -620,17 +620,41 @@
     const docParam = urlParams.get('doc');
     console.log('🔍 Extracted doc param:', docParam);
     
+    const trips = getTrips();
+    
     if (docParam) {
-      console.log('🔗 Auto-loading from URL param:', docParam);
-      // Mark that we're in auto-load mode
-      sessionStorage.setItem('autoLoadInProgress', 'true');
+      console.log('🔗 Found doc param:', docParam);
       
-      // Auto-load from URL parameter
-      // Note: We keep the ?doc= param in the URL so users can share it
-      await autoLoadFromUrl(docParam);
+      // Convert to full URL if it's just an ID
+      let docUrl = docParam;
+      if (!docParam.startsWith('http')) {
+        docUrl = `https://coda.io/d/_${docParam}`;
+      }
       
-      sessionStorage.removeItem('autoLoadInProgress');
-      return;
+      // Check if this trip already exists in saved trips
+      const existingTrip = trips.find(t => {
+        const tripDocId = extractDocId(t.url);
+        const paramDocId = extractDocId(docUrl);
+        return tripDocId === paramDocId || t.url === docUrl;
+      });
+      
+      if (existingTrip) {
+        console.log('✅ Trip already exists, loading normally');
+        // Trip already exists, just load it normally (don't auto-load again)
+        // Remove the doc param to prevent loop
+        window.history.replaceState({}, '', window.location.pathname);
+        // Continue to normal trip loading below
+      } else {
+        console.log('🚀 Trip not found, auto-loading from URL param');
+        // Mark that we're in auto-load mode
+        sessionStorage.setItem('autoLoadInProgress', 'true');
+        
+        // Auto-load from URL parameter (adds the trip)
+        await autoLoadFromUrl(docParam);
+        
+        sessionStorage.removeItem('autoLoadInProgress');
+        return;
+      }
     }
     
     // Check if we just completed an auto-load (in case of unexpected reload)
@@ -638,8 +662,6 @@
       console.log('⚠️ Auto-load was interrupted by page reload');
       sessionStorage.removeItem('autoLoadInProgress');
     }
-    
-    const trips = getTrips();
 
     // If no trips, show onboarding
     if (trips.length === 0) {
