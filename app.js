@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.85';
+  const APP_VERSION = '1.86';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -609,17 +609,33 @@
   
   // Initialize trip data on page load
   async function initTripData(){
+    console.log('🔍 initTripData called. URL:', window.location.href);
+    console.log('🔍 URL search params:', window.location.search);
+    
     // Check for URL parameter to auto-load a doc
     const urlParams = new URLSearchParams(window.location.search);
     const docParam = urlParams.get('doc');
+    console.log('🔍 Extracted doc param:', docParam);
     
     if (docParam) {
       console.log('🔗 Auto-loading from URL param:', docParam);
+      // Mark that we're in auto-load mode
+      sessionStorage.setItem('autoLoadInProgress', 'true');
+      
+      // Remove the param from URL immediately to prevent double-processing
+      window.history.replaceState({}, '', window.location.pathname);
+      
       // Auto-load from URL parameter
       await autoLoadFromUrl(docParam);
-      // Remove the param from URL without reload
-      window.history.replaceState({}, '', window.location.pathname);
+      
+      sessionStorage.removeItem('autoLoadInProgress');
       return;
+    }
+    
+    // Check if we just completed an auto-load (in case of unexpected reload)
+    if (sessionStorage.getItem('autoLoadInProgress')) {
+      console.log('⚠️ Auto-load was interrupted by page reload');
+      sessionStorage.removeItem('autoLoadInProgress');
     }
     
     const trips = getTrips();
@@ -2667,8 +2683,14 @@
   async function autoLoadFromUrl(docUrl) {
     console.log('🚀 Starting auto-load for:', docUrl);
     
+    // Hide any existing onboarding or app content
+    const existingOnboarding = $('#onboarding');
+    if (existingOnboarding) existingOnboarding.style.display = 'none';
+    $('#app').style.display = 'none';
+    
     // Show loading overlay
     const loading = el('div', {
+      id: 'auto-load-overlay',
       style: {
         position: 'fixed',
         inset: '0',
