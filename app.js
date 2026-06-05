@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.87';
+  const APP_VERSION = '1.88';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -2742,7 +2742,7 @@
 
       // Load the trip data
       console.log('📦 Loading trip data...');
-      await loadTripData(trip, true);
+      await loadTripData(trip.url, false); // Force fresh fetch, not from cache
       console.log('✅ Trip data loaded');
 
       // Remove loading overlay
