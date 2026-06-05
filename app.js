@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.83';
+  const APP_VERSION = '1.84';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -2260,13 +2260,13 @@
     const mode = getAppMode();
     const travelTabbar = $('.travel-tabbar');
     const planTabbar = $('.plan-tabbar');
-    
+
     if (travelTabbar && planTabbar) {
       if (mode === 'plan') {
         travelTabbar.style.display = 'none';
         planTabbar.style.display = 'flex';
       } else {
-        travelTabbar.style.display = 'flex';
+        travelTabbar.style.display = 'grid';
         planTabbar.style.display = 'none';
       }
     }
