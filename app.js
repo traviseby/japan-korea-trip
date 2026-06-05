@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.03';
+  const APP_VERSION = '2.04';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -673,8 +673,18 @@
       showOnboarding();
       return;
     }
-    
+
     const activeTrip = getActiveTrip();
+    
+    // If we have an active trip but no doc param in URL, add it
+    if (activeTrip && !docParam) {
+      const docId = extractDocId(activeTrip.url);
+      const docParamToAdd = docId || activeTrip.url;
+      const newUrl = window.location.pathname + window.location.hash + '?doc=' + encodeURIComponent(docParamToAdd);
+      console.log('📌 Adding doc param to URL:', newUrl);
+      window.history.replaceState({}, '', newUrl);
+    }
+    
     if (activeTrip && activeTrip.url) {
       // Check if we just switched trips - if so, force fresh fetch
       const justSwitched = localStorage.getItem('jk26.justSwitched');
