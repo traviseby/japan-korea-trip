@@ -9,11 +9,13 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.81';
+  const APP_VERSION = '1.82';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
-    return localStorage.getItem('jk26.appMode') || 'travel';
+    // Force travel mode - Plan mode hidden during development
+    return 'travel';
+    // return localStorage.getItem('jk26.appMode') || 'travel';
   }
   function setAppMode(mode) {
     localStorage.setItem('jk26.appMode', mode);
@@ -2196,7 +2198,7 @@
 
     const root = $('#settings-content');
     root.innerHTML = '';
-    root.appendChild(buildAppModeCard());
+    // root.appendChild(buildAppModeCard()); // Hidden - Plan mode in development
     root.appendChild(buildTripsCard());
     root.appendChild(buildOfflineCard());
     root.appendChild(buildSyncCard());
