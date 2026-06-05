@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.00';
+  const APP_VERSION = '2.01';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -460,8 +460,11 @@
       }
     });
     
-    // Reload the page to fetch fresh data
-    window.location.reload();
+    // Update URL with doc parameter before reload
+    const docId = extractDocId(tripUrl);
+    const docParam = docId || tripUrl;
+    const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParam);
+    window.location.href = newUrl;
   }
 
   async function loadTripData(docUrl, fromCache = true){
@@ -622,10 +625,8 @@
       // Mark that we're in auto-load mode
       sessionStorage.setItem('autoLoadInProgress', 'true');
       
-      // Remove the param from URL immediately to prevent double-processing
-      window.history.replaceState({}, '', window.location.pathname);
-      
       // Auto-load from URL parameter
+      // Note: We keep the ?doc= param in the URL so users can share it
       await autoLoadFromUrl(docParam);
       
       sessionStorage.removeItem('autoLoadInProgress');
@@ -1110,6 +1111,14 @@
             
             // Load the trip data since it's now active
             await loadTripData(url, false);
+            
+            // Update URL with doc parameter (makes it easy to share)
+            const docId = extractDocId(url);
+            const docParam = docId || url;
+            const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParam);
+            window.history.replaceState({}, '', newUrl);
+            
+            toast('Trip added! Copy the URL to share.');
           }
         } catch (err) {
           console.error('Failed to add trip:', err);
@@ -2657,8 +2666,13 @@
                 // Set flag to force fresh fetch after reload
                 localStorage.setItem('jk26.justSwitched', 'true');
                 
-                // Reload the page to load trip data
-                window.location.reload();
+                // Extract doc ID from URL to add as query parameter
+                const docId = extractDocId(url);
+                const docParam = docId || url; // Use ID if extracted, otherwise full URL
+                
+                // Update URL with doc parameter (makes it easy to share)
+                const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParam);
+                window.location.href = newUrl;
               }
             } catch (err) {
               console.error('Onboarding error:', err);
@@ -2678,6 +2692,17 @@
     const onboarding = $('#onboarding');
     if (onboarding) onboarding.remove();
     $('#app').style.display = 'block';
+  }
+
+  function extractDocId(input) {
+    if (!input) return null;
+    // Match pattern like: https://coda.io/d/Orlando-Trip_dnmnstSTNl1
+    // or https://docs.superhuman.com/d/My-Doc_dABC123
+    const urlMatch = input.match(/_d([a-zA-Z0-9_-]+)/);
+    if (urlMatch) return urlMatch[1];
+    // If it's already just an ID (no slashes or colons), return it
+    if (!input.includes('/') && !input.includes(':')) return input;
+    return null;
   }
 
   async function autoLoadFromUrl(docParam) {
