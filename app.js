@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.05';
+  const APP_VERSION = '2.06';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -687,7 +687,8 @@
     if (activeTrip && !docParam) {
       const docId = extractDocId(activeTrip.url);
       const docParamToAdd = docId || activeTrip.url;
-      const newUrl = window.location.pathname + window.location.hash + '?doc=' + encodeURIComponent(docParamToAdd);
+      // Query string must come BEFORE hash
+      const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParamToAdd) + window.location.hash;
       console.log('📌 Adding doc param to URL:', newUrl);
       window.history.replaceState({}, '', newUrl);
     }
