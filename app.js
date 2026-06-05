@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.06';
+  const APP_VERSION = '2.07';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -614,6 +614,8 @@
   async function initTripData(){
     console.log('🔍 initTripData called. URL:', window.location.href);
     console.log('🔍 URL search params:', window.location.search);
+    console.log('🔍 URL pathname:', window.location.pathname);
+    console.log('🔍 URL hash:', window.location.hash);
     
     const trips = getTrips();
     
@@ -621,6 +623,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const docParam = urlParams.get('doc');
     console.log('🔍 Extracted doc param:', docParam);
+    console.log('🔍 Number of trips:', trips.length);
     
     // First, check if we have any trips at all
     if (trips.length === 0 && !docParam) {
@@ -648,12 +651,23 @@
       if (existingTrip) {
         console.log('✅ Trip already exists, loading normally (keeping ?doc= in URL)');
         // Trip already exists, just load it normally (don't auto-load again)
-        // Keep the doc param in URL for easy sharing
         // Make sure this trip is active
         if (!existingTrip.active) {
           trips.forEach(t => t.active = (t.url === existingTrip.url));
           saveTrips(trips);
         }
+        
+        // Ensure the doc param stays in the URL (re-add if needed to normalize format)
+        const currentDocParam = urlParams.get('doc');
+        const docId = extractDocId(existingTrip.url);
+        const normalizedDocParam = docId || existingTrip.url;
+        
+        if (currentDocParam !== normalizedDocParam) {
+          const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(normalizedDocParam) + window.location.hash;
+          console.log('🔄 Normalizing doc param in URL:', newUrl);
+          window.history.replaceState({}, '', newUrl);
+        }
+        
         // Continue to normal trip loading below
       } else {
         console.log('🚀 Trip not found, auto-loading from URL param');
@@ -2882,19 +2896,37 @@
       console.log('🎉 Auto-load complete!');
     } catch (error) {
       console.error('❌ Auto-load failed:', error);
-      loading.remove();
+      if (loading && loading.parentNode) {
+        loading.remove();
+      }
 
       // Show error with more helpful message
       const errorMsg = error.message || 'Could not load trip data';
       toast(errorMsg);
       
-      // Remove doc param from URL to prevent loop
-      window.history.replaceState({}, '', window.location.pathname);
+      // Only remove doc param if this was a genuinely new trip that failed
+      // Don't remove if trip was already saved (would break the URL sharing feature)
+      const trips = getTrips();
+      let docUrlToCheck = docParam;
+      if (!docParam.startsWith('http')) {
+        docUrlToCheck = `https://coda.io/d/_${docParam}`;
+      }
+      const tripExists = trips.some(t => {
+        const tripDocId = extractDocId(t.url);
+        const paramDocId = extractDocId(docUrlToCheck);
+        return tripDocId === paramDocId;
+      });
+      
+      if (!tripExists) {
+        console.log('🗑️ Removing doc param - new trip auto-load failed');
+        window.history.replaceState({}, '', window.location.pathname);
+      } else {
+        console.log('✅ Keeping doc param - trip exists in storage');
+      }
       
       // If trip was saved, continue with normal loading
-      const trips = getTrips();
       if (trips.length > 0) {
-        console.log('Trip was partially saved, loading what we have...');
+        console.log('Trip exists, loading what we have...');
         $('#app').style.display = 'block';
         switchTab('settings'); // Show settings so user can try sync
       } else {
