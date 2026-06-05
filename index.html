@@ -187,6 +187,10 @@
     flex: 1 !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
+    padding-bottom: 0 !important; /* Remove safe area padding in phone frame */
+  }
+  .screen .tab-pane {
+    padding-bottom: 0 !important; /* Ensure no extra padding in tabs */
   }
   /* Override .tabbar to not be fixed in phone frame preview */
   .screen .tabbar {
