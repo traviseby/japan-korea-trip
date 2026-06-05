@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.84';
+  const APP_VERSION = '1.85';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -614,6 +614,7 @@
     const docParam = urlParams.get('doc');
     
     if (docParam) {
+      console.log('🔗 Auto-loading from URL param:', docParam);
       // Auto-load from URL parameter
       await autoLoadFromUrl(docParam);
       // Remove the param from URL without reload
@@ -2664,6 +2665,8 @@
   }
 
   async function autoLoadFromUrl(docUrl) {
+    console.log('🚀 Starting auto-load for:', docUrl);
+    
     // Show loading overlay
     const loading = el('div', {
       style: {
@@ -2683,15 +2686,20 @@
       el('div', { style: { fontSize: '14px', color: 'var(--fg-mid)' } }, 'This may take a moment')
     );
     document.body.appendChild(loading);
+    console.log('✅ Loading overlay added');
 
     try {
       // Fetch doc info to get the name and icon
+      console.log('📡 Fetching doc info...');
       const docInfo = await fetchDocInfo(docUrl);
+      console.log('📄 Doc info received:', docInfo);
+      
       if (!docInfo) {
         throw new Error('Could not fetch doc info');
       }
 
       const tripName = docInfo.name || 'My Trip';
+      console.log('🎫 Trip name:', tripName);
 
       // Add the trip
       const trip = {
@@ -2708,9 +2716,12 @@
       trips.forEach(t => t.active = false);
       trips.push(trip);
       saveTrips(trips);
+      console.log('💾 Trip saved:', trip);
 
       // Load the trip data
+      console.log('📦 Loading trip data...');
       await loadTripData(trip, true);
+      console.log('✅ Trip data loaded');
 
       // Remove loading overlay
       loading.remove();
@@ -2723,8 +2734,9 @@
 
       // Switch to today tab
       switchTab('today');
+      console.log('🎉 Auto-load complete!');
     } catch (error) {
-      console.error('Auto-load failed:', error);
+      console.error('❌ Auto-load failed:', error);
       loading.remove();
 
       // Show error and fall back to onboarding
