@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.88';
+  const APP_VERSION = '1.89';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -2688,7 +2688,12 @@
     if (existingOnboarding) existingOnboarding.style.display = 'none';
     $('#app').style.display = 'none';
     
-    // Show loading overlay
+    // Show loading overlay with status text
+    const statusText = el('div', { 
+      id: 'auto-load-status',
+      style: { fontSize: '14px', color: 'var(--fg-mid)', marginTop: '8px' } 
+    }, 'Preparing...');
+    
     const loading = el('div', {
       id: 'auto-load-overlay',
       style: {
@@ -2705,7 +2710,7 @@
     },
       el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '✈️'),
       el('div', { style: { fontSize: '18px', fontWeight: '500', marginBottom: '8px' } }, 'Loading your trip...'),
-      el('div', { style: { fontSize: '14px', color: 'var(--fg-mid)' } }, 'This may take a moment')
+      statusText
     );
     document.body.appendChild(loading);
     console.log('✅ Loading overlay added');
@@ -2713,6 +2718,7 @@
     try {
       // Fetch doc info to get the name and icon
       console.log('📡 Fetching doc info...');
+      statusText.textContent = 'Fetching trip info...';
       const docInfo = await fetchDocInfo(docUrl);
       console.log('📄 Doc info received:', docInfo);
       
@@ -2740,10 +2746,49 @@
       saveTrips(trips);
       console.log('💾 Trip saved:', trip);
 
-      // Load the trip data
+      // Load the trip data (this can take 20-60 seconds for first load)
       console.log('📦 Loading trip data...');
-      await loadTripData(trip.url, false); // Force fresh fetch, not from cache
-      console.log('✅ Trip data loaded');
+      statusText.textContent = 'Loading itinerary and activities... (this may take up to a minute)';
+      
+      // Increase timeout to 90 seconds for auto-load
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
+      
+      try {
+        const res = await fetch('/api/fetch-trip-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ docUrl }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) {
+          throw new Error(`API returned ${res.status}`);
+        }
+        
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Server returned non-JSON response');
+        }
+        
+        const tripData = await res.json();
+        
+        // Save to cache
+        const normalizedUrl = docUrl.split('#')[0].split('?')[0];
+        const cacheKey = `jk26.tripData.${normalizedUrl}`;
+        localStorage.setItem(cacheKey, JSON.stringify(tripData));
+        
+        // Load into window.DATA
+        window.DATA = tripData;
+        console.log('✅ Trip data loaded');
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr.name === 'AbortError') {
+          throw new Error('Loading took too long. The trip has been saved - please refresh the page to try again.');
+        }
+        throw fetchErr;
+      }
 
       // Remove loading overlay
       loading.remove();
@@ -2761,9 +2806,17 @@
       console.error('❌ Auto-load failed:', error);
       loading.remove();
 
-      // Show error and fall back to onboarding
-      toast('Could not load trip. Please add it manually.');
-      showOnboarding();
+      // Show error with more helpful message
+      const errorMsg = error.message || 'Could not load trip data';
+      toast(errorMsg);
+      
+      // If trip was saved, just reload the page to show it
+      if (getTrips().length > 0) {
+        console.log('Trip was saved, reloading page...');
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        showOnboarding();
+      }
     }
   }
   
