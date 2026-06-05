@@ -79,6 +79,21 @@
     white-space: nowrap;
   }
   .meta .row1 { color: #f4f3f0; }
+  .fullscreen-link {
+    color: #f4f3f0;
+    text-decoration: none;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding-bottom: 2px;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .fullscreen-link:hover {
+    color: #fff;
+    border-bottom-color: rgba(255,255,255,0.5);
+  }
 
   .quick-jump {
     display: flex; gap: 6px;
@@ -190,6 +205,7 @@
     .stage { padding: 16px 8px 32px; }
     .header { flex-direction: column; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
     .meta { text-align: left; }
+    .fullscreen-link { display: inline-block; }
     .device { width: min(100%, 432px); padding: 12px; border-radius: 44px; }
     .device::after { display: none; }
     .screen { border-radius: 32px; }
@@ -219,8 +235,7 @@
       Superhuman Trips
     </div>
     <div class="meta">
-      <div class="row1">Jul 22 — Aug 5 · 15 Days</div>
-      <div>Tokyo · Hakone · Seoul</div>
+      <a href="/trip-app.html" target="_blank" class="fullscreen-link">View Full Screen →</a>
     </div>
   </header>
 
