@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.99';
+  const APP_VERSION = '2.00';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -2680,8 +2680,16 @@
     $('#app').style.display = 'block';
   }
 
-  async function autoLoadFromUrl(docUrl) {
-    console.log('🚀 Starting auto-load for:', docUrl);
+  async function autoLoadFromUrl(docParam) {
+    console.log('🚀 Starting auto-load for:', docParam);
+    
+    // If docParam is just an ID (not a full URL), construct the URL
+    let docUrl = docParam;
+    if (!docParam.startsWith('http')) {
+      // It's just a doc ID, construct the full URL
+      docUrl = `https://coda.io/d/_${docParam}`;
+      console.log('📝 Converted doc ID to URL:', docUrl);
+    }
     
     // Hide any existing onboarding or app content
     const existingOnboarding = $('#onboarding');
