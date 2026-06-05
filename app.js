@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '1.82';
+  const APP_VERSION = '1.83';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -609,8 +609,20 @@
   
   // Initialize trip data on page load
   async function initTripData(){
-    const trips = getTrips();
+    // Check for URL parameter to auto-load a doc
+    const urlParams = new URLSearchParams(window.location.search);
+    const docParam = urlParams.get('doc');
     
+    if (docParam) {
+      // Auto-load from URL parameter
+      await autoLoadFromUrl(docParam);
+      // Remove the param from URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    
+    const trips = getTrips();
+
     // If no trips, show onboarding
     if (trips.length === 0) {
       showOnboarding();
@@ -2649,6 +2661,76 @@
     const onboarding = $('#onboarding');
     if (onboarding) onboarding.remove();
     $('#app').style.display = 'block';
+  }
+
+  async function autoLoadFromUrl(docUrl) {
+    // Show loading overlay
+    const loading = el('div', {
+      style: {
+        position: 'fixed',
+        inset: '0',
+        background: 'var(--bg)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: '10000',
+        padding: 'var(--pad)'
+      }
+    },
+      el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '✈️'),
+      el('div', { style: { fontSize: '18px', fontWeight: '500', marginBottom: '8px' } }, 'Loading your trip...'),
+      el('div', { style: { fontSize: '14px', color: 'var(--fg-mid)' } }, 'This may take a moment')
+    );
+    document.body.appendChild(loading);
+
+    try {
+      // Fetch doc info to get the name and icon
+      const docInfo = await fetchDocInfo(docUrl);
+      if (!docInfo) {
+        throw new Error('Could not fetch doc info');
+      }
+
+      const tripName = docInfo.name || 'My Trip';
+
+      // Add the trip
+      const trip = {
+        id: Date.now().toString(),
+        url: docUrl,
+        name: tripName,
+        icon: docInfo.icon || '✈️',
+        docName: docInfo.name || tripName,
+        active: true
+      };
+
+      const trips = getTrips();
+      // Set all existing trips to inactive
+      trips.forEach(t => t.active = false);
+      trips.push(trip);
+      saveTrips(trips);
+
+      // Load the trip data
+      await loadTripData(trip, true);
+
+      // Remove loading overlay
+      loading.remove();
+
+      // Show the app
+      $('#app').style.display = 'block';
+
+      // Show success toast
+      toast(`Welcome to ${tripName}!`);
+
+      // Switch to today tab
+      switchTab('today');
+    } catch (error) {
+      console.error('Auto-load failed:', error);
+      loading.remove();
+
+      // Show error and fall back to onboarding
+      toast('Could not load trip. Please add it manually.', 5000);
+      showOnboarding();
+    }
   }
   
   function render(){
