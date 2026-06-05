@@ -271,13 +271,6 @@
     </div>
   </header>
 
-  <div class="quick-jump" id="qj">
-    <button data-tab="today" class="active">Today</button>
-    <button data-tab="map">Map</button>
-    <button data-tab="activities">Activities</button>
-    <button data-tab="todo">To-Do</button>
-  </div>
-
   <div class="device-wrap">
     <div class="device">
       <div class="screen">
@@ -379,17 +372,6 @@
 
 <script src="data.js"></script>
 <script src="app.js"></script>
-<script>
-  // Quick-jump strip drives the iPhone's bottom tab bar.
-  document.querySelectorAll('#qj button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#qj button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const t = document.querySelector('.tabbar button[data-tab="' + btn.dataset.tab + '"]');
-      if (t) t.click();
-    });
-  });
-</script>
 
 </body>
 </html>
