@@ -160,13 +160,24 @@
   /* Override .phone-fullscreen position to be relative-inside-screen */
   .screen .phone-fullscreen {
     position: absolute !important; inset: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  /* Override #app to flex layout so tabbar stays at bottom */
+  .screen #app {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+  }
+  .screen .tabview {
+    flex: 1 !important;
+    overflow: auto !important;
   }
   /* Override .tabbar to not be fixed in phone frame preview */
   .screen .tabbar {
-    position: absolute !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
+    position: relative !important;
+    flex-shrink: 0 !important;
+    margin-top: auto !important;
   }
   .island {
     position: absolute;
