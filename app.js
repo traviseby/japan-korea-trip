@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.04';
+  const APP_VERSION = '2.05';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -615,12 +615,19 @@
     console.log('🔍 initTripData called. URL:', window.location.href);
     console.log('🔍 URL search params:', window.location.search);
     
+    const trips = getTrips();
+    
     // Check for URL parameter to auto-load a doc
     const urlParams = new URLSearchParams(window.location.search);
     const docParam = urlParams.get('doc');
     console.log('🔍 Extracted doc param:', docParam);
     
-    const trips = getTrips();
+    // First, check if we have any trips at all
+    if (trips.length === 0 && !docParam) {
+      // No trips and no doc param - show onboarding
+      showOnboarding();
+      return;
+    }
     
     if (docParam) {
       console.log('🔗 Found doc param:', docParam);
@@ -644,7 +651,6 @@
         // Keep the doc param in URL for easy sharing
         // Make sure this trip is active
         if (!existingTrip.active) {
-          const trips = getTrips();
           trips.forEach(t => t.active = (t.url === existingTrip.url));
           saveTrips(trips);
         }
@@ -668,15 +674,16 @@
       sessionStorage.removeItem('autoLoadInProgress');
     }
 
-    // If no trips, show onboarding
-    if (trips.length === 0) {
-      showOnboarding();
-      return;
-    }
-
     const activeTrip = getActiveTrip();
     
-    // If we have an active trip but no doc param in URL, add it
+    // If no active trip but we have trips, something is wrong
+    if (!activeTrip && trips.length > 0) {
+      console.log('⚠️ No active trip found, setting first trip as active');
+      trips[0].active = true;
+      saveTrips(trips);
+    }
+    
+    // If we have an active trip but no doc param in URL, add it (but don't trigger auto-load)
     if (activeTrip && !docParam) {
       const docId = extractDocId(activeTrip.url);
       const docParamToAdd = docId || activeTrip.url;
@@ -2880,10 +2887,15 @@
       const errorMsg = error.message || 'Could not load trip data';
       toast(errorMsg);
       
-      // If trip was saved, just reload the page to show it
-      if (getTrips().length > 0) {
-        console.log('Trip was saved, reloading page...');
-        setTimeout(() => window.location.reload(), 2000);
+      // Remove doc param from URL to prevent loop
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // If trip was saved, continue with normal loading
+      const trips = getTrips();
+      if (trips.length > 0) {
+        console.log('Trip was partially saved, loading what we have...');
+        $('#app').style.display = 'block';
+        switchTab('settings'); // Show settings so user can try sync
       } else {
         showOnboarding();
       }
