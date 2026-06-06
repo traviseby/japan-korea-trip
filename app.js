@@ -1339,7 +1339,7 @@
                   el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
                   el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
                   el('li', { style: { marginBottom: '12px' } },
-                    el('strong', null, '⚠️ Click "Add a restriction"'),
+                    el('strong', null, 'Click "Add a restriction"'),
                     ' and paste this doc URL:',
                     el('div', {
                       style: {
@@ -3924,7 +3924,7 @@
               el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
               el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
               el('li', { style: { marginBottom: '12px' } },
-                el('strong', null, '⚠️ Click "Add a restriction"'),
+                el('strong', null, 'Click "Add a restriction"'),
                 ' and paste this doc URL:',
                 el('div', {
                   style: {
@@ -4305,7 +4305,7 @@
           el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
           el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
           el('li', { style: { marginBottom: '12px' } },
-            el('strong', null, '⚠️ Click "Add a restriction"'),
+            el('strong', null, 'Click "Add a restriction"'),
             ' and paste this doc URL:',
             el('div', {
               style: {
