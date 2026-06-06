@@ -115,7 +115,17 @@ export default async function handler(req, res) {
       if (v == null) return '';
       if (typeof v === 'string') return stripFence(v);
       if (typeof v === 'number') return String(v);
+      if (typeof v === 'boolean') return String(v);
+      if (Array.isArray(v)) {
+        for (const item of v) {
+          const t = cellText(item);
+          if (t) return t;
+        }
+        return '';
+      }
       if (typeof v === 'object') {
+        if (typeof v.display === 'string') return stripFence(v.display);
+        if (typeof v.formattedValue === 'string') return stripFence(v.formattedValue);
         if (typeof v.name === 'string') return stripFence(v.name);
         if (typeof v.value === 'string') return stripFence(v.value);
         if (typeof v.url === 'string') return v.url;
@@ -153,6 +163,25 @@ export default async function handler(req, res) {
         }
       }
       return best;
+    }
+
+    function inferActivityCol(actCols, actRows) {
+      const skip = /date|time of day|category|lat|long|description|more info|url|link|notes|emoji|priority|duration|cost/i;
+      let bestId = null;
+      let bestScore = 0;
+      for (const col of actCols) {
+        if (skip.test(col.name)) continue;
+        const texts = actRows
+          .map(r => cellText(r.values?.[col.id]))
+          .filter(t => t && t.length >= 4 && t.length < 200 && !/^https?:\/\//i.test(t));
+        if (!texts.length) continue;
+        const score = texts.length + texts.reduce((sum, t) => sum + Math.min(t.length, 40), 0) / 40;
+        if (score > bestScore) {
+          bestScore = score;
+          bestId = col.id;
+        }
+      }
+      return bestId;
     }
 
     // Fetch column maps
@@ -275,7 +304,7 @@ export default async function handler(req, res) {
     const ACT = {
       date: resolveCol(ACT_MAP, actCols, 'date', ['Date'], actRows),
       timeOfDay: resolveCol(ACT_MAP, actCols, 'timeOfDay', ['Time of Day'], actRows),
-      activity: resolveCol(ACT_MAP, actCols, 'activity', ['Activity', 'Name', 'Place', 'Title', /^activity/i], actRows),
+      activity: inferActivityCol(actCols, actRows) || resolveCol(ACT_MAP, actCols, 'activity', ['Activity', 'Name', 'Place', 'Title', /^activity/i], actRows),
       description: resolveCol(ACT_MAP, actCols, 'description', ['Description', 'Desc', 'Notes', /^description/i], actRows),
       moreInfo: resolveCol(ACT_MAP, actCols, 'moreInfo', ['More Info', 'URL', 'Link', 'Website', /^more info/i], actRows),
       category: resolveCol(ACT_MAP, actCols, 'category', ['Category'], actRows),
