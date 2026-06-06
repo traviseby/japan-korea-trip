@@ -1770,22 +1770,25 @@
     let inRegion = region ? fa.filter(a => {
       const day = D.byDay[a.day];
       
+      console.log(`🗺️ Checking activity "${a.name}": day=${a.day}, lat=${a.lat}, lng=${a.lng}, day.country=${day?.country}`);
+      
       // First try to match by country code
       if (day && day.country === region) {
+        console.log(`  ✅ Matched by country code`);
         return true;
       }
       
-      // Fallback: use geographic bounds if country field missing (for older data)
-      if (day && day.country === undefined) {
+      // Fallback: use geographic bounds if country field missing/undefined (for older data)
+      if (!day || day.country === undefined || day.country === null) {
         // Check activity coordinates against region bounds
         if (region === 'JP' && a.lat && a.lng) {
           const inBounds = a.lng > 128 && a.lng < 150 && a.lat > 24 && a.lat < 46;
-          if (inBounds) console.log('🗺️ Activity matched JP bounds:', a.name, a.lat, a.lng);
+          console.log(`  JP bounds check: lng=${a.lng} (128-150?), lat=${a.lat} (24-46?) = ${inBounds}`);
           return inBounds;
         }
         if (region === 'KR' && a.lat && a.lng) {
           const inBounds = a.lng > 124 && a.lng < 132 && a.lat > 33 && a.lat < 39;
-          if (inBounds) console.log('🗺️ Activity matched KR bounds:', a.name, a.lat, a.lng);
+          console.log(`  KR bounds check: lng=${a.lng} (124-132?), lat=${a.lat} (33-39?) = ${inBounds}`);
           return inBounds;
         }
         if (region === 'US' && a.lat && a.lng) {
@@ -1793,6 +1796,7 @@
         }
       }
       
+      console.log(`  ❌ No match`);
       return false;
     }) : fa;
     
