@@ -1902,22 +1902,22 @@
     } else {
       rightSlot = el('button', { 
         class: 'add-btn',
-        onclick: showAddActivitySheet,
+        onclick: () => showAddActivitySheet(),
         style: {
-          padding: '6px 12px',
-          fontSize: '15px',
-          fontWeight: '600',
+          padding: '6px',
+          fontSize: '24px',
+          fontWeight: '300',
           color: 'var(--accent)',
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: '4px'
+          justifyContent: 'center',
+          width: '36px',
+          height: '36px'
         }
-      }, 
-        el('span', { style: { fontSize: '18px' } }, '+'),
-        el('span', null, 'Add')
+      }, '+'
       );
     }
     
@@ -2097,22 +2097,22 @@
       } else {
         rightSlot = el('button', { 
           class: 'add-btn',
-          onclick: showAddActivitySheet,
+          onclick: () => showAddActivitySheet(),
           style: {
-            padding: '6px 12px',
-            fontSize: '15px',
-            fontWeight: '600',
+            padding: '6px',
+            fontSize: '24px',
+            fontWeight: '300',
             color: 'var(--accent)',
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '4px'
+            justifyContent: 'center',
+            width: '36px',
+            height: '36px'
           }
-        }, 
-          el('span', { style: { fontSize: '18px' } }, '+'),
-          el('span', null, 'Add')
+        }, '+'
         );
       }
       
