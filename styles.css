@@ -1307,7 +1307,21 @@ input { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .sheet-chev:disabled { opacity: 0.35; cursor: default; }
-.sheet-nav .close { position: static; }
+.sheet-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.sheet .sheet-nav .close {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
+  box-shadow: none;
+  flex-shrink: 0;
+}
 .sheet #map-sheet { position: absolute; inset: 0; }
 
 .sheet .distance {

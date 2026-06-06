@@ -3579,13 +3579,14 @@
     sheet.appendChild(el('div', { class: 'sheet-nav' },
       el('button', { class: 'sheet-chev', disabled: prev ? null : '', 'aria-label': 'Previous activity', onclick: () => prev && openSheet(prev) }, '\u2039'),
       el('button', { class: 'sheet-chev', disabled: next ? null : '', 'aria-label': 'Next activity', onclick: () => next && openSheet(next) }, '\u203a'),
-      el('div', { style: { flex: '1' } }),
-      el('button', {
-        class: 'sheet-chev',
-        'aria-label': 'Edit activity',
-        onclick: () => openEditActivitySheet(a)
-      }, buildSheetEditIcon()),
-      el('button', { class: 'close', onclick: closeSheet }, '\u2715')
+      el('div', { class: 'sheet-nav-actions' },
+        el('button', {
+          class: 'sheet-chev',
+          'aria-label': 'Edit activity',
+          onclick: () => openEditActivitySheet(a)
+        }, buildSheetEditIcon()),
+        el('button', { class: 'close', onclick: closeSheet }, '\u2715')
+      )
     ));
 
     // map at top
