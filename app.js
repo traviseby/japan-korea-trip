@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.10';
+  const APP_VERSION = '2.11';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -648,11 +648,12 @@
         const tripDocId = extractDocId(t.url);
         const paramDocId = extractDocId(docUrl);
         const match = tripDocId === paramDocId || t.url === docUrl;
-        console.log(`🔍 Comparing trip ${t.name}: tripDocId=${tripDocId}, paramDocId=${paramDocId}, match=${match}`);
+        console.log(`🔍 Comparing trip "${t.name}": tripUrl="${t.url}", tripDocId="${tripDocId}", paramDocId="${paramDocId}", match=${match}`);
         return match;
       });
       
       console.log('🔍 Existing trip found:', existingTrip ? existingTrip.name : 'none');
+      console.log('🔍 Total trips in storage:', trips.length);
       
       if (existingTrip) {
         console.log('✅ Trip already exists, loading normally (keeping ?doc= in URL)');
@@ -814,11 +815,22 @@
 
   async function addTrip(name, url, icon = null, docName = null){
     const trips = getTrips();
-    // Check if URL already exists
-    if (trips.some(t => t.url === url)) {
-      alert('This trip URL is already added');
-      return false;
+    
+    // Check if trip with same doc ID already exists (prevents duplicates with different URL formats)
+    const newDocId = extractDocId(url);
+    const existingTrip = trips.find(t => {
+      const existingDocId = extractDocId(t.url);
+      return existingDocId === newDocId || t.url === url;
+    });
+    
+    if (existingTrip) {
+      console.log('⚠️ Trip already exists:', existingTrip.name);
+      // Don't add duplicate, just make it active and return true
+      trips.forEach(t => t.active = (t.url === existingTrip.url));
+      saveTrips(trips);
+      return true;
     }
+    
     // Set all trips to inactive, make new one active
     trips.forEach(t => t.active = false);
     trips.push({ 
