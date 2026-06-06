@@ -2628,6 +2628,11 @@
     wrap.appendChild(chips);
     return wrap;
   }
+  function openActivity(a){
+    if (isUnscheduledDay(a.day)) openEditActivitySheet(a);
+    else openSheet(a);
+  }
+
   function buildFullRow(a, showDayBadge){
     const unscheduled = isUnscheduledDay(a.day);
     const d = unscheduled ? null : D.byDay[a.day];
@@ -2643,7 +2648,7 @@
     if (a.time) badges.appendChild(el('span', { class: 'badge' }, todEmoji(a.time) + ' ' + a.time));
     if (a.cat) badges.appendChild(el('span', { class: 'badge' }, catEmoji(a.cat) + ' ' + a.cat));
 
-    return el('div', { class: 'full-row', style: { '--day-accent': accent }, onclick: () => openSheet(a) },
+    return el('div', { class: 'full-row', style: { '--day-accent': accent }, onclick: () => openActivity(a) },
       el('div', { class: 'em' }, catEmoji(a.cat)),
       el('div', null,
         el('div', { class: 'name' }, a.name),
