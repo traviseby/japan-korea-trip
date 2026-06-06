@@ -1348,6 +1348,7 @@
                     ' and paste this doc URL:',
                     el('div', {
                       style: {
+                        marginTop: '8px',
                         padding: '10px',
                         background: 'var(--surface-2)',
                         borderRadius: '6px',
@@ -3944,6 +3945,7 @@
                 ' and paste this doc URL:',
                 el('div', {
                   style: {
+                    marginTop: '8px',
                     padding: '10px',
                     background: 'var(--surface-2)',
                     borderRadius: '6px',
@@ -4336,6 +4338,7 @@
             ' and paste this doc URL:',
             el('div', {
               style: {
+                marginTop: '8px',
                 padding: '10px',
                 background: 'var(--surface-2)',
                 borderRadius: '6px',
