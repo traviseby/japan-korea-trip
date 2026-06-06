@@ -206,16 +206,12 @@ export default async function handler(req, res) {
     });
 
     // Build activities array
+    const UNSCHEDULED_DAY = 0;
     const activities = actRows.map(row => {
       const v = row.values;
       const actDate = cellToDate(v[ACT_MAP['Date']]);
-      if (!actDate) return null;
-      const day = days.find(d => d.date === actDate)?.n;
-      if (!day) return null;
-      
-      return {
+      const activity = {
         id: row.id,
-        day: day,
         time: String(v[ACT_MAP['Time of Day']]?.name || v[ACT_MAP['Time of Day']] || ''),
         name: stripFence(v[ACT_MAP['Activity']] || ''),
         desc: stripFence(v[ACT_MAP['Description']] || ''),
@@ -224,7 +220,12 @@ export default async function handler(req, res) {
         lat: v[ACT_MAP['Latitude']] || null,
         lng: v[ACT_MAP['Longitude']] || null
       };
-    }).filter(Boolean);
+      if (!actDate) return { ...activity, day: UNSCHEDULED_DAY };
+      const day = days.find(d => d.date === actDate)?.n;
+      if (!day) return null;
+
+      return { ...activity, day };
+    }).filter(a => a && (a.day === UNSCHEDULED_DAY || a.day));
 
     // Build todos array
     const todos = todoRows.map(row => {

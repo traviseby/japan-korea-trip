@@ -378,18 +378,15 @@ const days = itnRows
   .sort((a, b) => a.n - b.n);
 
 // — Activities
+const UNSCHEDULED_DAY = 0;
 const activities = actRows.map(r => {
   const v = r.values;
   const id = r.id;
-  // Guard against rows with no Date set in Coda — skip them rather than crash.
   const dayDate = cellToDate(v[ACT.date]);
-  if (!dayDate) return null;
-  const day = days.find(d => d.date === dayDate)?.n;
   const lat = v[ACT.latitude] || null;
   const lng = v[ACT.longitude] || null;
-  return {
+  const activity = {
     id,
-    day,
     time: v[ACT.timeOfDay]?.name || v[ACT.timeOfDay] || '',
     name: stripFence(v[ACT.activity]),
     desc: stripFence(v[ACT.description] || ''),
@@ -397,7 +394,11 @@ const activities = actRows.map(r => {
     cat:  normalizeCategory(stripFence(v[ACT.category]?.name || v[ACT.category] || '')),
     lat, lng
   };
-}).filter(a => a && a.day);
+  if (!dayDate) return { ...activity, day: UNSCHEDULED_DAY };
+  const day = days.find(d => d.date === dayDate)?.n;
+  if (!day) return null;
+  return { ...activity, day };
+}).filter(a => a && (a.day === UNSCHEDULED_DAY || a.day));
 
 // — To-dos and flights
 const todos = todoRows.map(r => {

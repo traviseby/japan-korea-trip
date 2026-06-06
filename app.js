@@ -10,6 +10,7 @@
     }
   });
   const APP_VERSION = '2.20';
+  const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -135,6 +136,31 @@
   }
   function timeOrder(t){
     return { 'Morning': 0, 'Afternoon': 1, 'Evening': 2, 'Late Night': 3 }[t] ?? 9;
+  }
+  function isUnscheduledDay(dayNum){ return dayNum === UNSCHEDULED_DAY; }
+  function hasUnscheduledActivities(){
+    return (D.activities || []).some(a => isUnscheduledDay(a.day));
+  }
+  function sortActivityDays(days){
+    return [...days].sort((a, b) => {
+      if (isUnscheduledDay(a)) return -1;
+      if (isUnscheduledDay(b)) return 1;
+      return a - b;
+    });
+  }
+  function sortActivities(a, b){
+    if (isUnscheduledDay(a.day) && !isUnscheduledDay(b.day)) return -1;
+    if (!isUnscheduledDay(a.day) && isUnscheduledDay(b.day)) return 1;
+    return a.day - b.day || timeOrder(a.time) - timeOrder(b.time);
+  }
+  function dayFilterLabel(dayNum){
+    if (isUnscheduledDay(dayNum)) return 'Unscheduled';
+    const d = D.byDay[dayNum];
+    return d ? `Day ${dayNum} \u00b7 ${shortDate(d.date)}` : `Day ${dayNum}`;
+  }
+  function dayAccent(dayNum){
+    if (isUnscheduledDay(dayNum)) return '#666666';
+    return D.byDay[dayNum]?.color || '#666666';
   }
   function haversine(a, b){
     const R = 6371; // km
@@ -2206,12 +2232,10 @@
       inRegion.forEach(a => {
         // Double-check coordinates are valid before adding marker
         if (a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng)) {
-          const d = D.byDay[a.day];
-          if (d) {
-            const m = L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, d.color) }).addTo(leafletFull);
-            m.on('click', () => openSheet(a));
-            fullMapMarkers.push(m);
-          }
+          const color = dayAccent(a.day);
+          const m = L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, color) }).addTo(leafletFull);
+          m.on('click', () => openSheet(a));
+          fullMapMarkers.push(m);
         }
       });
       if (state.location){
@@ -2304,6 +2328,11 @@
       title = 'Filter by day';
       currentArray = filterState.day;
       options = [{ value: null, label: 'All Days', sub: 'Show every day' }]
+        .concat(hasUnscheduledActivities() ? [{
+          value: UNSCHEDULED_DAY,
+          label: 'Unscheduled',
+          sub: 'Not on itinerary yet'
+        }] : [])
         .concat(D.days.map(d => ({
           value: d.n,
           label: `Day ${d.n}`,
@@ -2448,7 +2477,7 @@
     const fa = filteredActivities();
     if (!fa.length){
       const pieces = [];
-      if (filterState.day.length) pieces.push(filterState.day.length === 1 ? `Day ${filterState.day[0]}` : `${filterState.day.length} days`);
+      if (filterState.day.length) pieces.push(filterState.day.length === 1 ? dayFilterLabel(filterState.day[0]) : `${filterState.day.length} days`);
       if (filterState.timeOfDay.length) pieces.push(filterState.timeOfDay.length === 1 ? filterState.timeOfDay[0] : `${filterState.timeOfDay.length} times`);
       if (filterState.category.length) pieces.push(filterState.category.length === 1 ? filterState.category[0] : `${filterState.category.length} types`);
       if (filterState.search) pieces.push(`"${filterState.search}"`);
@@ -2460,12 +2489,18 @@
     }
     const flat = filterState.day.length || filterState.search;
     if (flat){
-      fa.sort((a,b) => a.day - b.day || timeOrder(a.time) - timeOrder(b.time)).forEach(a => {
+      fa.sort(sortActivities).forEach(a => {
         root.appendChild(buildFullRow(a, true));
       });
     } else {
-      const days = [...new Set(fa.map(a => a.day))].sort((a,b)=>a-b);
-      days.forEach(dn => {
+      sortActivityDays([...new Set(fa.map(a => a.day))]).forEach(dn => {
+        if (isUnscheduledDay(dn)) {
+          root.appendChild(buildUnscheduledDayHeader());
+          fa.filter(a => a.day === dn).sort((a, b) => timeOrder(a.time) - timeOrder(b.time) || a.name.localeCompare(b.name)).forEach(a => {
+            root.appendChild(buildFullRow(a, false));
+          });
+          return;
+        }
         const d = D.byDay[dn];
         root.appendChild(el('div', { class: 'day-header', style: { '--day-accent': d.color } },
           el('span', { class: 'day-num' }, 'Day ' + d.n),
@@ -2477,6 +2512,13 @@
         });
       });
     }
+  }
+
+  function buildUnscheduledDayHeader(){
+    return el('div', { class: 'day-header day-header-unscheduled', style: { '--day-accent': 'var(--fg-mute)' } },
+      el('span', { class: 'day-num' }, 'Unscheduled'),
+      el('span', { class: 'day-date' }, 'Not on itinerary yet')
+    );
   }
 
   // Build a chip row used in the sticky lt-sticky wrapper (Activities tab) or
@@ -2517,7 +2559,7 @@
 
     chips.appendChild(summaryChip(
       filterState.day.length === 0 ? 'All Days' : 
-        filterState.day.length === 1 ? `Day ${filterState.day[0]} \u00b7 ${shortDate(D.byDay[filterState.day[0]].date)}` :
+        filterState.day.length === 1 ? dayFilterLabel(filterState.day[0]) :
         `${filterState.day.length} Days`,
       filterState.day.length > 0,
       () => openFilterTray('day')
@@ -2541,14 +2583,21 @@
     return wrap;
   }
   function buildFullRow(a, showDayBadge){
-    const d = D.byDay[a.day];
+    const unscheduled = isUnscheduledDay(a.day);
+    const d = unscheduled ? null : D.byDay[a.day];
+    const accent = dayAccent(a.day);
     const firstSentence = (a.desc || '').split(/(?<=[.!?])\s/)[0] || '';
     const badges = el('div', { class: 'badges' });
-    if (showDayBadge) badges.appendChild(el('span', { class: 'badge day-badge', style: { '--day-accent': d.color, background: d.color } }, 'Day ' + d.n));
-    badges.appendChild(el('span', { class: 'badge' }, todEmoji(a.time) + ' ' + a.time));
-    badges.appendChild(el('span', { class: 'badge' }, catEmoji(a.cat) + ' ' + a.cat));
+    if (showDayBadge) {
+      badges.appendChild(el('span', {
+        class: 'badge day-badge',
+        style: { '--day-accent': accent, background: accent }
+      }, unscheduled ? 'Unscheduled' : 'Day ' + d.n));
+    }
+    if (a.time) badges.appendChild(el('span', { class: 'badge' }, todEmoji(a.time) + ' ' + a.time));
+    if (a.cat) badges.appendChild(el('span', { class: 'badge' }, catEmoji(a.cat) + ' ' + a.cat));
 
-    return el('div', { class: 'full-row', style: { '--day-accent': d.color }, onclick: () => openSheet(a) },
+    return el('div', { class: 'full-row', style: { '--day-accent': accent }, onclick: () => openSheet(a) },
       el('div', { class: 'em' }, catEmoji(a.cat)),
       el('div', null,
         el('div', { class: 'name' }, a.name),
@@ -2625,6 +2674,36 @@
     }, icon);
   }
 
+  function buildClipboardPasteButton(inputId){
+    const pasteIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11v6"/><path d="m9 14 3 3 3-3"/></svg>';
+    const btn = el('button', {
+      type: 'button',
+      'aria-label': 'Paste from clipboard',
+      onclick: async () => {
+        try {
+          const text = await navigator.clipboard.readText();
+          const input = document.getElementById(inputId);
+          if (input && text) input.value = text.trim();
+        } catch {
+          toast('Could not paste from clipboard');
+        }
+      },
+      style: {
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        padding: '4px',
+        fontSize: '16px',
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        flexShrink: '0'
+      }
+    });
+    btn.innerHTML = pasteIcon;
+    return btn;
+  }
+
   function ensureAddActivitySheetDom(){
     const root = $('#app') || $('.phone-fullscreen') || document.body;
     let backdrop = $('#add-activity-backdrop');
@@ -2682,26 +2761,40 @@
       ),
       
       el('div', { class: 'url-input-section' },
-        el('input', { 
-          type: 'text',
-          id: 'activity-url-input',
-          placeholder: 'https://maps.google.com/...',
+        el('div', {
           style: {
-            width: '100%',
-            padding: '12px 16px',
-            fontSize: '15px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px',
+            background: 'var(--surface-2)',
+            borderRadius: '6px',
             border: '1px solid white',
-            borderRadius: 'var(--r)',
-            background: 'var(--surface)',
-            color: 'var(--fg)',
             marginBottom: '12px'
           }
-        }),
+        },
+          el('input', {
+            type: 'text',
+            id: 'activity-url-input',
+            placeholder: 'https://maps.google.com/...',
+            style: {
+              flex: '1',
+              minWidth: '0',
+              padding: '0',
+              fontSize: '15px',
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--fg)',
+              outline: 'none'
+            }
+          }),
+          buildClipboardPasteButton('activity-url-input')
+        ),
         el('button', {
           id: 'parse-url-btn',
           class: 'oc-btn',
           onclick: handleParseUrl
-        }, 'Parse URL')
+        }, 'Add activity')
       ),
 
       el('div', { id: 'parse-result', style: { marginTop: '24px' } })
@@ -3073,10 +3166,14 @@
 
   // ─── Activity detail sheet ────────────────────────────────────────────────
   function sortedActivityIds(){
-    // Stable order: by day, then by time-of-day bucket, then by original index.
+    // Stable order: unscheduled first, then by day, then by time-of-day bucket, then by original index.
     return D.activities
       .map((a, i) => ({ id: a.id, day: a.day, t: timeOrder(a.time), i }))
-      .sort((x, y) => x.day - y.day || x.t - y.t || x.i - y.i)
+      .sort((x, y) => {
+        if (isUnscheduledDay(x.day) && !isUnscheduledDay(y.day)) return -1;
+        if (!isUnscheduledDay(x.day) && isUnscheduledDay(y.day)) return 1;
+        return x.day - y.day || x.t - y.t || x.i - y.i;
+      })
       .map(o => o.id);
   }
   function adjacentActivity(currentId, delta){
@@ -3094,7 +3191,9 @@
     const sheet = $('#sheet');
     sheet.innerHTML = '';
 
-    const d = D.byDay[a.day];
+    const unscheduled = isUnscheduledDay(a.day);
+    const d = unscheduled ? null : D.byDay[a.day];
+    const accent = dayAccent(a.day);
     const prev = adjacentActivity(a.id, -1);
     const next = adjacentActivity(a.id, +1);
     sheet.appendChild(el('div', { class: 'handle' }));
@@ -3127,9 +3226,9 @@
     const body = el('div', { class: 'sheet-body' });
     body.appendChild(el('h2', { class: 'sheet-title' }, a.name));
     const badges = el('div', { class: 'sheet-badges' },
-      el('span', { class: 'b', style: { background: d.color, color: '#fff', borderColor: 'transparent' } }, 'Day ' + d.n),
-      el('span', { class: 'b' }, todEmoji(a.time) + ' ' + a.time),
-      el('span', { class: 'b' }, catEmoji(a.cat) + ' ' + a.cat)
+      el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, unscheduled ? 'Unscheduled' : 'Day ' + d.n),
+      a.time ? el('span', { class: 'b' }, todEmoji(a.time) + ' ' + a.time) : null,
+      a.cat ? el('span', { class: 'b' }, catEmoji(a.cat) + ' ' + a.cat) : null
     );
     body.appendChild(badges);
     body.appendChild(el('div', { class: 'sheet-desc' }, a.desc || ''));
@@ -3163,7 +3262,7 @@
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         subdomains: 'abcd'
       }).addTo(leafletSheet);
-      L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, d.color) }).addTo(leafletSheet);
+      L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, accent) }).addTo(leafletSheet);
       if (state.location){
         L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletSheet);
         const dashed = L.polyline([[state.location.lat, state.location.lng], [a.lat, a.lng]], {
