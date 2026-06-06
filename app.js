@@ -1656,6 +1656,13 @@
     const segmented = $('#segmented');
     if (!segmented) return;
     
+    // Safety check: ensure we have data
+    if (!D || !D.byDay || !D.activities) {
+      console.warn('🗺️ buildRegionSelector: No trip data available');
+      segmented.style.display = 'none';
+      return;
+    }
+    
     // Get unique countries from itinerary days
     const countries = new Set();
     const countryFlags = {
@@ -1745,6 +1752,12 @@
   function buildFullMap(){
     const node = $('#map-full');
     if (!node) return;
+    
+    // Safety check: ensure we have data
+    if (!D || !D.activities || !D.byDay) {
+      console.warn('🗺️ buildFullMap: No trip data available');
+      return;
+    }
 
     let region = state.region;
     
@@ -1836,54 +1849,78 @@
     }
 
     if (!leafletFull){
-      leafletFull = L.map(node, {
-        center: defaultCenter, zoom: defaultZoom,
-        zoomControl: false, attributionControl: true,
-        fadeAnimation: false, zoomAnimation: false
-      });
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 18, subdomains: 'abcd',
-        attribution: '© OpenStreetMap, © CARTO'
-      }).addTo(leafletFull);
+      try {
+        leafletFull = L.map(node, {
+          center: defaultCenter, zoom: defaultZoom,
+          zoomControl: false, attributionControl: true,
+          fadeAnimation: false, zoomAnimation: false
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          maxZoom: 18, subdomains: 'abcd',
+          attribution: '© OpenStreetMap, © CARTO'
+        }).addTo(leafletFull);
+      } catch (e) {
+        console.error('🗺️ Error initializing map:', e);
+        return;
+      }
     } else {
-      // Make sure Leaflet knows the current container size BEFORE we change
-      // the view or add markers — otherwise a later invalidateSize() can
-      // shift tiles visibly.
-      leafletFull.invalidateSize({ animate: false, pan: false });
+      try {
+        // Make sure Leaflet knows the current container size BEFORE we change
+        // the view or add markers — otherwise a later invalidateSize() can
+        // shift tiles visibly.
+        leafletFull.invalidateSize({ animate: false, pan: false });
+      } catch (e) {
+        console.error('🗺️ Error invalidating map size:', e);
+        // Map might be in a bad state, try to reinitialize
+        leafletFull = null;
+        buildFullMap();
+        return;
+      }
     }
 
-    fullMapMarkers.forEach(m => leafletFull.removeLayer(m));
-    fullMapMarkers = [];
+    try {
+      fullMapMarkers.forEach(m => leafletFull.removeLayer(m));
+      fullMapMarkers = [];
 
-    inRegion.forEach(a => {
-      // Double-check coordinates are valid before adding marker
-      if (a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng)) {
-        const d = D.byDay[a.day];
-        const m = L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, d.color) }).addTo(leafletFull);
-        m.on('click', () => openSheet(a));
-        fullMapMarkers.push(m);
+      inRegion.forEach(a => {
+        // Double-check coordinates are valid before adding marker
+        if (a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng)) {
+          const d = D.byDay[a.day];
+          if (d) {
+            const m = L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, d.color) }).addTo(leafletFull);
+            m.on('click', () => openSheet(a));
+            fullMapMarkers.push(m);
+          }
+        }
+      });
+      if (state.location){
+        const lm = L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletFull);
+        fullMapMarkers.push(lm);
       }
-    });
-    if (state.location){
-      const lm = L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletFull);
-      fullMapMarkers.push(lm);
+    } catch (e) {
+      console.error('🗺️ Error adding map markers:', e);
+      return;
     }
 
     const regionChanged = lastMapRegion !== region;
     lastMapRegion = region;
 
-    if (anyFilterActive() && inRegion.length){
-      // Filtered view: fit bounds to the filtered pins (no animation — we're
-      // still inside the "settling" window, the user shouldn't see motion).
-      const g = L.featureGroup(fullMapMarkers.filter(m => m._icon && m._icon.querySelector('.pin')));
-      if (g.getLayers().length){
-        leafletFull.fitBounds(g.getBounds(), { padding: [60, 30], maxZoom: 13, animate: false });
+    try {
+      if (anyFilterActive() && inRegion.length){
+        // Filtered view: fit bounds to the filtered pins (no animation — we're
+        // still inside the "settling" window, the user shouldn't see motion).
+        const g = L.featureGroup(fullMapMarkers.filter(m => m._icon && m._icon.querySelector('.pin')));
+        if (g.getLayers().length){
+          leafletFull.fitBounds(g.getBounds(), { padding: [60, 30], maxZoom: 13, animate: false });
+        }
+      } else if (regionChanged){
+        // Region changed (e.g. user tapped JP↔KR) — snap to the new region.
+        // First-time construction already used defaultCenter/Zoom, so no
+        // setView is needed in that case.
+        leafletFull.setView(defaultCenter, defaultZoom, { animate: false });
       }
-    } else if (regionChanged){
-      // Region changed (e.g. user tapped JP↔KR) — snap to the new region.
-      // First-time construction already used defaultCenter/Zoom, so no
-      // setView is needed in that case.
-      leafletFull.setView(defaultCenter, defaultZoom, { animate: false });
+    } catch (e) {
+      console.error('🗺️ Error adjusting map bounds:', e);
     }
 
     // segmented active state
