@@ -304,7 +304,7 @@ export default async function handler(req, res) {
     const ACT = {
       date: resolveCol(ACT_MAP, actCols, 'date', ['Date'], actRows),
       timeOfDay: resolveCol(ACT_MAP, actCols, 'timeOfDay', ['Time of Day'], actRows),
-      activity: inferActivityCol(actCols, actRows) || resolveCol(ACT_MAP, actCols, 'activity', ['Activity', 'Name', 'Place', 'Title', /^activity/i], actRows),
+      activity: inferActivityCol(actCols, actRows) || resolveCol(ACT_MAP, actCols, 'activity', ['Name', 'Activity', 'Place', 'Title', /^activity/i], actRows),
       description: resolveCol(ACT_MAP, actCols, 'description', ['Description', 'Desc', 'Notes', /^description/i], actRows),
       moreInfo: resolveCol(ACT_MAP, actCols, 'moreInfo', ['More Info', 'URL', 'Link', 'Website', /^more info/i], actRows),
       category: resolveCol(ACT_MAP, actCols, 'category', ['Category'], actRows),
