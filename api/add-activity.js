@@ -7,8 +7,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { docUrl, activity } = req.body;
-  console.log('docUrl:', docUrl);
+  const { docUrl, activity, token } = req.body;
+  console.log('docUrl:', docUrl, 'hasToken:', !!token);
   console.log('activity:', activity);
   
   if (!docUrl || !activity) {
@@ -19,7 +19,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Activity name is required' });
   }
 
-  const CODA_TOKEN = process.env.CODA_TOKEN;
+  // Use provided token, or fall back to main CODA_TOKEN
+  const CODA_TOKEN = token || process.env.CODA_TOKEN;
   if (!CODA_TOKEN) {
     console.error('CODA_TOKEN not set in environment');
     return res.status(500).json({ error: 'Server configuration error: CODA_TOKEN not set' });

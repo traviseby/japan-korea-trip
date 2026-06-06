@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { docUrl } = req.body;
+  const { docUrl, token } = req.body;
   
   if (!docUrl) {
     return res.status(400).json({ error: 'Missing docUrl' });
@@ -34,7 +34,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid Coda doc URL' });
   }
 
-  const CODA_TOKEN = process.env.CODA_TOKEN;
+  // Use provided token, or fall back to main CODA_TOKEN
+  const CODA_TOKEN = token || process.env.CODA_TOKEN;
   if (!CODA_TOKEN) {
     return res.status(500).json({ error: 'Server configuration error: CODA_TOKEN not set' });
   }

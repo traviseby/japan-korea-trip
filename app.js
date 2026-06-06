@@ -481,11 +481,11 @@
     window.location.href = newUrl;
   }
 
-  async function loadTripData(docUrl, fromCache = true){
+  async function loadTripData(docUrl, fromCache = true, token = null){
     try {
       // Normalize URL by removing fragments/query params for consistent cache keys
       const normalizedUrl = docUrl.split('#')[0].split('?')[0];
-      console.log('loadTripData called with:', { docUrl, normalizedUrl, fromCache });
+      console.log('loadTripData called with:', { docUrl, normalizedUrl, fromCache, hasToken: !!token });
       let tripData;
       
       // Try to load from cache first
@@ -513,12 +513,17 @@
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         
+        const body = { docUrl };
+        if (token) {
+          body.token = token;
+        }
+        
         let res;
         try {
           res = await fetch('/api/fetch-trip-data', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ docUrl }),
+            body: JSON.stringify(body),
             signal: controller.signal
           });
           clearTimeout(timeoutId);
@@ -788,8 +793,8 @@
       }
       
       try {
-        // Load the active trip's data
-        await loadTripData(activeTrip.url, useCache);
+        // Load the active trip's data (pass token if available)
+        await loadTripData(activeTrip.url, useCache, activeTrip.token || null);
         
         // Remove loading overlay if it exists
         const overlay = $('#trip-loading');
@@ -827,7 +832,7 @@
     }
   }
 
-  async function addTrip(name, url, icon = null, docName = null){
+  async function addTrip(name, url, icon = null, docName = null, token = null){
     const trips = getTrips();
     
     // Check if trip with same doc ID already exists (prevents duplicates with different URL formats)
@@ -839,6 +844,10 @@
     
     if (existingTrip) {
       console.log('⚠️ Trip already exists:', existingTrip.name);
+      // Update token if provided
+      if (token) {
+        existingTrip.token = token;
+      }
       // Don't add duplicate, just make it active and return true
       trips.forEach(t => t.active = (t.url === existingTrip.url));
       saveTrips(trips);
@@ -847,29 +856,47 @@
     
     // Set all trips to inactive, make new one active
     trips.forEach(t => t.active = false);
-    trips.push({ 
+    const newTrip = { 
       name, 
       url, 
       icon: icon || '✈️', 
       docName: docName || name,
       active: true 
-    });
+    };
+    
+    // Only add token if provided
+    if (token) {
+      newTrip.token = token;
+    }
+    
+    trips.push(newTrip);
     saveTrips(trips);
     return true;
   }
 
-  async function fetchDocInfo(docUrl){
+  async function fetchDocInfo(docUrl, token = null){
     try {
+      const body = { docUrl };
+      if (token) {
+        body.token = token;
+      }
+      
       const res = await fetch('/api/doc-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ docUrl })
+        body: JSON.stringify(body)
       });
 
       // Handle local dev (501)
       if (res.status === 501) {
         console.warn('API not available (local dev mode), using defaults');
         return { name: 'My Trip', icon: '✈️' };
+      }
+
+      // Handle unauthorized (need token)
+      if (res.status === 403 || res.status === 404 || res.status === 401) {
+        console.warn('Doc access denied - may need authentication');
+        return null;
       }
 
       if (!res.ok) {
@@ -899,9 +926,9 @@
     if (wasActive && trips.length > 0) {
       trips[0].active = true;
       saveTrips(trips);
-      // Load the new active trip's data
+      // Load the new active trip's data (pass token if available)
       try {
-        await loadTripData(trips[0].url, false);
+        await loadTripData(trips[0].url, false, trips[0].token || null);
       } catch (err) {
         console.error('Failed to load next trip after removal:', err);
         toast('Failed to load next trip. Try syncing from Settings.');
@@ -1165,8 +1192,10 @@
         form.style.display = 'none';
         showBtn.style.display = 'block';
         // Clear inputs
-        $('#trip-name-input').value = '';
         $('#trip-url-input').value = '';
+        // Hide token request UI if visible
+        const tokenSection = $('#token-request-section');
+        if (tokenSection) tokenSection.style.display = 'none';
       }
     }, 'Cancel');
     
@@ -1175,12 +1204,13 @@
       id: 'add-trip-submit-btn',
       style: { flex: '1' },
       onclick: async () => {
-        const nameInput = $('#trip-name-input');
         const urlInput = $('#trip-url-input');
+        const tokenInput = $('#trip-token-input');
         const submitBtn = $('#add-trip-submit-btn');
         const showBtn = $('#show-add-trip-btn');
-        const name = nameInput.value.trim();
+        const tokenSection = $('#token-request-section');
         const url = urlInput.value.trim();
+        const userToken = tokenInput ? tokenInput.value.trim() : '';
         
         if (!url) {
           alert('Please paste a Superhuman Docs URL');
@@ -1188,26 +1218,102 @@
         }
         
         try {
-          // Fetch doc info to get icon and doc name
+          // Try to fetch doc info (first with main token, then with user token if provided)
           submitBtn.disabled = true;
           submitBtn.textContent = 'Fetching doc info...';
           
-          const docInfo = await fetchDocInfo(url);
+          let docInfo = await fetchDocInfo(url, userToken);
+          
+          // If we got a 403/404 and no user token provided yet, show token request
+          if (!docInfo && !userToken) {
+            submitBtn.textContent = 'Add Trip';
+            submitBtn.disabled = false;
+            
+            // Show token request section
+            if (!tokenSection) {
+              // Create token request UI
+              const tokenUI = el('div', {
+                id: 'token-request-section',
+                style: { 
+                  marginTop: '12px',
+                  padding: '12px',
+                  background: 'rgba(255, 165, 0, 0.1)',
+                  border: '1px solid rgba(255, 165, 0, 0.3)',
+                  borderRadius: '6px'
+                }
+              },
+                el('div', { 
+                  style: { 
+                    fontSize: '13px', 
+                    marginBottom: '8px',
+                    color: 'var(--fg)'
+                  } 
+                }, '🔒 This doc is private. To access it, you need a Coda API token:'),
+                el('ol', {
+                  style: { 
+                    fontSize: '12px', 
+                    marginBottom: '8px',
+                    paddingLeft: '20px',
+                    color: 'var(--fg-muted)'
+                  }
+                },
+                  el('li', null, 'Go to ', el('a', { 
+                    href: 'https://coda.io/account', 
+                    target: '_blank',
+                    style: { color: 'var(--primary)', textDecoration: 'underline' }
+                  }, 'coda.io/account')),
+                  el('li', null, 'Click "Generate API token"'),
+                  el('li', null, 'Name it (e.g., "Trip App") and click "Generate"'),
+                  el('li', null, 'Copy the token and paste it below')
+                ),
+                el('input', {
+                  type: 'text',
+                  id: 'trip-token-input',
+                  placeholder: 'Paste your Coda API token here',
+                  style: { 
+                    width: '100%', 
+                    padding: '10px', 
+                    background: 'var(--bg)', 
+                    border: '1px solid var(--border)', 
+                    borderRadius: '6px',
+                    color: 'var(--fg)',
+                    fontSize: '13px',
+                    fontFamily: 'monospace'
+                  }
+                })
+              );
+              
+              // Insert before button row
+              const formButtonRow = submitBtn.parentElement;
+              formButtonRow.parentElement.insertBefore(tokenUI, formButtonRow);
+            } else {
+              tokenSection.style.display = 'block';
+            }
+            
+            toast('This doc requires authentication. Please paste your API token.');
+            return;
+          }
+          
+          // If still no doc info, show error
+          if (!docInfo) {
+            throw new Error('Could not access this document. Check your token and try again.');
+          }
+          
           // Ensure icon is a string, not an object
           let icon = '✈️';
           if (docInfo?.icon && typeof docInfo.icon === 'string') {
             icon = docInfo.icon;
           }
-          const docName = docInfo?.name || name || 'Untitled Trip';
-          const tripName = name || docName;
+          const tripName = docInfo?.name || 'Untitled Trip';
           
           submitBtn.textContent = 'Add Trip';
           submitBtn.disabled = false;
           
-          if (await addTrip(tripName, url, icon, docName)) {
-            nameInput.value = '';
+          if (await addTrip(tripName, url, icon, tripName, userToken)) {
             urlInput.value = '';
+            if (tokenInput) tokenInput.value = '';
             $('#add-trip-form').style.display = 'none';
+            if (tokenSection) tokenSection.style.display = 'none';
             showBtn.style.display = 'block';
             
             // Load the trip data since it's now active
@@ -1237,21 +1343,6 @@
       id: 'add-trip-form',
       style: { display: 'none', marginTop: '12px' } 
     },
-      el('input', {
-        type: 'text',
-        id: 'trip-name-input',
-        placeholder: 'Trip name (e.g., "Orlando 2026")',
-        style: { 
-          width: '100%', 
-          padding: '10px', 
-          marginBottom: '8px',
-          background: 'var(--bg)', 
-          border: '1px solid var(--border)', 
-          borderRadius: '6px',
-          color: 'var(--fg)',
-          fontSize: '14px'
-        }
-      }),
       el('input', {
         type: 'text',
         id: 'trip-url-input',
@@ -1331,8 +1422,8 @@
       // Clear cached data for this trip to force fresh fetch
       localStorage.removeItem(`jk26.tripData.${docUrl}`);
 
-      // Fetch fresh data from Coda
-      await loadTripData(docUrl, false);
+      // Fetch fresh data from Coda (pass token if available)
+      await loadTripData(docUrl, false, activeTrip.token || null);
 
       status.textContent = 'Synced!';
       toast(`${activeTrip.name} data updated! Refreshing...`);
@@ -2684,19 +2775,26 @@
     }, 'Adding activity to Coda...').outerHTML;
 
     try {
+      const body = {
+        docUrl: activeTrip.url,
+        activity: {
+          name: parsed.name,
+          lat: parsed.lat,
+          lng: parsed.lng,
+          category: parsed.category,
+          url: url
+        }
+      };
+      
+      // Include token if available
+      if (activeTrip.token) {
+        body.token = activeTrip.token;
+      }
+      
       const res = await fetch('/api/add-activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          docUrl: activeTrip.url,
-          activity: {
-            name: parsed.name,
-            lat: parsed.lat,
-            lng: parsed.lng,
-            category: parsed.category,
-            url: url
-          }
-        })
+        body: JSON.stringify(body)
       });
 
       if (!res.ok) {

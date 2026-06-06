@@ -8,14 +8,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { docUrl } = req.body;
-  console.log('docUrl:', docUrl);
+  const { docUrl, token } = req.body;
+  console.log('docUrl:', docUrl, 'hasToken:', !!token);
   
   if (!docUrl) {
     return res.status(400).json({ error: 'Missing docUrl' });
   }
 
-  const CODA_TOKEN = process.env.CODA_TOKEN;
+  // Use provided token, or fall back to main CODA_TOKEN
+  const CODA_TOKEN = token || process.env.CODA_TOKEN;
   if (!CODA_TOKEN) {
     console.error('CODA_TOKEN not set in environment');
     return res.status(500).json({ error: 'Server configuration error: CODA_TOKEN not set' });
