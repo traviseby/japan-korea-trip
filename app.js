@@ -1294,7 +1294,7 @@
                     fontWeight: '600',
                     color: 'var(--fg)'
                   }
-                }, 'API Token Required')
+                }, 'Back')
               ),
               // Content
               el('div', {
@@ -3852,7 +3852,7 @@
                 fontWeight: '600',
                 color: 'var(--fg)'
               }
-            }, 'API Token Required')
+            }, 'Back')
           ),
           // Content
           el('div', {
@@ -4206,7 +4206,7 @@
             fontWeight: '600',
             color: 'var(--fg)'
           }
-        }, 'API Token Required')
+        }, 'Back')
       ),
       // Content
       el('div', {
