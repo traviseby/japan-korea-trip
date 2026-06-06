@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.13';
+  const APP_VERSION = '2.14';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -195,6 +195,13 @@
   const weatherCache = {};
   async function fetchWeather(day){
     if (weatherCache[day.n] !== undefined) return weatherCache[day.n];
+    
+    // Skip if day doesn't have valid coordinates
+    if (day.lat == null || day.lng == null || isNaN(day.lat) || isNaN(day.lng)) {
+      weatherCache[day.n] = null;
+      return null;
+    }
+    
     try {
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${day.lat}&longitude=${day.lng}&current_weather=true&temperature_unit=fahrenheit`;
       const res = await fetch(url, { mode: 'cors' });
