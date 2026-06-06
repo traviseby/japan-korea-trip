@@ -1693,7 +1693,19 @@
       });
     }
     
-    const uniqueCountries = Array.from(countries).sort();
+    let uniqueCountries = Array.from(countries).sort();
+    console.log('🗺️ Detected countries from itinerary:', uniqueCountries);
+    
+    // If no countries detected, check if we have geographic data and infer countries
+    if (uniqueCountries.length === 0 && D.activities) {
+      const inferredCountries = [];
+      const hasJP = D.activities.some(a => a.lng > 128 && a.lng < 150 && a.lat > 24 && a.lat < 46);
+      const hasKR = D.activities.some(a => a.lng > 124 && a.lng < 132 && a.lat > 33 && a.lat < 39);
+      if (hasJP) inferredCountries.push('JP');
+      if (hasKR) inferredCountries.push('KR');
+      uniqueCountries = inferredCountries;
+      console.log('🗺️ Inferred countries from coordinates:', uniqueCountries);
+    }
     
     // If only one country or no countries, hide the selector
     if (uniqueCountries.length <= 1) {
@@ -1756,9 +1768,32 @@
     
     // Filter activities by region (if a region is selected) and ensure valid coordinates
     let inRegion = region ? fa.filter(a => {
-      // Match by country code from the day
       const day = D.byDay[a.day];
-      return day && day.country === region;
+      
+      // First try to match by country code
+      if (day && day.country === region) {
+        return true;
+      }
+      
+      // Fallback: use geographic bounds if country field missing (for older data)
+      if (day && day.country === undefined) {
+        // Check activity coordinates against region bounds
+        if (region === 'JP' && a.lat && a.lng) {
+          const inBounds = a.lng > 128 && a.lng < 150 && a.lat > 24 && a.lat < 46;
+          if (inBounds) console.log('🗺️ Activity matched JP bounds:', a.name, a.lat, a.lng);
+          return inBounds;
+        }
+        if (region === 'KR' && a.lat && a.lng) {
+          const inBounds = a.lng > 124 && a.lng < 132 && a.lat > 33 && a.lat < 39;
+          if (inBounds) console.log('🗺️ Activity matched KR bounds:', a.name, a.lat, a.lng);
+          return inBounds;
+        }
+        if (region === 'US' && a.lat && a.lng) {
+          return a.lng > -125 && a.lng < -66 && a.lat > 24 && a.lat < 50;
+        }
+      }
+      
+      return false;
     }) : fa;
     
     // Filter out activities without valid coordinates
