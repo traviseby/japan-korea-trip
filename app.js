@@ -1347,12 +1347,42 @@
                         padding: '10px',
                         background: 'var(--surface-2)',
                         borderRadius: '6px',
-                        fontSize: '12px',
-                        fontFamily: 'monospace',
-                        wordBreak: 'break-all',
-                        border: '1px solid var(--border)'
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
                       }
-                    }, url)
+                    },
+                      el('div', {
+                        style: {
+                          flex: '1',
+                          fontSize: '12px',
+                          fontFamily: 'monospace',
+                          wordBreak: 'break-all',
+                          color: 'var(--fg)'
+                        }
+                      }, url),
+                      el('button', {
+                        onclick: () => {
+                          navigator.clipboard.writeText(url);
+                          const btn = event.target.closest('button');
+                          const originalContent = btn.innerHTML;
+                          btn.innerHTML = '✓';
+                          setTimeout(() => { btn.innerHTML = originalContent; }, 1500);
+                        },
+                        style: {
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          fontSize: '16px',
+                          color: 'var(--primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          flexShrink: '0'
+                        }
+                      }, '📋')
+                    )
                   ),
                   el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
                   el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
@@ -3913,12 +3943,42 @@
                     padding: '10px',
                     background: 'var(--surface-2)',
                     borderRadius: '6px',
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    wordBreak: 'break-all',
-                    border: '1px solid var(--border)'
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
                   }
-                }, docUrl)
+                },
+                  el('div', {
+                    style: {
+                      flex: '1',
+                      fontSize: '12px',
+                      fontFamily: 'monospace',
+                      wordBreak: 'break-all',
+                      color: 'var(--fg)'
+                    }
+                  }, docUrl),
+                  el('button', {
+                    onclick: () => {
+                      navigator.clipboard.writeText(docUrl);
+                      const btn = event.target.closest('button');
+                      const originalContent = btn.innerHTML;
+                      btn.innerHTML = '✓';
+                      setTimeout(() => { btn.innerHTML = originalContent; }, 1500);
+                    },
+                    style: {
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      fontSize: '16px',
+                      color: 'var(--primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      flexShrink: '0'
+                    }
+                  }, '📋')
+                )
               ),
               el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
               el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
@@ -4275,12 +4335,42 @@
                 padding: '10px',
                 background: 'var(--surface-2)',
                 borderRadius: '6px',
-                fontSize: '12px',
-                fontFamily: 'monospace',
-                wordBreak: 'break-all',
-                border: '1px solid var(--border)'
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }
-            }, demoUrl)
+            },
+              el('div', {
+                style: {
+                  flex: '1',
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  wordBreak: 'break-all',
+                  color: 'var(--fg)'
+                }
+              }, demoUrl),
+              el('button', {
+                onclick: () => {
+                  navigator.clipboard.writeText(demoUrl);
+                  const btn = event.target.closest('button');
+                  const originalContent = btn.innerHTML;
+                  btn.innerHTML = '✓';
+                  setTimeout(() => { btn.innerHTML = originalContent; }, 1500);
+                },
+                style: {
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  fontSize: '16px',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexShrink: '0'
+                }
+              }, '📋')
+            )
           ),
           el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
           el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
