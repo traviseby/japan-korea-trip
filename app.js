@@ -482,6 +482,32 @@
     return trips.find(t => t.active) || trips[0] || null;
   }
 
+  function normalizeTripUrl(url){
+    return url.split('#')[0].split('?')[0];
+  }
+
+  function getTripDayCount(tripUrl){
+    const normalized = normalizeTripUrl(tripUrl);
+    const active = getActiveTrip();
+    if (active && normalizeTripUrl(active.url) === normalized && window.DATA?.days?.length) {
+      return window.DATA.days.length;
+    }
+    try {
+      const cached = localStorage.getItem(`jk26.tripData.${normalized}`);
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data.days?.length) return data.days.length;
+      }
+    } catch {}
+    return null;
+  }
+
+  function tripDayCountLabel(tripUrl){
+    const count = getTripDayCount(tripUrl);
+    if (!count) return '';
+    return `${count} day${count === 1 ? '' : 's'}`;
+  }
+
   async function setActiveTrip(tripUrl){
     const trip = getTrips().find(t => t.url === tripUrl);
     if (!trip) return;
@@ -1124,7 +1150,7 @@
           }, trip.icon || '✈️'),
           el('div', { style: { flex: '1', minWidth: 0 } },
             el('div', { style: { fontWeight: '500', fontSize: '15px', color: 'var(--fg)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
-            el('div', { class: 'trip-doc-name', style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, extractDocId(trip.url) || trip.url)
+            el('div', { class: 'trip-doc-name', style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, tripDayCountLabel(trip.url))
           ),
           desktopDeleteBtn
         );
