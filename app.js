@@ -1335,7 +1335,7 @@
                     const link = el('a', {
                       href: 'https://coda.io/account',
                       target: '_blank',
-                      style: { color: '#b39ddb', textDecoration: 'none' }
+                      style: { color: '#60A5FA', textDecoration: 'none' }
                     }, 'coda.io/account');
                     link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
                     link.onmouseleave = () => { link.style.textDecoration = 'none'; };
@@ -3933,7 +3933,7 @@
                 const link = el('a', {
                   href: 'https://coda.io/account',
                   target: '_blank',
-                  style: { color: '#b39ddb', textDecoration: 'none' }
+                  style: { color: '#60A5FA', textDecoration: 'none' }
                 }, 'coda.io/account');
                 link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
                 link.onmouseleave = () => { link.style.textDecoration = 'none'; };
@@ -4327,7 +4327,7 @@
             const link = el('a', {
               href: 'https://coda.io/account',
               target: '_blank',
-              style: { color: '#b39ddb', textDecoration: 'none' }
+              style: { color: '#60A5FA', textDecoration: 'none' }
             }, 'coda.io/account');
             link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
             link.onmouseleave = () => { link.style.textDecoration = 'none'; };
