@@ -70,7 +70,8 @@
     fullscreenMap: null,      // day number, or null
     location: null,           // {lat,lng} from geolocation, or null
     searching: false,         // filter-bar search mode on Map + Activities
-    filterTray: null          // 'day' | 'time' | 'type' | null
+    filterTray: null,          // 'day' | 'time' | 'type' | null
+    pickTray: null             // single-select picker open from edit form
   };
 
   // Shared filter state — single source of truth for Map + Activities
@@ -1123,7 +1124,7 @@
           }, trip.icon || '✈️'),
           el('div', { style: { flex: '1', minWidth: 0 } },
             el('div', { style: { fontWeight: '500', fontSize: '15px', color: 'var(--fg)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
-            el('div', { class: 'trip-doc-name', style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.docName || trip.name)
+            el('div', { class: 'trip-doc-name', style: { fontSize: '12px', color: 'var(--fg-mid)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, extractDocId(trip.url) || trip.url)
           ),
           desktopDeleteBtn
         );
@@ -2417,8 +2418,53 @@
   }
   function closeFilterTray(){
     state.filterTray = null;
+    state.pickTray = null;
     $('#filter-tray').classList.remove('open');
     $('#filter-tray-backdrop').classList.remove('open');
+  }
+
+  function openPickTray({ title, options, value, onPick }){
+    state.pickTray = true;
+    state.filterTray = null;
+    const tray = $('#filter-tray');
+    const backdrop = $('#filter-tray-backdrop');
+    tray.innerHTML = '';
+
+    tray.appendChild(el('div', { class: 'handle' }));
+    tray.appendChild(el('button', { class: 'close', onclick: closeFilterTray }, '\u2715'));
+    tray.appendChild(el('div', { class: 'tray-title' }, title));
+
+    const list = el('div', { class: 'tray-list' });
+    options.forEach(opt => {
+      const selected = opt.value === value;
+      let leader;
+      if (opt.color)      leader = el('span', { class: 'tray-leader tray-dot', style: { background: opt.color } });
+      else if (opt.emoji) leader = el('span', { class: 'tray-leader tray-emoji' }, opt.emoji);
+      else                leader = el('span', { class: 'tray-leader tray-emoji' }, '\u2022');
+      list.appendChild(el('button', {
+        class: 'tray-row' + (selected ? ' selected' : ''),
+        onclick: () => {
+          onPick(opt.value);
+          closeFilterTray();
+        }
+      },
+        leader,
+        el('div', { class: 'tray-text' },
+          el('div', { class: 'tray-label' }, opt.label),
+          opt.sub ? el('div', { class: 'tray-sub' }, opt.sub) : null
+        ),
+        selected ? (() => {
+          const c = el('span', { class: 'tray-check' });
+          c.appendChild(svgCheck());
+          return c;
+        })() : el('span')
+      ));
+    });
+    tray.appendChild(list);
+    tray.appendChild(el('div', { class: 'bottom-pad' }));
+
+    backdrop.classList.add('open');
+    requestAnimationFrame(() => tray.classList.add('open'));
   }
 
   let syncDebounce = null;
@@ -3075,10 +3121,11 @@
     }, 'Adding activity to Coda...').outerHTML;
 
     try {
+      const name = (parsed.name || '').trim() || 'Untitled activity';
       const body = {
         docUrl: activeTrip.url,
         activity: {
-          name: parsed.name,
+          name,
           lat: parsed.lat,
           lng: parsed.lng,
           category: parsed.category,
@@ -3097,12 +3144,23 @@
         body: JSON.stringify(body)
       });
 
+      const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Failed to add activity');
+        throw new Error(payload.error || 'Failed to add activity');
       }
 
-      toast('✅ Activity added! Reload to see it.');
+      const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+      localStorage.removeItem(`jk26.tripData.${normalizedUrl}`);
+      const savedTab = state.tab;
+      try {
+        await loadTripData(activeTrip.url, false, activeTrip.token || null);
+        state.tab = savedTab;
+        switchTab(savedTab);
+      } catch (reloadErr) {
+        console.warn('Added to Coda but failed to refresh trip data:', reloadErr);
+      }
+
+      toast('Activity added');
       
       // Close sheet after a short delay
       setTimeout(() => {
@@ -3118,6 +3176,310 @@
         el('div', { style: { fontWeight: '600', marginBottom: '8px' } }, 'Error'),
         el('div', { style: { fontSize: '14px' } }, err.message)
       ).outerHTML;
+    }
+  }
+
+  // ─── Edit Activity Sheet ──────────────────────────────────────────────────
+  let editActivityDraft = null;
+
+  function buildSheetEditIcon(){
+    const icon = el('span', { class: 'tab-icon', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
+    icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    return icon;
+  }
+
+  function activityToDraft(a){
+    return {
+      rowId: a.id,
+      day: a.day,
+      time: a.time || '',
+      cat: a.cat || '',
+      name: a.name || '',
+      desc: a.desc || '',
+      url: a.url || '',
+      lat: a.lat != null && !isNaN(a.lat) ? String(a.lat) : '',
+      lng: a.lng != null && !isNaN(a.lng) ? String(a.lng) : ''
+    };
+  }
+
+  function editTimeLabel(time){ return time || 'None'; }
+  function editCatLabel(cat){ return cat || 'None'; }
+
+  function ensureEditActivitySheetDom(){
+    const root = $('#app') || $('.phone-fullscreen') || document.body;
+    let backdrop = $('#edit-activity-backdrop');
+    let sheet = $('#edit-activity-sheet');
+    if (!backdrop) {
+      backdrop = el('div', { id: 'edit-activity-backdrop', class: 'sheet-backdrop sheet-stack-2' });
+      root.appendChild(backdrop);
+    }
+    if (!sheet) {
+      sheet = el('div', { id: 'edit-activity-sheet', class: 'sheet sheet-stack-2' });
+      root.appendChild(sheet);
+    }
+    return { sheet, backdrop };
+  }
+
+  function hideEditActivitySheet(){
+    const sheet = $('#edit-activity-sheet');
+    const backdrop = $('#edit-activity-backdrop');
+    if (!sheet || !backdrop) return;
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
+    backdrop.onclick = null;
+    editActivityDraft = null;
+  }
+
+  function openEditDayPicker(){
+    if (!editActivityDraft) return;
+    openPickTray({
+      title: 'Date',
+      value: editActivityDraft.day,
+      options: [{ value: UNSCHEDULED_DAY, label: 'Unscheduled', sub: 'Not on itinerary yet' }]
+        .concat((D.days || []).map(d => ({
+          value: d.n,
+          label: `Day ${d.n}`,
+          sub: `${shortDate(d.date)} \u00b7 ${d.loc} \u00b7 ${d.title}`,
+          color: d.color
+        }))),
+      onPick: (value) => {
+        editActivityDraft.day = value;
+        const label = $('#edit-day-label');
+        if (label) label.textContent = dayFilterLabel(value);
+      }
+    });
+  }
+
+  function openEditTimePicker(){
+    if (!editActivityDraft) return;
+    openPickTray({
+      title: 'Time of day',
+      value: editActivityDraft.time,
+      options: [{ value: '', label: 'None', sub: 'No time set' }]
+        .concat((D.timesOfDay || []).map(t => ({ value: t.id, label: t.id, sub: '', emoji: t.emoji }))),
+      onPick: (value) => {
+        editActivityDraft.time = value;
+        const label = $('#edit-time-label');
+        if (label) label.textContent = editTimeLabel(value);
+      }
+    });
+  }
+
+  function openEditTypePicker(){
+    if (!editActivityDraft) return;
+    openPickTray({
+      title: 'Type',
+      value: editActivityDraft.cat,
+      options: [{ value: '', label: 'None', sub: 'No category' }]
+        .concat(Object.values(D.categories || {}).map(c => ({ value: c.label, label: c.label, sub: '', emoji: c.emoji }))),
+      onPick: (value) => {
+        editActivityDraft.cat = value;
+        const label = $('#edit-type-label');
+        if (label) label.textContent = editCatLabel(value);
+      }
+    });
+  }
+
+  function buildEditPickerField(label, labelId, displayValue, onOpen){
+    return el('div', { class: 'edit-field' },
+      el('label', { class: 'edit-label' }, label),
+      el('button', { type: 'button', class: 'edit-picker-btn', onclick: onOpen },
+        el('span', { id: labelId }, displayValue),
+        svgIcon('chevron-down')
+      )
+    );
+  }
+
+  function openEditActivitySheet(a){
+    editActivityDraft = activityToDraft(a);
+    const { sheet, backdrop } = ensureEditActivitySheetDom();
+    const draft = editActivityDraft;
+    sheet.innerHTML = '';
+
+    sheet.appendChild(el('div', {
+      class: 'sheet-header',
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '20px 20px 12px',
+        borderBottom: '1px solid var(--border)',
+        flexShrink: '0'
+      }
+    },
+      el('h2', { style: { fontSize: '20px', fontWeight: '600', margin: '0', color: 'var(--fg)' } }, 'Edit Activity'),
+      el('button', {
+        class: 'close-btn',
+        onclick: hideEditActivitySheet,
+        style: {
+          fontSize: '24px',
+          fontWeight: '300',
+          color: 'var(--fg-mid)',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '0',
+          width: '32px',
+          height: '32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }
+      }, '\u2715')
+    ));
+
+    const form = el('div', { class: 'edit-activity-container' },
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-activity-name' }, 'Name'),
+        el('input', {
+          type: 'text',
+          id: 'edit-activity-name',
+          class: 'edit-input',
+          value: draft.name,
+          oninput: (e) => { draft.name = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-activity-desc' }, 'Description'),
+        el('textarea', {
+          id: 'edit-activity-desc',
+          class: 'edit-textarea',
+          oninput: (e) => { draft.desc = e.target.value; }
+        }, draft.desc)
+      ),
+      buildEditPickerField('Date', 'edit-day-label', dayFilterLabel(draft.day), openEditDayPicker),
+      buildEditPickerField('Time of day', 'edit-time-label', editTimeLabel(draft.time), openEditTimePicker),
+      buildEditPickerField('Type', 'edit-type-label', editCatLabel(draft.cat), openEditTypePicker),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-activity-url' }, 'More info URL'),
+        el('input', {
+          type: 'url',
+          id: 'edit-activity-url',
+          class: 'edit-input',
+          value: draft.url,
+          placeholder: 'https://...',
+          oninput: (e) => { draft.url = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-activity-lat' }, 'Latitude'),
+        el('input', {
+          type: 'text',
+          id: 'edit-activity-lat',
+          class: 'edit-input',
+          value: draft.lat,
+          placeholder: '35.6896',
+          oninput: (e) => { draft.lat = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-activity-lng' }, 'Longitude'),
+        el('input', {
+          type: 'text',
+          id: 'edit-activity-lng',
+          class: 'edit-input',
+          value: draft.lng,
+          placeholder: '139.6917',
+          oninput: (e) => { draft.lng = e.target.value; }
+        })
+      ),
+      el('button', {
+        id: 'edit-activity-submit',
+        class: 'oc-btn',
+        style: { marginTop: '8px', marginBottom: '24px' },
+        onclick: submitUpdateActivity
+      }, 'Update')
+    );
+    sheet.appendChild(form);
+
+    backdrop.classList.add('open');
+    backdrop.onclick = hideEditActivitySheet;
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  }
+
+  async function submitUpdateActivity(){
+    const draft = editActivityDraft;
+    if (!draft) return;
+
+    const trips = getTrips();
+    const activeTrip = trips.find(t => t.active);
+    if (!activeTrip) {
+      toast('No active trip selected');
+      return;
+    }
+
+    const name = draft.name.trim();
+    if (!name) {
+      toast('Please enter an activity name');
+      return;
+    }
+
+    const latStr = draft.lat.trim();
+    const lngStr = draft.lng.trim();
+    const lat = latStr === '' ? null : parseFloat(latStr);
+    const lng = lngStr === '' ? null : parseFloat(lngStr);
+    if ((latStr && isNaN(lat)) || (lngStr && isNaN(lng))) {
+      toast('Latitude and longitude must be numbers');
+      return;
+    }
+
+    const btn = $('#edit-activity-submit');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+    }
+
+    const date = isUnscheduledDay(draft.day) ? null : (D.byDay[draft.day]?.date || null);
+    const rowId = draft.rowId;
+
+    try {
+      const body = {
+        docUrl: activeTrip.url,
+        rowId,
+        activity: {
+          name,
+          desc: draft.desc.trim(),
+          url: draft.url.trim(),
+          lat,
+          lng,
+          category: draft.cat || null,
+          time: draft.time || null,
+          date
+        }
+      };
+      if (activeTrip.token) body.token = activeTrip.token;
+
+      const res = await fetch('/api/update-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || 'Failed to update activity');
+
+      const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+      localStorage.removeItem(`jk26.tripData.${normalizedUrl}`);
+      const savedTab = state.tab;
+      hideEditActivitySheet();
+      try {
+        await loadTripData(activeTrip.url, false, activeTrip.token || null);
+        state.tab = savedTab;
+        switchTab(savedTab);
+        const refreshed = D.byId[rowId];
+        if (refreshed) openSheet(refreshed);
+        else closeSheet();
+      } catch (reloadErr) {
+        console.warn('Updated in Coda but failed to refresh trip data:', reloadErr);
+        closeSheet();
+      }
+      toast('Activity updated');
+    } catch (err) {
+      console.error('Error updating activity:', err);
+      toast('Failed to update activity');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Update';
+      }
     }
   }
 
@@ -3202,6 +3564,11 @@
       el('button', { class: 'sheet-chev', disabled: prev ? null : '', 'aria-label': 'Previous activity', onclick: () => prev && openSheet(prev) }, '\u2039'),
       el('button', { class: 'sheet-chev', disabled: next ? null : '', 'aria-label': 'Next activity', onclick: () => next && openSheet(next) }, '\u203a'),
       el('div', { style: { flex: '1' } }),
+      el('button', {
+        class: 'sheet-chev',
+        'aria-label': 'Edit activity',
+        onclick: () => openEditActivitySheet(a)
+      }, buildSheetEditIcon()),
       el('button', { class: 'close', onclick: closeSheet }, '\u2715')
     ));
 

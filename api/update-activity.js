@@ -1,18 +1,18 @@
-// Vercel serverless function to add an activity to a Coda doc
+// Vercel serverless function to update an activity row in a Coda doc
 
 export default async function handler(req, res) {
-  console.log('add-activity called, method:', req.method);
-  
-  if (req.method !== 'POST') {
+  console.log('update-activity called, method:', req.method);
+
+  if (req.method !== 'POST' && req.method !== 'PUT') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { docUrl, activity, token } = req.body;
-  console.log('docUrl:', docUrl, 'hasToken:', !!token);
+  const { docUrl, rowId, activity, token } = req.body;
+  console.log('docUrl:', docUrl, 'rowId:', rowId, 'hasToken:', !!token);
   console.log('activity:', activity);
-  
-  if (!docUrl || !activity) {
-    return res.status(400).json({ error: 'Missing docUrl or activity data' });
+
+  if (!docUrl || !rowId || !activity) {
+    return res.status(400).json({ error: 'Missing docUrl, rowId, or activity data' });
   }
 
   const activityName = String(activity.name || '').trim();
@@ -20,14 +20,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Activity name is required' });
   }
 
-  // Use provided token, or fall back to main CODA_TOKEN
   const CODA_TOKEN = token || process.env.CODA_TOKEN;
   if (!CODA_TOKEN) {
     console.error('CODA_TOKEN not set in environment');
     return res.status(500).json({ error: 'Server configuration error: CODA_TOKEN not set' });
   }
 
-  // Extract doc ID from URL
   function parseDocId(input) {
     if (!input) return null;
     const urlMatch = input.match(/_d([a-zA-Z0-9_-]+)/);
@@ -44,14 +42,11 @@ export default async function handler(req, res) {
   }
 
   const docId = parseDocId(docUrl);
-  console.log('parsed docId:', docId);
-  
   if (!docId) {
     return res.status(400).json({ error: 'Invalid Coda doc URL' });
   }
 
   try {
-    // Fetch tables
     const tablesResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/tables`, {
       headers: {
         'Authorization': `Bearer ${CODA_TOKEN}`,
@@ -64,14 +59,11 @@ export default async function handler(req, res) {
     }
 
     const tablesData = await tablesResp.json();
-    
-    // Find Activities table
     const activitiesTable = tablesData.items.find(t => t.name === 'All activities');
     if (!activitiesTable) {
       throw new Error('Activities table "All activities" not found in doc');
     }
 
-    // Fetch columns for Activities table
     const colsResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/tables/${activitiesTable.id}/columns`, {
       headers: {
         'Authorization': `Bearer ${CODA_TOKEN}`,
@@ -96,64 +88,72 @@ export default async function handler(req, res) {
       throw new Error('Activities table is missing an Activity column');
     }
 
-    // Build row data - only include columns that exist
-    const cells = [
-      { column: activityCol, value: activityName }
-    ];
+    const cells = [{ column: activityCol, value: activityName }];
 
-    const latCol = colId(columns, 'Latitude');
-    if (activity.lat != null && latCol) {
-      cells.push({ column: latCol, value: activity.lat });
+    const descCol = colId(columns, 'Description');
+    if (descCol) {
+      cells.push({ column: descCol, value: activity.desc || '' });
     }
 
-    const lngCol = colId(columns, 'Longitude');
-    if (activity.lng != null && lngCol) {
-      cells.push({ column: lngCol, value: activity.lng });
+    const dateCol = colId(columns, 'Date');
+    if (dateCol) {
+      cells.push({ column: dateCol, value: activity.date || '' });
+    }
+
+    const timeCol = colId(columns, 'Time of Day');
+    if (timeCol) {
+      cells.push({ column: timeCol, value: activity.time || '' });
     }
 
     const categoryCol = colId(columns, 'Category');
-    if (activity.category && categoryCol) {
-      cells.push({ column: categoryCol, value: activity.category });
+    if (categoryCol) {
+      cells.push({ column: categoryCol, value: activity.category || '' });
+    }
+
+    const latCol = colId(columns, 'Latitude');
+    if (latCol) {
+      cells.push({ column: latCol, value: activity.lat != null ? activity.lat : '' });
+    }
+
+    const lngCol = colId(columns, 'Longitude');
+    if (lngCol) {
+      cells.push({ column: lngCol, value: activity.lng != null ? activity.lng : '' });
     }
 
     const urlCol = colId(columns, 'More Info', 'URL', 'Link');
-    if (activity.url && urlCol) {
-      cells.push({ column: urlCol, value: activity.url });
+    if (urlCol) {
+      cells.push({ column: urlCol, value: activity.url || '' });
     }
 
-    console.log('Adding row with cells:', cells);
+    console.log('Updating row with cells:', cells);
 
-    // Add row to Activities table
-    const addRowResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/tables/${activitiesTable.id}/rows`, {
-      method: 'POST',
+    const updateRowResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/rows/${rowId}`, {
+      method: 'PUT',
       headers: {
         'Authorization': `Bearer ${CODA_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        rows: [{ cells }]
-      })
+      body: JSON.stringify({ row: { cells } })
     });
 
-    if (!addRowResp.ok) {
-      const errorText = await addRowResp.text();
+    if (!updateRowResp.ok) {
+      const errorText = await updateRowResp.text();
       console.error('Coda API error:', errorText);
-      throw new Error(`Failed to add row: ${addRowResp.status} - ${errorText}`);
+      throw new Error(`Failed to update row: ${updateRowResp.status} - ${errorText}`);
     }
 
-    const result = await addRowResp.json();
-    console.log('Row added successfully:', result);
+    const result = await updateRowResp.json();
+    console.log('Row updated successfully:', result);
 
-    return res.status(200).json({ 
-      success: true, 
-      message: 'Activity added successfully',
-      rowId: result.id || result.requestId || null
+    return res.status(200).json({
+      success: true,
+      message: 'Activity updated successfully',
+      rowId
     });
-
   } catch (error) {
-    console.error('Error adding activity:', error);
-    return res.status(500).json({ 
-      error: error.message || 'Failed to add activity to Coda' 
+    console.error('Error updating activity:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to update activity in Coda'
     });
   }
 }
