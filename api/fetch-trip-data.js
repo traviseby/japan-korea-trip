@@ -198,14 +198,14 @@ export default async function handler(req, res) {
     const HTL_MAP = buildColumnMap(htlCols);
 
     // Helper to fetch rows with pagination
-    async function fetchAllRows(tableId) {
+    async function fetchAllRows(tableId, valueFormat = 'simple') {
       let allRows = [];
       let pageToken = null;
       
       do {
         const url = new URL(`https://coda.io/apis/v1/docs/${docId}/tables/${tableId}/rows`);
         url.searchParams.set('useColumnNames', 'false');
-        url.searchParams.set('valueFormat', 'simple');
+        url.searchParams.set('valueFormat', valueFormat);
         if (pageToken) url.searchParams.set('pageToken', pageToken);
         
         const resp = await fetch(url, {
@@ -227,7 +227,7 @@ export default async function handler(req, res) {
     // Fetch all rows
     const [itnRows, actRows, todoRows, flRows, htlRows] = await Promise.all([
       fetchAllRows(tables.itinerary),
-      fetchAllRows(tables.activities),
+      fetchAllRows(tables.activities, 'rich'),
       fetchAllRows(tables.todos),
       fetchAllRows(tables.flights),
       fetchAllRows(tables.hotels)
@@ -417,7 +417,7 @@ export default async function handler(req, res) {
     ];
 
     // Return the data structure
-    return res.status(200).json({
+    const payload = {
       trip: {
         title: 'Trip',
         start: tripStart,
@@ -431,7 +431,21 @@ export default async function handler(req, res) {
       categories,
       timesOfDay,
       lastGenerated: new Date().toISOString()
-    });
+    };
+
+    if (req.body.debug) {
+      const sampleRow = actRows.find(r => r.id === 'i-re_ngHfBWS') || actRows[0];
+      payload._debug = {
+        actColumns: actCols.map(c => ({ name: c.name, id: c.id })),
+        inferredActivity: ACT.activity,
+        sampleValues: sampleRow?.values,
+        sampleExtracted: Object.fromEntries(
+          actCols.map(c => [c.name, cellText(sampleRow?.values?.[c.id])])
+        )
+      };
+    }
+
+    return res.status(200).json(payload);
 
   } catch (error) {
     console.error('Error fetching trip data:', error);
