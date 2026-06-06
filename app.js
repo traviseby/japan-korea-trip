@@ -3055,10 +3055,6 @@
   }
 
   async function submitActivity(parsed, url) {
-    const resultDiv = $('#parse-result');
-    if (!resultDiv) return;
-
-    // Get active trip
     const trips = getTrips();
     const activeTrip = trips.find(t => t.active);
     
@@ -3067,9 +3063,9 @@
       return;
     }
 
-    resultDiv.innerHTML = el('div', { 
-      style: { padding: '16px', textAlign: 'center', color: 'var(--fg-mid)' }
-    }, 'Adding activity to Coda...').outerHTML;
+    const parseBtn = $('#parse-url-btn');
+    if (parseBtn) parseBtn.disabled = true;
+    toast('Adding activity to Coda...');
 
     try {
       const name = (parsed.name || '').trim() || 'Untitled activity';
@@ -3119,13 +3115,9 @@
 
     } catch (err) {
       console.error('Error adding activity:', err);
-      toast('❌ Failed to add activity');
-      resultDiv.innerHTML = el('div', { 
-        style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--error)' }
-      },
-        el('div', { style: { fontWeight: '600', marginBottom: '8px' } }, 'Error'),
-        el('div', { style: { fontSize: '14px' } }, err.message)
-      ).outerHTML;
+      toast(err.message || 'Failed to add activity');
+    } finally {
+      if (parseBtn) parseBtn.disabled = false;
     }
   }
 
