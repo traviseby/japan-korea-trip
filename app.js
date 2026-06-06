@@ -404,19 +404,29 @@
   }
 
   function buildOfflineCard(){
-    const estimate = generateTileURLs().length;
+    const regions = getOfflineRegions();
+    const estimate = regions.length ? generateTileURLs(regions).length : 0;
     const estMB = Math.round(estimate * 25 / 1024); // ~25KB per tile (PNG, mid-detail)
+    const areaLabel = offlineRegionsLabel(regions);
+    const desc = regions.length
+      ? `Cache map tiles for ${areaLabel} so maps work in airplane mode. About ${estimate.toLocaleString()} tiles, roughly ${estMB} MB.`
+      : 'Add activities with map coordinates to this trip before downloading tiles for offline use.';
     const card = el('div', { class: 'offline-card', id: 'offline-card' },
       el('div', { class: 'oc-head' },
         el('div', { class: 'oc-headline' }, 'Offline maps'),
         el('span', { class: 'oc-status', id: 'dl-status' }, '\u2014')
       ),
-      el('div', { class: 'oc-desc' }, `Cache Tokyo, Hakone, Fuji & Seoul map tiles so the maps work in airplane mode. About ${estimate.toLocaleString()} tiles, roughly ${estMB} MB.`),
+      el('div', { class: 'oc-desc' }, desc),
       el('div', { class: 'oc-progress' },
         el('div', { class: 'oc-progress-fill', id: 'dl-fill' })
       ),
-      el('div', { class: 'oc-label', id: 'dl-label' }, 'Tap below when you\u2019re on wifi.'),
-      el('button', { class: 'oc-btn secondary', id: 'dl-btn', onclick: downloadOfflineMaps }, 'Download for offline')
+      el('div', { class: 'oc-label', id: 'dl-label' }, regions.length ? 'Tap below when you\u2019re on wifi.' : 'No mappable locations in this trip yet.'),
+      el('button', {
+        class: 'oc-btn secondary',
+        id: 'dl-btn',
+        disabled: !regions.length,
+        onclick: downloadOfflineMaps
+      }, 'Download for offline')
     );
     setTimeout(refreshCacheStatus, 50);
     return card;
@@ -3892,24 +3902,87 @@
   window.addEventListener('offline', updateOnline);
 
   // ─── Offline tile precache ────────────────────────────────────────────────
-  // Bounding boxes for the four regions we'll cache tiles for.
-  const REGIONS = [
-    { name: 'Tokyo',  bounds: { n: 35.83, s: 35.50, w: 139.55, e: 139.92 } },
-    { name: 'Hakone', bounds: { n: 35.30, s: 35.15, w: 138.95, e: 139.10 } },
-    { name: 'Fuji',   bounds: { n: 35.43, s: 35.32, w: 138.69, e: 138.80 } },
-    { name: 'Seoul',  bounds: { n: 37.70, s: 37.45, w: 126.80, e: 127.18 } }
-  ];
   const TILE_ZOOMS = [10, 11, 12, 13];
+  const OFFLINE_CLUSTER_DEG = 8; // ~800 km — keeps JP/KR separate, merges one metro area
+
+  function hasMapCoord(p){
+    return p && p.lat != null && p.lng != null && !isNaN(p.lat) && !isNaN(p.lng);
+  }
+
+  function getTripMapPoints(){
+    const points = [];
+    (D.activities || []).forEach(a => {
+      if (hasMapCoord(a)) points.push({ lat: a.lat, lng: a.lng });
+    });
+    (D.hotels || []).forEach(h => {
+      if (hasMapCoord(h)) points.push({ lat: h.lat, lng: h.lng });
+    });
+    return points;
+  }
+
+  function boundsFromPoints(points, padding = 0.06){
+    if (!points.length) return null;
+    let n = -90, s = 90, w = 180, e = -180;
+    points.forEach(p => {
+      n = Math.max(n, p.lat);
+      s = Math.min(s, p.lat);
+      w = Math.min(w, p.lng);
+      e = Math.max(e, p.lng);
+    });
+    if (n === s) { n += padding; s -= padding; }
+    if (e === w) { e += padding; w -= padding; }
+    return {
+      n: Math.min(90, n + padding),
+      s: Math.max(-90, s - padding),
+      w: Math.max(-180, w - padding),
+      e: Math.min(180, e + padding)
+    };
+  }
+
+  function clusterMapPoints(points, threshold = OFFLINE_CLUSTER_DEG){
+    const clusters = [];
+    points.forEach(p => {
+      let placed = false;
+      for (const cluster of clusters) {
+        const cLat = cluster.reduce((sum, pt) => sum + pt.lat, 0) / cluster.length;
+        const cLng = cluster.reduce((sum, pt) => sum + pt.lng, 0) / cluster.length;
+        const dist = Math.hypot(p.lat - cLat, p.lng - cLng);
+        if (dist < threshold) {
+          cluster.push(p);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) clusters.push([p]);
+    });
+    return clusters;
+  }
+
+  function getOfflineRegions(){
+    const points = getTripMapPoints();
+    if (!points.length) return [];
+    return clusterMapPoints(points).map((cluster, index) => ({
+      name: `area-${index + 1}`,
+      bounds: boundsFromPoints(cluster, 0.06)
+    })).filter(r => r.bounds);
+  }
+
+  function offlineRegionsLabel(regions){
+    if (!regions.length) return 'this trip';
+    if (regions.length === 1) return 'your trip locations';
+    return `${regions.length} areas in this trip`;
+  }
 
   function lon2tile(lon, z){ return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
   function lat2tile(lat, z){
     return Math.floor((1 - Math.log(Math.tan(lat * Math.PI/180) + 1/Math.cos(lat * Math.PI/180))/Math.PI)/2 * Math.pow(2, z));
   }
 
-  function generateTileURLs(){
+  function generateTileURLs(regions){
+    const boxes = regions || getOfflineRegions();
     const urls = [];
     const subdomains = ['a','b','c','d'];
-    REGIONS.forEach(r => {
+    boxes.forEach(r => {
       TILE_ZOOMS.forEach(z => {
         const x0 = lon2tile(r.bounds.w, z);
         const x1 = lon2tile(r.bounds.e, z);
@@ -3986,7 +4059,13 @@
   }
 
   function downloadOfflineMaps(){
-    const urls = generateTileURLs();
+    const regions = getOfflineRegions();
+    if (!regions.length) {
+      const lbl = $('#dl-label');
+      if (lbl) lbl.textContent = 'No activity locations found — add coordinates in Coda first.';
+      return;
+    }
+    const urls = generateTileURLs(regions);
     const btn = $('#dl-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
     const fill = $('#dl-fill'); const lbl = $('#dl-label');
