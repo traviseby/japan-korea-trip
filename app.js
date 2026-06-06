@@ -2886,43 +2886,7 @@
       return;
     }
 
-    // Show parsed data
-    resultDiv.innerHTML = '';
-    resultDiv.appendChild(el('div', { class: 'parsed-activity', style: { background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '16px' } },
-      el('h3', { style: { fontSize: '17px', fontWeight: '600', marginBottom: '12px', color: 'var(--fg)' } }, 'Parsed Activity'),
-      
-      el('div', { style: { marginBottom: '12px' } },
-        el('label', { style: { display: 'block', fontSize: '13px', color: 'var(--fg-mid)', marginBottom: '4px' } }, 'Name'),
-        el('div', { style: { fontSize: '15px', color: 'var(--fg)' } }, parsed.name || 'Unknown')
-      ),
-      
-      parsed.lat && parsed.lng ? el('div', { style: { marginBottom: '12px' } },
-        el('label', { style: { display: 'block', fontSize: '13px', color: 'var(--fg-mid)', marginBottom: '4px' } }, 'Location'),
-        el('div', { style: { fontSize: '15px', color: 'var(--fg)' } }, `${parsed.lat.toFixed(4)}, ${parsed.lng.toFixed(4)}`)
-      ) : null,
-      
-      parsed.category ? el('div', { style: { marginBottom: '12px' } },
-        el('label', { style: { display: 'block', fontSize: '13px', color: 'var(--fg-mid)', marginBottom: '4px' } }, 'Category'),
-        el('div', { style: { fontSize: '15px', color: 'var(--fg)' } }, parsed.category)
-      ) : null,
-      
-      el('button', {
-        class: 'primary-btn',
-        style: {
-          width: '100%',
-          padding: '12px',
-          fontSize: '15px',
-          fontWeight: '600',
-          background: 'var(--accent)',
-          color: 'var(--bg)',
-          border: 'none',
-          borderRadius: 'var(--r)',
-          cursor: 'pointer',
-          marginTop: '16px'
-        },
-        onclick: () => submitActivity(parsed, url)
-      }, 'Add to Trip')
-    ));
+    submitActivity(parsed, url);
   }
 
   function parseActivityUrl(url) {
@@ -3136,6 +3100,7 @@
         throw new Error(payload.error || 'Failed to add activity');
       }
 
+      const rowId = payload.rowId;
       const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
       localStorage.removeItem(`jk26.tripData.${normalizedUrl}`);
       const savedTab = state.tab;
@@ -3147,12 +3112,10 @@
         console.warn('Added to Coda but failed to refresh trip data:', reloadErr);
       }
 
-      toast('Activity added');
-      
-      // Close sheet after a short delay
-      setTimeout(() => {
-        hideAddActivitySheet();
-      }, 1500);
+      hideAddActivitySheet();
+      const added = findAddedActivity({ rowId, name, url, lat: parsed.lat, lng: parsed.lng });
+      if (added) openEditActivitySheet(added, 'Activity Added');
+      else toast('Activity added');
 
     } catch (err) {
       console.error('Error adding activity:', err);
@@ -3187,6 +3150,17 @@
       lat: a.lat != null && !isNaN(a.lat) ? String(a.lat) : '',
       lng: a.lng != null && !isNaN(a.lng) ? String(a.lng) : ''
     };
+  }
+
+  function findAddedActivity({ rowId, name, url, lat, lng }){
+    if (rowId && D.byId[rowId]) return D.byId[rowId];
+    const unscheduled = (D.activities || []).filter(a => isUnscheduledDay(a.day));
+    return unscheduled.find(a =>
+      a.name === name &&
+      (!url || a.url === url) &&
+      (lat == null || a.lat === lat) &&
+      (lng == null || a.lng === lng)
+    ) || unscheduled.find(a => a.name === name);
   }
 
   function editTimeLabel(time){ return time || 'None'; }
@@ -3293,7 +3267,7 @@
     );
   }
 
-  function openEditActivitySheet(a){
+  function openEditActivitySheet(a, title = 'Edit Activity'){
     editActivityDraft = activityToDraft(a);
     const { sheet, backdrop } = ensureEditActivitySheetDom();
     const draft = editActivityDraft;
@@ -3301,7 +3275,7 @@
 
     sheet.appendChild(buildSheetCloseButton(hideEditActivitySheet));
     sheet.appendChild(el('div', { class: 'sheet-form-header' },
-      el('h2', { class: 'sheet-form-title' }, 'Edit Activity')
+      el('h2', { class: 'sheet-form-title' }, title)
     ));
 
     const form = el('div', { class: 'edit-activity-container' },

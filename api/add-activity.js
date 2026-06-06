@@ -147,7 +147,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ 
       success: true, 
       message: 'Activity added successfully',
-      rowId: result.id || result.requestId || null
+      rowId: result.addedRowIds?.[0] || result.id || null
     });
 
   } catch (error) {
