@@ -1894,7 +1894,33 @@
     const wrap = $('#filter-bar-' + tab);
     if (!wrap) return;
     wrap.innerHTML = '';
-    const rightSlot = anyFilterActive() ? el('button', { class: 'reset', onclick: resetFilters }, 'Reset') : null;
+    
+    // Right slot: Reset button (if filters active) or Plus button (to add activity)
+    let rightSlot;
+    if (anyFilterActive()) {
+      rightSlot = el('button', { class: 'reset', onclick: resetFilters }, 'Reset');
+    } else {
+      rightSlot = el('button', { 
+        class: 'add-btn',
+        onclick: showAddActivitySheet,
+        style: {
+          padding: '6px 12px',
+          fontSize: '15px',
+          fontWeight: '600',
+          color: 'var(--accent)',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
+        }
+      }, 
+        el('span', { style: { fontSize: '18px' } }, '+'),
+        el('span', null, 'Add')
+      );
+    }
+    
     wrap.appendChild(buildLargeTitle(tab === 'map' ? 'Map' : 'Activities', rightSlot));
     wrap.appendChild(buildFilterChipRow(tab));
   }
@@ -2063,9 +2089,34 @@
       // Pinned header (title + chips) above the scroll
       const bar = $('#filter-bar-activities');
       bar.innerHTML = '';
-      bar.appendChild(buildLargeTitle('Activities',
-        anyFilterActive() ? el('button', { class: 'reset', onclick: resetFilters }, 'Reset') : null
-      ));
+      
+      // Right slot: Reset button (if filters active) or Plus button (to add activity)
+      let rightSlot;
+      if (anyFilterActive()) {
+        rightSlot = el('button', { class: 'reset', onclick: resetFilters }, 'Reset');
+      } else {
+        rightSlot = el('button', { 
+          class: 'add-btn',
+          onclick: showAddActivitySheet,
+          style: {
+            padding: '6px 12px',
+            fontSize: '15px',
+            fontWeight: '600',
+            color: 'var(--accent)',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }
+        }, 
+          el('span', { style: { fontSize: '18px' } }, '+'),
+          el('span', null, 'Add')
+        );
+      }
+      
+      bar.appendChild(buildLargeTitle('Activities', rightSlot));
       bar.appendChild(buildFilterChipRow('activities'));
     }
 
@@ -2237,17 +2288,49 @@
     root.appendChild(el('div', { class: 'bottom-pad' }));
   }
 
-  // ─── Render: ADD ACTIVITY tab ─────────────────────────────────────────────
-  function renderAddActivityTab(){
-    const root = $('#add-activity-content');
-    if (!root) return;
+  // ─── Add Activity Sheet ───────────────────────────────────────────────────
+  function showAddActivitySheet(){
+    const sheet = $('#add-activity-sheet');
+    const backdrop = $('#add-activity-backdrop');
+    if (!sheet || !backdrop) return;
+    
+    const root = sheet;
     root.innerHTML = '';
 
-    root.appendChild(el('div', { class: 'add-activity-container', style: { padding: '20px' } },
-      el('div', { style: { marginBottom: '24px' } },
-        el('h2', { style: { fontSize: '20px', fontWeight: '600', marginBottom: '8px', color: 'var(--fg)' } }, 'Add Activity from URL'),
-        el('p', { style: { fontSize: '14px', color: 'var(--fg-mid)', lineHeight: '1.5' } }, 
-          'Paste a Google Maps or TripAdvisor URL to quickly add an activity to your trip.')
+    root.appendChild(el('div', { 
+      class: 'sheet-header',
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '20px 20px 12px',
+        borderBottom: '1px solid var(--border)'
+      }
+    },
+      el('h2', { style: { fontSize: '20px', fontWeight: '600', margin: '0', color: 'var(--fg)' } }, 'Add Activity'),
+      el('button', {
+        class: 'close-btn',
+        onclick: hideAddActivitySheet,
+        style: {
+          fontSize: '24px',
+          fontWeight: '300',
+          color: 'var(--fg-mid)',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '0',
+          width: '32px',
+          height: '32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }
+      }, '✕')
+    ));
+
+    root.appendChild(el('div', { class: 'add-activity-container', style: { padding: '20px', paddingTop: '16px' } },
+      el('p', { style: { fontSize: '14px', color: 'var(--fg-mid)', lineHeight: '1.5', marginBottom: '20px' } }, 
+        'Paste a Google Maps or TripAdvisor URL to quickly add an activity to your trip.'
       ),
       
       el('div', { class: 'url-input-section' },
@@ -2286,6 +2369,23 @@
 
       el('div', { id: 'parse-result', style: { marginTop: '24px' } })
     ));
+
+    // Show sheet and backdrop
+    sheet.classList.add('show');
+    backdrop.classList.add('show');
+    
+    // Set up backdrop click to close
+    backdrop.onclick = hideAddActivitySheet;
+  }
+
+  function hideAddActivitySheet() {
+    const sheet = $('#add-activity-sheet');
+    const backdrop = $('#add-activity-backdrop');
+    if (!sheet || !backdrop) return;
+    
+    sheet.classList.remove('show');
+    backdrop.classList.remove('show');
+    backdrop.onclick = null;
   }
 
   function handleParseUrl() {
@@ -2565,18 +2665,12 @@
         throw new Error(errorText || 'Failed to add activity');
       }
 
-      toast('✅ Activity added successfully!');
+      toast('✅ Activity added! Reload to see it.');
       
-      // Clear form
-      const input = $('#activity-url-input');
-      if (input) input.value = '';
-      resultDiv.innerHTML = el('div', { 
-        style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--accent)' }
-      },
-        el('div', { style: { fontSize: '16px', fontWeight: '600', marginBottom: '8px' } }, '✅ Activity Added!'),
-        el('div', { style: { fontSize: '14px', color: 'var(--fg-mid)' } }, `"${parsed.name}" has been added to your trip.`),
-        el('div', { style: { fontSize: '13px', color: 'var(--fg-mute)', marginTop: '8px' } }, 'Reload the app to see it in your itinerary.')
-      ).outerHTML;
+      // Close sheet after a short delay
+      setTimeout(() => {
+        hideAddActivitySheet();
+      }, 1500);
 
     } catch (err) {
       console.error('Error adding activity:', err);
@@ -3003,7 +3097,6 @@
     if (tab === 'today') renderToday();
     if (tab === 'map') renderMapTab();
     if (tab === 'activities') renderActivitiesTab();
-    if (tab === 'add-activity') renderAddActivityTab();
     if (tab === 'settings') renderSettingsTab();
     // give Leaflet a kick after the pane becomes visible
     setTimeout(() => { try { if (leafletFull) leafletFull.invalidateSize(); if (leafletMini) leafletMini.invalidateSize(); } catch{} }, 100);

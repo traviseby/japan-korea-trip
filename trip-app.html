@@ -144,14 +144,6 @@
       <div class="scroll todo-tab" id="plan-todo-content"></div>
     </div>
 
-    <!-- ADD ACTIVITY (new in Travel mode) -->
-    <div class="tab-pane" id="tab-add-activity">
-      <div class="filter-bar">
-        <div class="filter-label">Add Activity</div>
-      </div>
-      <div class="scroll" id="add-activity-content"></div>
-    </div>
-
   </div>
 
   <!-- Bottom tab bar (Travel Mode) -->
@@ -173,12 +165,6 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="8" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.2" fill="currentColor"/><circle cx="4" cy="12" r="1.2" fill="currentColor"/><circle cx="4" cy="18" r="1.2" fill="currentColor"/></svg>
       </span>
       <span class="tab-label">Activities</span>
-    </button>
-    <button data-tab="add-activity">
-      <span class="tab-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      </span>
-      <span class="tab-label">Add Activity</span>
     </button>
     <button data-tab="settings">
       <span class="tab-icon">
@@ -233,6 +219,10 @@
 <!-- Activity detail bottom sheet -->
 <div id="sheet-backdrop" class="sheet-backdrop"></div>
 <div id="sheet" class="sheet"></div>
+
+<!-- Add activity bottom sheet -->
+<div id="add-activity-backdrop" class="sheet-backdrop"></div>
+<div id="add-activity-sheet" class="sheet"></div>
 
 <!-- Fullscreen day map -->
 <div id="fullscreen-map" class="fullscreen-map">
