@@ -390,11 +390,11 @@ const activities = actRows.map(r => {
   return {
     id,
     day,
-     time: v[ACT.timeOfDay]?.name || v[ACT.timeOfDay] || '',
+    time: v[ACT.timeOfDay]?.name || v[ACT.timeOfDay] || '',
     name: stripFence(v[ACT.activity]),
     desc: stripFence(v[ACT.description] || ''),
     url:  stripFence(v[ACT.moreInfo] || ''),
-    cat:  stripFence(v[ACT.category]?.name || v[ACT.category] || ''),
+    cat:  normalizeCategory(stripFence(v[ACT.category]?.name || v[ACT.category] || '')),
     lat, lng
   };
 }).filter(a => a && a.day);
@@ -448,15 +448,38 @@ const hotels = hotelRows.map(r => {
   };
 });
 
+// ── Category mapping and normalization ────────────────────────────────────
+// Maps old multi-word categories from Coda to simplified single-word names
+const CATEGORY_NORMALIZE = {
+  'Food & Drink': 'Food',
+  'Temple / Shrine': 'Temple',
+  'Hotel & Lodging': 'Hotel',
+  'Train / Transit': 'Transit',
+  'Culture & History': 'Culture',
+  'Nature & Parks': 'Nature',
+  // Single-word categories stay the same
+  'Sightseeing': 'Sightseeing',
+  'Shopping': 'Shopping',
+  'Entertainment': 'Entertainment',
+  'Wellness': 'Wellness',
+  'Flight': 'Flight'
+};
+
+// Normalize category name (handles both old and new format from Coda)
+function normalizeCategory(cat) {
+  if (!cat) return '';
+  return CATEGORY_NORMALIZE[cat] || cat;
+}
+
 // ── Generate data.js ───────────────────────────────────────────────────────
 // Category emoji mapping (used by catEmoji() in app.js)
 const categories = {
-  'Food & Drink': { label: 'Food & Drink', emoji: '🍜' },
-  'Temple / Shrine': { label: 'Temple / Shrine', emoji: '⛩️' },
-  'Hotel & Lodging': { label: 'Hotel & Lodging', emoji: '🏨' },
-  'Train / Transit': { label: 'Train / Transit', emoji: '🚆' },
-  'Culture & History': { label: 'Culture & History', emoji: '🎭' },
-  'Nature & Parks': { label: 'Nature & Parks', emoji: '🌿' },
+  'Food': { label: 'Food', emoji: '🍜' },
+  'Temple': { label: 'Temple', emoji: '⛩️' },
+  'Hotel': { label: 'Hotel', emoji: '🏨' },
+  'Transit': { label: 'Transit', emoji: '🚆' },
+  'Culture': { label: 'Culture', emoji: '🎭' },
+  'Nature': { label: 'Nature', emoji: '🌿' },
   'Sightseeing': { label: 'Sightseeing', emoji: '📍' },
   'Shopping': { label: 'Shopping', emoji: '🛍️' },
   'Entertainment': { label: 'Entertainment', emoji: '🎟️' },
