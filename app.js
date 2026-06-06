@@ -3612,11 +3612,133 @@
       // Fetch doc info to get the name and icon
       console.log('📡 Fetching doc info...');
       statusText.textContent = 'Fetching trip info...';
-      const docInfo = await fetchDocInfo(docUrl);
+      let docInfo = await fetchDocInfo(docUrl);
       console.log('📄 Doc info received:', docInfo);
       
+      // If doc is private, show token request UI
       if (!docInfo) {
-        throw new Error('Could not fetch doc info');
+        console.log('🔒 Doc requires authentication');
+        
+        // Transform loading overlay into token request form
+        loading.innerHTML = '';
+        loading.style.maxWidth = '500px';
+        loading.style.margin = 'auto';
+        
+        const tokenForm = el('div', { style: { width: '100%', maxWidth: '400px' } },
+          el('div', { style: { fontSize: '48px', marginBottom: '16px', textAlign: 'center' } }, '🔒'),
+          el('div', { style: { fontSize: '20px', fontWeight: '600', marginBottom: '8px', textAlign: 'center' } }, 'Authentication Required'),
+          el('div', { 
+            style: { 
+              fontSize: '14px', 
+              color: 'var(--fg-mid)', 
+              marginBottom: '16px',
+              textAlign: 'center'
+            } 
+          }, 'This Coda doc is private. To access it, you need a Coda API token:'),
+          el('ol', {
+            style: { 
+              fontSize: '13px', 
+              marginBottom: '16px',
+              paddingLeft: '20px',
+              color: 'var(--fg-muted)',
+              textAlign: 'left'
+            }
+          },
+            el('li', { style: { marginBottom: '8px' } }, 'Go to ', el('a', { 
+              href: 'https://coda.io/account', 
+              target: '_blank',
+              style: { color: 'var(--primary)', textDecoration: 'underline' }
+            }, 'coda.io/account')),
+            el('li', { style: { marginBottom: '8px' } }, 'Click "Generate API token"'),
+            el('li', { style: { marginBottom: '8px' } }, 'Name it (e.g., "Trip App") and click "Generate"'),
+            el('li', { style: { marginBottom: '8px' } }, 'Copy the token and paste it below')
+          ),
+          el('input', {
+            type: 'text',
+            id: 'autoload-token-input',
+            placeholder: 'Paste your Coda API token here',
+            style: { 
+              width: '100%', 
+              padding: '12px', 
+              marginBottom: '12px',
+              background: 'var(--bg)', 
+              border: '1px solid var(--border)', 
+              borderRadius: '8px',
+              color: 'var(--fg)',
+              fontSize: '13px',
+              fontFamily: 'monospace',
+              boxSizing: 'border-box'
+            }
+          }),
+          el('div', { style: { display: 'flex', gap: '8px' } },
+            el('button', {
+              id: 'autoload-cancel-btn',
+              style: {
+                flex: '1',
+                padding: '12px',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                color: 'var(--fg)',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }
+            }, 'Cancel'),
+            el('button', {
+              id: 'autoload-submit-btn',
+              style: {
+                flex: '1',
+                padding: '12px',
+                background: 'var(--primary)',
+                border: 'none',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }
+            }, 'Continue')
+          )
+        );
+        
+        loading.appendChild(tokenForm);
+        
+        // Wait for user to provide token
+        const userToken = await new Promise((resolve, reject) => {
+          $('#autoload-submit-btn').onclick = () => {
+            const token = $('#autoload-token-input').value.trim();
+            if (!token) {
+              alert('Please paste your API token');
+              return;
+            }
+            resolve(token);
+          };
+          
+          $('#autoload-cancel-btn').onclick = () => {
+            reject(new Error('User cancelled authentication'));
+          };
+        });
+        
+        console.log('🔑 User provided token, retrying...');
+        statusText.textContent = 'Authenticating...';
+        
+        // Reset loading UI
+        loading.innerHTML = '';
+        loading.style.maxWidth = 'none';
+        loading.appendChild(el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '✈️'));
+        loading.appendChild(el('div', { style: { fontSize: '18px', fontWeight: '500', marginBottom: '8px' } }, 'Loading your trip...'));
+        loading.appendChild(statusText);
+        
+        // Retry with user token
+        docInfo = await fetchDocInfo(docUrl, userToken);
+        
+        if (!docInfo) {
+          throw new Error('Could not access this document with the provided token. Please check your token and try again.');
+        }
+        
+        // Store the token with the trip (will be added below)
+        window.__autoLoadToken = userToken;
       }
 
       const tripName = docInfo.name || 'My Trip';
@@ -3631,6 +3753,12 @@
         docName: docInfo.name || tripName,
         active: true
       };
+      
+      // Add token if user provided one
+      if (window.__autoLoadToken) {
+        trip.token = window.__autoLoadToken;
+        delete window.__autoLoadToken; // Clean up
+      }
 
       const trips = getTrips();
       // Set all existing trips to inactive
@@ -3647,11 +3775,16 @@
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000);
       
+      const fetchBody = { docUrl };
+      if (trip.token) {
+        fetchBody.token = trip.token;
+      }
+      
       try {
         const res = await fetch('/api/fetch-trip-data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ docUrl }),
+          body: JSON.stringify(fetchBody),
           signal: controller.signal
         });
         clearTimeout(timeoutId);
