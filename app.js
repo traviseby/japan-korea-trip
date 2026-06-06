@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.16';
+  const APP_VERSION = '2.17';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -230,7 +230,8 @@
   let leafletMini = null, leafletFull = null, leafletSheet = null, leafletFullscreen = null;
 
   function renderToday(){
-    const day = D.byDay[state.todayDay];
+    const day = D.byDay?.[state.todayDay] || D.days?.[0];
+    if (!day) return;
     const root = $('#tab-today .scroll');
     root.style.transition = '';
     root.style.transform = '';
@@ -481,6 +482,32 @@
     window.location.href = newUrl;
   }
 
+  function applyTripData(tripData){
+    window.DATA = tripData;
+
+    // Build lookup objects (same as data.js does)
+    window.DATA.byId = {};
+    (window.DATA.activities || []).forEach(a => { window.DATA.byId[a.id] = a; });
+    window.DATA.byDay = {};
+    (window.DATA.days || []).forEach(d => { window.DATA.byDay[d.n] = d; });
+    window.DATA.dayActivities = {};
+    (window.DATA.activities || []).forEach(a => {
+      (window.DATA.dayActivities[a.day] = window.DATA.dayActivities[a.day] || []).push(a);
+    });
+
+    // Reset UI state for the new trip
+    state.todayDay = currentDay();
+    state.tab = 'today';
+    state.region = null;
+    state.sheet = null;
+    state.fullscreenMap = null;
+    state.searching = false;
+    state.filterTray = null;
+    filterState.day = [];
+    filterState.timeOfDay = [];
+    filterState.category = [];
+  }
+
   async function loadTripData(docUrl, fromCache = true, token = null){
     try {
       // Normalize URL by removing fragments/query params for consistent cache keys
@@ -576,32 +603,7 @@
       }
       
       console.log('Setting window.DATA to:', tripData.trip?.title || 'Unknown');
-      // Replace window.DATA with the new trip data
-      window.DATA = tripData;
-      
-      // Build lookup objects (same as data.js does)
-      window.DATA.byId = {};
-      window.DATA.activities.forEach(a => window.DATA.byId[a.id] = a);
-      window.DATA.byDay = {};
-      window.DATA.days.forEach(d => window.DATA.byDay[d.n] = d);
-      window.DATA.dayActivities = {};
-      window.DATA.activities.forEach(a => {
-        (window.DATA.dayActivities[a.day] = window.DATA.dayActivities[a.day] || []).push(a);
-      });
-      
-      // Reset state
-      state.todayDay = currentDay();
-      state.tab = 'today';
-      state.region = null;
-      state.sheet = null;
-      state.fullscreenMap = null;
-      state.searching = false;
-      state.filterTray = null;
-      
-      // Clear filters (reset to empty arrays)
-      filterState.day = [];
-      filterState.timeOfDay = [];
-      filterState.category = [];
+      applyTripData(tripData);
       
       // Re-render the entire app
       render();
@@ -642,11 +644,24 @@
       showTokenUIDemo();
       return;
     }
+
+    const docParam = urlParams.get('doc');
     
     let trips = getTrips();
     
-    // Clean up any broken/partial trips (e.g., "Untitled Trip" with no token)
+    // Clean up broken/partial trips, but keep any trip matching the current ?doc= param
     const cleanedTrips = trips.filter(t => {
+      if (docParam) {
+        let docUrl = docParam;
+        if (!docParam.startsWith('http')) {
+          docUrl = `https://coda.io/d/_d${docParam}`;
+        }
+        const tripDocId = extractDocId(t.url);
+        const paramDocId = extractDocId(docUrl);
+        if (tripDocId === paramDocId || t.url === docUrl || t.url === docParam) {
+          return true;
+        }
+      }
       // Keep trips that have a real name (not default placeholders)
       if (t.name && t.name !== 'Untitled Trip' && t.name !== 'My Trip') {
         return true;
@@ -667,7 +682,6 @@
     }
     
     // Check for URL parameter to auto-load a doc
-    const docParam = urlParams.get('doc');
     console.log('🔍 Extracted doc param:', docParam);
     console.log('🔍 Number of trips:', trips.length);
     
@@ -3658,7 +3672,7 @@
       el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get Started by adding a link to your trip Doc'),
       
       el('div', { style: { width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' } },
-        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Superhuman Docs URL'),
+        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Superhuman Doc URL'),
         el('input', {
           type: 'text',
           id: 'onboarding-url-input',
@@ -3690,48 +3704,17 @@
             borderRadius: '10px',
             cursor: 'pointer'
           },
-          onclick: async () => {
+          onclick: () => {
             const urlInput = $('#onboarding-url-input');
-            const submitBtn = $('#onboarding-submit-btn');
-            
             const url = urlInput.value.trim();
             if (!url) {
-              alert('Please paste a Superhuman Docs URL');
+              alert('Please paste a Superhuman Doc URL');
               return;
             }
-            
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Fetching trip info...';
-            
-            try {
-              // Fetch doc info
-              const docInfo = await fetchDocInfo(url);
-              // Ensure icon is a string, not an object
-              let icon = '✈️';
-              if (docInfo?.icon && typeof docInfo.icon === 'string') {
-                icon = docInfo.icon;
-              }
-              const docName = docInfo?.name || 'Untitled Trip';
-              
-              // Add the trip (don't load data yet - reload will handle it)
-              if (await addTrip(docName, url, icon, docName)) {
-                // Set flag to force fresh fetch after reload
-                localStorage.setItem('jk26.justSwitched', 'true');
-                
-                // Extract doc ID from URL to add as query parameter
-                const docId = extractDocId(url);
-                const docParam = docId || url; // Use ID if extracted, otherwise full URL
-                
-                // Update URL with doc parameter (makes it easy to share)
-                const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParam);
-                window.location.href = newUrl;
-              }
-            } catch (err) {
-              console.error('Onboarding error:', err);
-              alert('Failed to load trip: ' + err.message);
-              submitBtn.textContent = 'Add Trip';
-              submitBtn.disabled = false;
-            }
+
+            // Redirect with ?doc= — let autoLoadFromUrl fetch the name and load data
+            const docParam = extractDocId(url) || url;
+            window.location.href = window.location.pathname + '?doc=' + encodeURIComponent(docParam);
           }
         }, 'Add Trip')
       )
@@ -4133,8 +4116,7 @@
         const cacheKey = `jk26.tripData.${normalizedUrl}`;
         localStorage.setItem(cacheKey, JSON.stringify(tripData));
         
-        // Load into window.DATA
-        window.DATA = tripData;
+        applyTripData(tripData);
         console.log('✅ Trip data loaded');
       } catch (fetchErr) {
         clearTimeout(timeoutId);
@@ -4483,8 +4465,10 @@
     registerSW();
     checkForUpdates();
     initTripData().then(() => {
-      // Only switch tab if we have trips (not showing onboarding)
-      if (getTrips().length > 0) {
+      // Skip if onboarding or auto-load overlay is still showing
+      if ($('#onboarding') || $('#auto-load-overlay')) return;
+      // Only switch tab if trip data is ready to render
+      if (getTrips().length > 0 && window.DATA?.byDay) {
         const mode = getAppMode();
         if (mode === 'plan') {
           // Hide all travel tabs, show plan-about
