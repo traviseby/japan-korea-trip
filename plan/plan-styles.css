@@ -339,6 +339,7 @@
 /* ─── Plan Mode Tab Visibility ──────────────────────────────────────────── */
 .plan-tabbar {
   display: none;
+  grid-template-columns: repeat(6, 1fr);
 }
 
 /* ─── Plan Mode Screens ─────────────────────────────────────────────────── */

@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.18';
+  const APP_VERSION = '2.19';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -1712,7 +1712,6 @@
     // Re-render whichever tab is visible so the UI reflects the reset.
     if (state.tab === 'today') renderToday();
     if (state.tab === 'activities') renderActivitiesTab();
-    if (state.tab === 'todo') renderTodoTab();
     toast('Progress reset');
   }
 
