@@ -1247,96 +1247,217 @@
           
           // If we got a 403/404 and no user token provided yet, show token request
           if (!docInfo && !userToken) {
-            submitBtn.textContent = 'Add Trip';
-            submitBtn.disabled = false;
-            
-            // Show token request section
-            if (!tokenSection) {
-              // Create token request UI
-              const tokenUI = el('div', {
-                id: 'token-request-section',
-                style: { 
-                  marginTop: '12px',
-                  padding: '12px',
-                  background: 'rgba(255, 165, 0, 0.1)',
-                  border: '1px solid rgba(255, 165, 0, 0.3)',
-                  borderRadius: '6px'
+            // Show full-screen token request UI
+            const tokenScreen = el('div', {
+              id: 'token-request-screen',
+              style: {
+                position: 'fixed',
+                inset: '0',
+                background: 'var(--bg)',
+                zIndex: '10000',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'auto'
+              }
+            },
+              // Header with back button
+              el('div', {
+                style: {
+                  padding: '16px 20px',
+                  borderBottom: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
                 }
               },
-                el('div', { 
-                  style: { 
-                    fontSize: '13px', 
-                    marginBottom: '8px',
+                el('button', {
+                  id: 'token-back-btn',
+                  style: {
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    padding: '0',
+                    color: 'var(--primary)',
+                    lineHeight: '1'
+                  }
+                }, '←'),
+                el('div', {
+                  style: {
+                    fontSize: '18px',
+                    fontWeight: '600',
                     color: 'var(--fg)'
-                  } 
-                }, '🔒 This doc is private. To access it, you need a Coda API token:'),
+                  }
+                }, 'API Token Required')
+              ),
+              // Content
+              el('div', {
+                style: {
+                  flex: '1',
+                  padding: '24px 20px',
+                  maxWidth: '600px',
+                  margin: '0 auto',
+                  width: '100%'
+                }
+              },
+                el('div', {
+                  style: {
+                    fontSize: '15px',
+                    color: 'var(--fg)',
+                    marginBottom: '20px',
+                    lineHeight: '1.5'
+                  }
+                }, '🔒 This Coda doc is private. To access it, you need to generate an API token:'),
                 el('ol', {
-                  style: { 
-                    fontSize: '12px', 
-                    marginBottom: '8px',
-                    paddingLeft: '20px',
-                    color: 'var(--fg-muted)'
+                  style: {
+                    fontSize: '14px',
+                    marginBottom: '20px',
+                    paddingLeft: '24px',
+                    color: 'var(--fg)',
+                    lineHeight: '1.8'
                   }
                 },
-                  el('li', { style: { marginBottom: '6px' } }, 'Go to ', el('a', { 
-                    href: 'https://coda.io/account', 
+                  el('li', { style: { marginBottom: '12px' } }, 'Go to ', el('a', {
+                    href: 'https://coda.io/account',
                     target: '_blank',
                     style: { color: 'var(--primary)', textDecoration: 'underline' }
                   }, 'coda.io/account')),
-                  el('li', { style: { marginBottom: '6px' } }, 'Click "Generate API token"'),
-                  el('li', { style: { marginBottom: '6px' } }, 'Name it (e.g., "Trip App")'),
-                  el('li', { style: { marginBottom: '6px', fontWeight: '600' } }, 
-                    '⚠️ Click "Add a restriction" and paste this doc URL: ',
-                    el('code', { 
-                      style: { 
-                        fontSize: '10px',
+                  el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
+                  el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
+                  el('li', { style: { marginBottom: '12px' } },
+                    el('strong', null, '⚠️ Click "Add a restriction"'),
+                    ' and paste this doc URL:',
+                    el('div', {
+                      style: {
+                        marginTop: '8px',
+                        padding: '10px',
                         background: 'var(--surface-2)',
-                        padding: '2px 4px',
-                        borderRadius: '3px',
-                        display: 'block',
-                        marginTop: '4px',
-                        wordBreak: 'break-all'
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontFamily: 'monospace',
+                        wordBreak: 'break-all',
+                        border: '1px solid var(--border)'
                       }
                     }, url)
                   ),
-                  el('li', { style: { marginBottom: '6px' } }, 'Click "Generate API token"'),
-                  el('li', { style: { marginBottom: '6px' } }, 'Copy the token and paste it below')
+                  el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
+                  el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
                 ),
                 el('div', {
                   style: {
-                    fontSize: '11px',
+                    fontSize: '13px',
                     color: 'var(--fg-dim)',
-                    marginTop: '8px',
-                    padding: '8px',
+                    marginBottom: '20px',
+                    padding: '12px',
                     background: 'var(--surface-2)',
-                    borderRadius: '4px'
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)'
                   }
                 }, '💡 The restriction limits this token to only this doc for security.'),
+                el('div', {
+                  style: {
+                    marginBottom: '12px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: 'var(--fg)'
+                  }
+                }, 'Paste your API token:'),
                 el('input', {
                   type: 'text',
                   id: 'trip-token-input',
                   placeholder: 'Paste your Coda API token here',
-                  style: { 
-                    width: '100%', 
-                    padding: '10px', 
-                    background: 'var(--bg)', 
-                    border: '1px solid var(--border)', 
-                    borderRadius: '6px',
+                  style: {
+                    width: '100%',
+                    padding: '14px',
+                    background: 'var(--bg)',
+                    border: '2px solid var(--border)',
+                    borderRadius: '8px',
                     color: 'var(--fg)',
-                    fontSize: '13px',
-                    fontFamily: 'monospace'
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    boxSizing: 'border-box'
                   }
-                })
-              );
-              
-              // Insert before button row
-              const formButtonRow = submitBtn.parentElement;
-              formButtonRow.parentElement.insertBefore(tokenUI, formButtonRow);
-            } else {
-              tokenSection.style.display = 'block';
-            }
+                }),
+                el('button', {
+                  id: 'token-continue-btn',
+                  style: {
+                    width: '100%',
+                    marginTop: '20px',
+                    padding: '16px',
+                    background: 'var(--primary)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }
+                }, 'Continue')
+              )
+            );
             
-            toast('This doc requires authentication. Please paste your API token.');
+            document.body.appendChild(tokenScreen);
+            
+            // Handle back button
+            $('#token-back-btn').onclick = () => {
+              tokenScreen.remove();
+            };
+            
+            // Handle continue button
+            $('#token-continue-btn').onclick = async () => {
+              const tokenInput = $('#trip-token-input');
+              const token = tokenInput.value.trim();
+              
+              if (!token) {
+                alert('Please paste your API token');
+                return;
+              }
+              
+              tokenScreen.remove();
+              
+              // Retry with token
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Authenticating...';
+              
+              try {
+                docInfo = await fetchDocInfo(url, token);
+                
+                if (!docInfo) {
+                  throw new Error('Could not access this document with the provided token. Please check your token and try again.');
+                }
+                
+                // Continue with the token
+                userToken = token;
+                
+                // Re-trigger the submit flow
+                const icon = docInfo?.icon && typeof docInfo.icon === 'string' ? docInfo.icon : '✈️';
+                const tripName = docInfo?.name || 'Untitled Trip';
+                
+                if (await addTrip(tripName, url, icon, tripName, userToken)) {
+                  urlInput.value = '';
+                  $('#add-trip-form').style.display = 'none';
+                  showBtn.style.display = 'block';
+                  
+                  await loadTripData(url, false, userToken);
+                  
+                  const docId = extractDocId(url);
+                  const docParam = docId || url;
+                  const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParam);
+                  window.history.replaceState({}, '', newUrl);
+                  
+                  toast('Trip added! Copy the URL to share.');
+                }
+                
+                submitBtn.textContent = 'Add Trip';
+                submitBtn.disabled = false;
+              } catch (err) {
+                console.error('Failed with token:', err);
+                submitBtn.textContent = 'Add Trip';
+                submitBtn.disabled = false;
+                toast('Failed: ' + err.message);
+              }
+            };
+            
             return;
           }
           
@@ -3679,116 +3800,161 @@
           saveTrips(existingTrips);
         }
         
-        // Transform loading overlay into token request form
+        // Transform loading overlay into full-screen token request
         loading.innerHTML = '';
-        loading.style.maxWidth = '500px';
-        loading.style.margin = 'auto';
+        loading.style.maxWidth = 'none';
+        loading.style.margin = '0';
+        loading.style.padding = '0';
+        loading.style.flexDirection = 'column';
+        loading.style.alignItems = 'stretch';
+        loading.style.justifyContent = 'flex-start';
         
-        const tokenForm = el('div', { style: { width: '100%', maxWidth: '400px' } },
-          el('div', { style: { fontSize: '48px', marginBottom: '16px', textAlign: 'center' } }, '🔒'),
-          el('div', { style: { fontSize: '20px', fontWeight: '600', marginBottom: '8px', textAlign: 'center' } }, 'Authentication Required'),
-          el('div', { 
-            style: { 
-              fontSize: '14px', 
-              color: 'var(--fg-mid)', 
-              marginBottom: '16px',
-              textAlign: 'center'
-            } 
-          }, 'This Coda doc is private. To access it, you need a Coda API token:'),
-          el('ol', {
-            style: { 
-              fontSize: '13px', 
-              marginBottom: '16px',
-              paddingLeft: '20px',
-              color: 'var(--fg-muted)',
-              textAlign: 'left'
-            }
-          },
-            el('li', { style: { marginBottom: '8px' } }, 'Go to ', el('a', { 
-              href: 'https://coda.io/account', 
-              target: '_blank',
-              style: { color: 'var(--primary)', textDecoration: 'underline' }
-            }, 'coda.io/account')),
-            el('li', { style: { marginBottom: '8px' } }, 'Click "Generate API token"'),
-            el('li', { style: { marginBottom: '8px' } }, 'Name it (e.g., "Trip App")'),
-            el('li', { style: { marginBottom: '8px', fontWeight: '600' } }, 
-              '⚠️ Click "Add a restriction" and paste this doc URL: ',
-              el('code', { 
-                style: { 
-                  fontSize: '11px',
-                  background: 'var(--surface-2)',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  display: 'block',
-                  marginTop: '4px',
-                  wordBreak: 'break-all'
-                }
-              }, docUrl)
-            ),
-            el('li', { style: { marginBottom: '8px' } }, 'Click "Generate API token"'),
-            el('li', { style: { marginBottom: '8px' } }, 'Copy the token and paste it below')
-          ),
+        const tokenScreen = el('div', {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'auto'
+          }
+        },
+          // Header with back button
           el('div', {
             style: {
-              fontSize: '12px',
-              color: 'var(--fg-dim)',
-              marginBottom: '12px',
-              padding: '8px',
-              background: 'var(--surface-2)',
-              borderRadius: '4px',
-              textAlign: 'center'
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              background: 'var(--bg)'
             }
-          }, '💡 The restriction limits this token to only this doc for security.'),
-          el('input', {
-            type: 'text',
-            id: 'autoload-token-input',
-            placeholder: 'Paste your Coda API token here',
-            style: { 
-              width: '100%', 
-              padding: '12px', 
-              marginBottom: '12px',
-              background: 'var(--bg)', 
-              border: '1px solid var(--border)', 
-              borderRadius: '8px',
-              color: 'var(--fg)',
-              fontSize: '13px',
-              fontFamily: 'monospace',
-              boxSizing: 'border-box'
-            }
-          }),
-          el('div', { style: { display: 'flex', gap: '8px' } },
+          },
             el('button', {
-              id: 'autoload-cancel-btn',
+              id: 'autoload-back-btn',
               style: {
-                flex: '1',
+                background: 'none',
+                border: 'none',
+                fontSize: '24px',
+                cursor: 'pointer',
+                padding: '0',
+                color: 'var(--primary)',
+                lineHeight: '1'
+              }
+            }, '←'),
+            el('div', {
+              style: {
+                fontSize: '18px',
+                fontWeight: '600',
+                color: 'var(--fg)'
+              }
+            }, 'API Token Required')
+          ),
+          // Content
+          el('div', {
+            style: {
+              flex: '1',
+              padding: '24px 20px',
+              maxWidth: '600px',
+              margin: '0 auto',
+              width: '100%'
+            }
+          },
+            el('div', {
+              style: {
+                fontSize: '15px',
+                color: 'var(--fg)',
+                marginBottom: '20px',
+                lineHeight: '1.5'
+              }
+            }, '🔒 This Coda doc is private. To access it, you need to generate an API token:'),
+            el('ol', {
+              style: {
+                fontSize: '14px',
+                marginBottom: '20px',
+                paddingLeft: '24px',
+                color: 'var(--fg)',
+                lineHeight: '1.8'
+              }
+            },
+              el('li', { style: { marginBottom: '12px' } }, 'Go to ', el('a', {
+                href: 'https://coda.io/account',
+                target: '_blank',
+                style: { color: 'var(--primary)', textDecoration: 'underline' }
+              }, 'coda.io/account')),
+              el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
+              el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
+              el('li', { style: { marginBottom: '12px' } },
+                el('strong', null, '⚠️ Click "Add a restriction"'),
+                ' and paste this doc URL:',
+                el('div', {
+                  style: {
+                    marginTop: '8px',
+                    padding: '10px',
+                    background: 'var(--surface-2)',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    wordBreak: 'break-all',
+                    border: '1px solid var(--border)'
+                  }
+                }, docUrl)
+              ),
+              el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
+              el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
+            ),
+            el('div', {
+              style: {
+                fontSize: '13px',
+                color: 'var(--fg-dim)',
+                marginBottom: '20px',
                 padding: '12px',
                 background: 'var(--surface-2)',
-                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                border: '1px solid var(--border)'
+              }
+            }, '💡 The restriction limits this token to only this doc for security.'),
+            el('div', {
+              style: {
+                marginBottom: '12px',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: 'var(--fg)'
+              }
+            }, 'Paste your API token:'),
+            el('input', {
+              type: 'text',
+              id: 'autoload-token-input',
+              placeholder: 'Paste your Coda API token here',
+              style: {
+                width: '100%',
+                padding: '14px',
+                background: 'var(--bg)',
+                border: '2px solid var(--border)',
                 borderRadius: '8px',
                 color: 'var(--fg)',
                 fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer'
+                fontFamily: 'monospace',
+                boxSizing: 'border-box'
               }
-            }, 'Cancel'),
+            }),
             el('button', {
               id: 'autoload-submit-btn',
               style: {
-                flex: '1',
-                padding: '12px',
+                width: '100%',
+                marginTop: '20px',
+                padding: '16px',
                 background: 'var(--primary)',
                 border: 'none',
                 borderRadius: '8px',
                 color: 'white',
-                fontSize: '14px',
-                fontWeight: '500',
+                fontSize: '16px',
+                fontWeight: '600',
                 cursor: 'pointer'
               }
             }, 'Continue')
           )
         );
         
-        loading.appendChild(tokenForm);
+        loading.appendChild(tokenScreen);
         
         // Wait for user to provide token
         const userToken = await new Promise((resolve, reject) => {
@@ -3801,20 +3967,30 @@
             resolve(token);
           };
           
-          $('#autoload-cancel-btn').onclick = () => {
+          $('#autoload-back-btn').onclick = () => {
             reject(new Error('User cancelled authentication'));
           };
         });
         
         console.log('🔑 User provided token, retrying...');
-        statusText.textContent = 'Authenticating...';
         
-        // Reset loading UI
+        // Reset loading UI to show progress
         loading.innerHTML = '';
-        loading.style.maxWidth = 'none';
+        loading.style.padding = 'var(--pad)';
+        loading.style.flexDirection = 'column';
+        loading.style.alignItems = 'center';
+        loading.style.justifyContent = 'center';
+        
+        const newStatusText = el('div', {
+          id: 'auto-load-status',
+          style: { fontSize: '14px', color: 'var(--fg-mid)', marginTop: '8px' }
+        }, 'Authenticating...');
+        
         loading.appendChild(el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '✈️'));
         loading.appendChild(el('div', { style: { fontSize: '18px', fontWeight: '500', marginBottom: '8px' } }, 'Loading your trip...'));
-        loading.appendChild(statusText);
+        loading.appendChild(newStatusText);
+        
+        statusText = newStatusText;
         
         // Retry with user token
         docInfo = await fetchDocInfo(docUrl, userToken);
