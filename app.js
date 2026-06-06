@@ -1389,17 +1389,6 @@
                 ),
                 el('div', {
                   style: {
-                    fontSize: '13px',
-                    color: 'var(--fg-dim)',
-                    marginBottom: '20px',
-                    padding: '12px',
-                    background: 'var(--surface-2)',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)'
-                  }
-                }, '💡 The restriction limits this token to only this doc for security.'),
-                el('div', {
-                  style: {
                     marginBottom: '12px',
                     fontSize: '14px',
                     fontWeight: '500',
@@ -3985,17 +3974,6 @@
             ),
             el('div', {
               style: {
-                fontSize: '13px',
-                color: 'var(--fg-dim)',
-                marginBottom: '20px',
-                padding: '12px',
-                background: 'var(--surface-2)',
-                borderRadius: '8px',
-                border: '1px solid var(--border)'
-              }
-            }, '💡 The restriction limits this token to only this doc for security.'),
-            el('div', {
-              style: {
                 marginBottom: '12px',
                 fontSize: '14px',
                 fontWeight: '500',
@@ -4375,17 +4353,6 @@
           el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
           el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
         ),
-        el('div', {
-          style: {
-            fontSize: '13px',
-            color: 'var(--fg-dim)',
-            marginBottom: '20px',
-            padding: '12px',
-            background: 'var(--surface-2)',
-            borderRadius: '8px',
-            border: '1px solid var(--border)'
-          }
-        }, '💡 The restriction limits this token to only this doc for security.'),
         el('div', {
           style: {
             marginBottom: '12px',
