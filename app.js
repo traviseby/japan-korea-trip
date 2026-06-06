@@ -1429,7 +1429,7 @@
                     background: 'white',
                     border: '2px solid var(--border)',
                     borderRadius: '8px',
-                    color: 'var(--fg)',
+                    color: 'black',
                     fontSize: '16px',
                     fontWeight: '600',
                     cursor: 'pointer'
@@ -4023,7 +4023,7 @@
                 background: 'white',
                 border: '2px solid var(--border)',
                 borderRadius: '8px',
-                color: 'var(--fg)',
+                color: 'black',
                 fontSize: '16px',
                 fontWeight: '600',
                 cursor: 'pointer'
@@ -4412,7 +4412,7 @@
             background: 'white',
             border: '2px solid var(--border)',
             borderRadius: '8px',
-            color: 'var(--fg)',
+            color: 'black',
             fontSize: '16px',
             fontWeight: '600',
             cursor: 'pointer'
