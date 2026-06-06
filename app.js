@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.07';
+  const APP_VERSION = '2.08';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -697,14 +697,24 @@
       saveTrips(trips);
     }
     
+    // Check current URL state (it may have changed during processing)
+    const currentUrlParams = new URLSearchParams(window.location.search);
+    const currentDocParam = currentUrlParams.get('doc');
+    console.log('🔍 Current doc param after processing:', currentDocParam);
+    console.log('🔍 Active trip:', activeTrip?.url);
+    
     // If we have an active trip but no doc param in URL, add it (but don't trigger auto-load)
-    if (activeTrip && !docParam) {
+    if (activeTrip && !currentDocParam) {
       const docId = extractDocId(activeTrip.url);
       const docParamToAdd = docId || activeTrip.url;
       // Query string must come BEFORE hash
       const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParamToAdd) + window.location.hash;
       console.log('📌 Adding doc param to URL:', newUrl);
+      console.log('📌 Current URL before replaceState:', window.location.href);
       window.history.replaceState({}, '', newUrl);
+      console.log('📌 Current URL after replaceState:', window.location.href);
+    } else if (activeTrip && currentDocParam) {
+      console.log('✅ Doc param already in URL, no changes needed');
     }
     
     if (activeTrip && activeTrip.url) {
