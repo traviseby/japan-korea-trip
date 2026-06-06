@@ -1,0 +1,19 @@
+---
+description: Deploy to Vercel after completing user-requested changes
+alwaysApply: true
+---
+
+# Vercel deploy workflow
+
+This project deploys via Vercel Git integration (push to `main` → production deploy). There is no local Vercel CLI requirement.
+
+After completing a batch of user-requested code changes:
+
+1. Ensure changes are committed with a clear message (commit when the user asked for work to be done or explicitly asked to deploy).
+2. Push to `origin/main` with `git push`.
+3. Tell the user the push was made and that Vercel will deploy automatically (usually 1–2 minutes).
+4. If the user only asked to deploy, commit any uncommitted work first, then push.
+
+Do not force-push. Do not skip git hooks.
+
+EOF
