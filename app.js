@@ -1687,7 +1687,8 @@
     
     if (D.byDay) {
       Object.values(D.byDay).forEach(day => {
-        if (day.country) {
+        // Only add non-empty country codes
+        if (day.country && day.country.trim()) {
           countries.add(day.country);
         }
       });
@@ -1778,8 +1779,8 @@
         return true;
       }
       
-      // Fallback: use geographic bounds if country field missing/undefined (for older data)
-      if (!day || day.country === undefined || day.country === null) {
+      // Fallback: use geographic bounds if country field missing/undefined/empty (for older data)
+      if (!day || !day.country) {
         // Check activity coordinates against region bounds
         if (region === 'JP' && a.lat && a.lng) {
           const inBounds = a.lng > 128 && a.lng < 150 && a.lat > 24 && a.lat < 46;
