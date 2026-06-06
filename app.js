@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.12';
+  const APP_VERSION = '2.13';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -147,7 +147,14 @@
   }
   function activityCenter(day){
     const acts = (D.dayActivities[day] || []).filter(a => a.lat && a.lng);
-    if (!acts.length) return { lat: D.byDay[day].lat, lng: D.byDay[day].lng };
+    if (!acts.length) {
+      // Fallback to day coordinates if available
+      const dayData = D.byDay[day];
+      if (dayData && dayData.lat != null && dayData.lng != null) {
+        return { lat: dayData.lat, lng: dayData.lng };
+      }
+      return null; // No valid coordinates available
+    }
     const sum = acts.reduce((s,a) => ({lat: s.lat + a.lat, lng: s.lng + a.lng}), {lat:0,lng:0});
     return { lat: sum.lat / acts.length, lng: sum.lng / acts.length };
   }
@@ -1582,7 +1589,20 @@
     if (!node) return;
     if (leafletMini) { leafletMini.remove(); leafletMini = null; }
 
-    const center = activityCenter(day.n);
+    // Filter out activities without valid coordinates
+    const validActs = acts.filter(a => a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng));
+    if (validActs.length === 0) return; // No valid coordinates, don't show map
+
+    let center = activityCenter(day.n);
+    // If center is invalid, use first valid activity
+    if (!center || center.lat == null || center.lng == null) {
+      if (validActs.length > 0) {
+        center = { lat: validActs[0].lat, lng: validActs[0].lng };
+      } else {
+        return; // Can't show map without coordinates
+      }
+    }
+    
     leafletMini = L.map(node, {
       center: [center.lat, center.lng], zoom: 12,
       zoomControl: false, attributionControl: false,
@@ -1593,7 +1613,7 @@
     }).addTo(leafletMini);
 
     const markers = [];
-    acts.forEach(a => {
+    validActs.forEach(a => {
       const m = L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, day.color) }).addTo(leafletMini);
       markers.push(m);
     });
@@ -1711,12 +1731,15 @@
     const region = state.region;
     const fa = filteredActivities();
     
-    // Filter activities by region (if a region is selected)
-    const inRegion = region ? fa.filter(a => {
+    // Filter activities by region (if a region is selected) and ensure valid coordinates
+    let inRegion = region ? fa.filter(a => {
       // Match by country code from the day
       const day = D.byDay[a.day];
       return day && day.country === region;
     }) : fa;
+    
+    // Filter out activities without valid coordinates
+    inRegion = inRegion.filter(a => a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng));
 
     // Calculate default center and zoom from activities
     let defaultCenter, defaultZoom;
@@ -1772,10 +1795,13 @@
     fullMapMarkers = [];
 
     inRegion.forEach(a => {
-      const d = D.byDay[a.day];
-      const m = L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, d.color) }).addTo(leafletFull);
-      m.on('click', () => openSheet(a));
-      fullMapMarkers.push(m);
+      // Double-check coordinates are valid before adding marker
+      if (a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng)) {
+        const d = D.byDay[a.day];
+        const m = L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, d.color) }).addTo(leafletFull);
+        m.on('click', () => openSheet(a));
+        fullMapMarkers.push(m);
+      }
     });
     if (state.location){
       const lm = L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletFull);
