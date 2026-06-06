@@ -136,12 +136,23 @@ export default async function handler(req, res) {
       longitude: 'c-tmpeKQQks2'
     };
 
-    function resolveCol(map, columns, templateKey, nameCandidates, sampleValues) {
-      const id = mapColLoose(map, columns, ...nameCandidates);
-      if (id && cellText(sampleValues?.[id])) return id;
+    function resolveCol(map, columns, templateKey, nameCandidates, actRows) {
+      const candidates = [];
+      const byName = mapColLoose(map, columns, ...nameCandidates);
+      if (byName) candidates.push(byName);
       const templateId = ACT_TEMPLATE_IDS[templateKey];
-      if (templateId && cellText(sampleValues?.[templateId])) return templateId;
-      return id || templateId || null;
+      if (templateId) candidates.push(templateId);
+
+      let best = null;
+      let bestCount = -1;
+      for (const id of [...new Set(candidates.filter(Boolean))]) {
+        const count = actRows.slice(0, 25).filter(r => cellText(r.values?.[id])).length;
+        if (count > bestCount) {
+          best = id;
+          bestCount = count;
+        }
+      }
+      return best;
     }
 
     // Fetch column maps
@@ -261,16 +272,15 @@ export default async function handler(req, res) {
     });
 
     // Resolve activity column ids (handles renamed Coda columns + template fallbacks)
-    const actSample = actRows[0]?.values || {};
     const ACT = {
-      date: resolveCol(ACT_MAP, actCols, 'date', ['Date'], actSample),
-      timeOfDay: resolveCol(ACT_MAP, actCols, 'timeOfDay', ['Time of Day'], actSample),
-      activity: resolveCol(ACT_MAP, actCols, 'activity', ['Activity', 'Name', 'Place', 'Title', /^activity/i], actSample),
-      description: resolveCol(ACT_MAP, actCols, 'description', ['Description', 'Desc', 'Notes', /^description/i], actSample),
-      moreInfo: resolveCol(ACT_MAP, actCols, 'moreInfo', ['More Info', 'URL', 'Link', 'Website', /^more info/i], actSample),
-      category: resolveCol(ACT_MAP, actCols, 'category', ['Category'], actSample),
-      latitude: resolveCol(ACT_MAP, actCols, 'latitude', ['Latitude', 'Lat'], actSample),
-      longitude: resolveCol(ACT_MAP, actCols, 'longitude', ['Longitude', 'Lng', 'Long'], actSample)
+      date: resolveCol(ACT_MAP, actCols, 'date', ['Date'], actRows),
+      timeOfDay: resolveCol(ACT_MAP, actCols, 'timeOfDay', ['Time of Day'], actRows),
+      activity: resolveCol(ACT_MAP, actCols, 'activity', ['Activity', 'Name', 'Place', 'Title', /^activity/i], actRows),
+      description: resolveCol(ACT_MAP, actCols, 'description', ['Description', 'Desc', 'Notes', /^description/i], actRows),
+      moreInfo: resolveCol(ACT_MAP, actCols, 'moreInfo', ['More Info', 'URL', 'Link', 'Website', /^more info/i], actRows),
+      category: resolveCol(ACT_MAP, actCols, 'category', ['Category'], actRows),
+      latitude: resolveCol(ACT_MAP, actCols, 'latitude', ['Latitude', 'Lat'], actRows),
+      longitude: resolveCol(ACT_MAP, actCols, 'longitude', ['Longitude', 'Lng', 'Long'], actRows)
     };
 
     // Build activities array
