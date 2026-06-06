@@ -903,10 +903,6 @@ input, textarea { font: inherit; color: inherit; }
   font-weight: 600;
 }
 .lt-title .add-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg);
   flex-shrink: 0;
   position: relative;
   z-index: 1;

@@ -2712,11 +2712,12 @@
 
   // ─── Add Activity Sheet ───────────────────────────────────────────────────
   function buildAddActivityButton(){
-    const icon = el('span', { class: 'tab-icon' });
-    icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    const icon = el('span', { class: 'tab-icon', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
+    icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
     return el('button', {
       type: 'button',
-      class: 'add-btn add-activity-trigger',
+      class: 'sheet-chev add-btn add-activity-trigger',
+      'aria-label': 'Add activity',
       onclick: (e) => {
         e.preventDefault();
         e.stopPropagation();
