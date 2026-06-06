@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.09';
+  const APP_VERSION = '2.10';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -638,7 +638,8 @@
       // Convert to full URL if it's just an ID
       let docUrl = docParam;
       if (!docParam.startsWith('http')) {
-        docUrl = `https://coda.io/d/_${docParam}`;
+        // Coda URLs use the format: https://coda.io/d/Doc-Name_dID or https://coda.io/d/_dID
+        docUrl = `https://coda.io/d/_d${docParam}`;
         console.log('📝 Converted doc ID to URL:', docUrl);
       }
       
@@ -2785,8 +2786,9 @@
     // If docParam is just an ID (not a full URL), construct the URL
     let docUrl = docParam;
     if (!docParam.startsWith('http')) {
-      // It's just a doc ID, construct the full URL
-      docUrl = `https://coda.io/d/_${docParam}`;
+      // It's just a doc ID, construct the full URL with _d prefix
+      // Coda format: https://coda.io/d/_dID
+      docUrl = `https://coda.io/d/_d${docParam}`;
       console.log('📝 Converted doc ID to URL:', docUrl);
     }
     
@@ -2924,7 +2926,7 @@
       const trips = getTrips();
       let docUrlToCheck = docParam;
       if (!docParam.startsWith('http')) {
-        docUrlToCheck = `https://coda.io/d/_${docParam}`;
+        docUrlToCheck = `https://coda.io/d/_d${docParam}`;
       }
       const tripExists = trips.some(t => {
         const tripDocId = extractDocId(t.url);
