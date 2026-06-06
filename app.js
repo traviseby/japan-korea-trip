@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.15';
+  const APP_VERSION = '2.16';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -3658,24 +3658,6 @@
       el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get Started by adding a link to your trip Doc'),
       
       el('div', { style: { width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' } },
-        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Trip Name'),
-        el('input', {
-          type: 'text',
-          id: 'onboarding-name-input',
-          placeholder: 'My Amazing Trip',
-          style: {
-            width: '100%',
-            padding: '12px',
-            marginBottom: '16px',
-            background: 'var(--bg)',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            color: 'var(--fg)',
-            fontSize: '15px',
-            boxSizing: 'border-box'
-          }
-        }),
-        
         el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Superhuman Docs URL'),
         el('input', {
           type: 'text',
@@ -3709,7 +3691,6 @@
             cursor: 'pointer'
           },
           onclick: async () => {
-            const nameInput = $('#onboarding-name-input');
             const urlInput = $('#onboarding-url-input');
             const submitBtn = $('#onboarding-submit-btn');
             
@@ -3731,10 +3712,9 @@
                 icon = docInfo.icon;
               }
               const docName = docInfo?.name || 'Untitled Trip';
-              const name = nameInput.value.trim() || docName;
               
               // Add the trip (don't load data yet - reload will handle it)
-              if (await addTrip(name, url, icon, docName)) {
+              if (await addTrip(docName, url, icon, docName)) {
                 // Set flag to force fresh fetch after reload
                 localStorage.setItem('jk26.justSwitched', 'true');
                 
@@ -4354,7 +4334,7 @@
               el('div', {
                 style: {
                   flex: '1',
-                  fontSize: '12px',
+                  fontSize: '14px',
                   fontFamily: 'monospace',
                   wordBreak: 'break-all',
                   color: 'var(--fg)'
@@ -4391,8 +4371,9 @@
         ),
         el('div', {
           style: {
+            marginTop: '10px',
             marginBottom: '12px',
-            fontSize: '14px',
+            fontSize: '15px',
             fontWeight: '500',
             color: 'var(--fg)'
           }
