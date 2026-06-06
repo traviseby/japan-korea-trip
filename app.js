@@ -1349,6 +1349,7 @@
                     el('div', {
                       style: {
                         marginTop: '8px',
+                        marginLeft: '-24px',
                         padding: '10px',
                         background: 'var(--surface-2)',
                         borderRadius: '6px',
@@ -3946,6 +3947,7 @@
                 el('div', {
                   style: {
                     marginTop: '8px',
+                    marginLeft: '-24px',
                     padding: '10px',
                     background: 'var(--surface-2)',
                     borderRadius: '6px',
@@ -4339,6 +4341,7 @@
             el('div', {
               style: {
                 marginTop: '8px',
+                marginLeft: '-24px',
                 padding: '10px',
                 background: 'var(--surface-2)',
                 borderRadius: '6px',
