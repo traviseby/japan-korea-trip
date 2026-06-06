@@ -92,6 +92,58 @@ export default async function handler(req, res) {
       return map;
     }
 
+    function mapCol(map, ...names) {
+      for (const name of names) {
+        if (map[name]) return map[name];
+      }
+      return null;
+    }
+
+    function mapColLoose(map, columns, ...candidates) {
+      const direct = mapCol(map, ...candidates.filter(c => typeof c === 'string'));
+      if (direct) return direct;
+      for (const col of columns) {
+        for (const cand of candidates) {
+          if (typeof cand === 'string' && col.name.toLowerCase() === cand.toLowerCase()) return col.id;
+          if (cand instanceof RegExp && cand.test(col.name)) return col.id;
+        }
+      }
+      return null;
+    }
+
+    function cellText(v) {
+      if (v == null) return '';
+      if (typeof v === 'string') return stripFence(v);
+      if (typeof v === 'number') return String(v);
+      if (typeof v === 'object') {
+        if (typeof v.name === 'string') return stripFence(v.name);
+        if (typeof v.value === 'string') return stripFence(v.value);
+        if (typeof v.url === 'string') return v.url;
+      }
+      return stripFence(String(v));
+    }
+
+    // Column ids from the original trip template — used when a column is renamed in Coda
+    // but still maps to the same id (see sync.mjs ACT fallbacks).
+    const ACT_TEMPLATE_IDS = {
+      date: 'c-K7xOu63CvF',
+      timeOfDay: 'c-NhewZvUbdQ',
+      activity: 'c-WNA7XAkEYm',
+      description: 'c-6VLWareh3p',
+      moreInfo: 'c-OOu-mpFiAD',
+      category: 'c-vAMQo8XJAc',
+      latitude: 'c-1oOmaseFGM',
+      longitude: 'c-tmpeKQQks2'
+    };
+
+    function resolveCol(map, columns, templateKey, nameCandidates, sampleValues) {
+      const id = mapColLoose(map, columns, ...nameCandidates);
+      if (id && cellText(sampleValues?.[id])) return id;
+      const templateId = ACT_TEMPLATE_IDS[templateKey];
+      if (templateId && cellText(sampleValues?.[templateId])) return templateId;
+      return id || templateId || null;
+    }
+
     // Fetch column maps
     const itnCols = await fetchColumns(tables.itinerary);
     const actCols = await fetchColumns(tables.activities);
@@ -150,6 +202,9 @@ export default async function handler(req, res) {
     // Helper to convert Coda date to YYYY-MM-DD
     function cellToDate(cell) {
       if (!cell) return null;
+      if (typeof cell === 'object' && typeof cell.epoch === 'number') {
+        return new Date(cell.epoch * 1000).toISOString().slice(0, 10);
+      }
       const s = typeof cell === 'string' ? cell : cell?.value;
       if (typeof s === 'string') {
         const d = new Date(s);
@@ -205,20 +260,33 @@ export default async function handler(req, res) {
       };
     });
 
+    // Resolve activity column ids (handles renamed Coda columns + template fallbacks)
+    const actSample = actRows[0]?.values || {};
+    const ACT = {
+      date: resolveCol(ACT_MAP, actCols, 'date', ['Date'], actSample),
+      timeOfDay: resolveCol(ACT_MAP, actCols, 'timeOfDay', ['Time of Day'], actSample),
+      activity: resolveCol(ACT_MAP, actCols, 'activity', ['Activity', 'Name', 'Place', 'Title', /^activity/i], actSample),
+      description: resolveCol(ACT_MAP, actCols, 'description', ['Description', 'Desc', 'Notes', /^description/i], actSample),
+      moreInfo: resolveCol(ACT_MAP, actCols, 'moreInfo', ['More Info', 'URL', 'Link', 'Website', /^more info/i], actSample),
+      category: resolveCol(ACT_MAP, actCols, 'category', ['Category'], actSample),
+      latitude: resolveCol(ACT_MAP, actCols, 'latitude', ['Latitude', 'Lat'], actSample),
+      longitude: resolveCol(ACT_MAP, actCols, 'longitude', ['Longitude', 'Lng', 'Long'], actSample)
+    };
+
     // Build activities array
     const UNSCHEDULED_DAY = 0;
     const activities = actRows.map(row => {
       const v = row.values;
-      const actDate = cellToDate(v[ACT_MAP['Date']]);
+      const actDate = cellToDate(v[ACT.date]);
       const activity = {
         id: row.id,
-        time: String(v[ACT_MAP['Time of Day']]?.name || v[ACT_MAP['Time of Day']] || ''),
-        name: stripFence(v[ACT_MAP['Activity']] || ''),
-        desc: stripFence(v[ACT_MAP['Description']] || ''),
-        url: stripFence(v[ACT_MAP['More Info']] || ''),
-        cat: stripFence(v[ACT_MAP['Category']]?.name || v[ACT_MAP['Category']] || ''),
-        lat: v[ACT_MAP['Latitude']] || null,
-        lng: v[ACT_MAP['Longitude']] || null
+        time: cellText(v[ACT.timeOfDay]?.name || v[ACT.timeOfDay]),
+        name: cellText(v[ACT.activity]),
+        desc: cellText(v[ACT.description]),
+        url: cellText(v[ACT.moreInfo]),
+        cat: cellText(v[ACT.category]?.name || v[ACT.category]),
+        lat: v[ACT.latitude] ?? null,
+        lng: v[ACT.longitude] ?? null
       };
       if (!actDate) return { ...activity, day: UNSCHEDULED_DAY };
       const day = days.find(d => d.date === actDate)?.n;

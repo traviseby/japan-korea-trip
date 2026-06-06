@@ -444,8 +444,7 @@
     return card;
   }
 
-  // ─── Trip Management ──────────────────────────────────────────────────────
-  function getTrips(){
+  const TRIP_DATA_CACHE_PREFIX = 'jk26.tripData.v2.';
     const stored = localStorage.getItem('jk26.trips');
     if (stored) {
       try {
@@ -503,7 +502,7 @@
       return window.DATA.days.length;
     }
     try {
-      const cached = localStorage.getItem(`jk26.tripData.${normalized}`);
+      const cached = localStorage.getItem(`${TRIP_DATA_CACHE_PREFIX}${normalized}`);
       if (cached) {
         const data = JSON.parse(cached);
         if (data.days?.length) return data.days.length;
@@ -580,7 +579,7 @@
       
       // Try to load from cache first
       if (fromCache) {
-        const cacheKey = `jk26.tripData.${normalizedUrl}`;
+        const cacheKey = `${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`;
         console.log('Checking cache for key:', cacheKey);
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
@@ -654,7 +653,7 @@
           console.log('Fetched trip data:', tripData.trip?.title || 'Unknown', 'Days:', tripData.days?.length);
           
           // Cache the data using normalized URL
-          const cacheKey = `jk26.tripData.${normalizedUrl}`;
+          const cacheKey = `${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`;
           localStorage.setItem(cacheKey, JSON.stringify(tripData));
           console.log('Cached trip data with key:', cacheKey);
         }
@@ -1015,7 +1014,7 @@
     const wasActive = trips[index].active;
     
     // Clear cached data for this trip
-    localStorage.removeItem(`jk26.tripData.${tripUrl}`);
+    localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${tripUrl}`);
     
     trips.splice(index, 1);
     
@@ -1703,7 +1702,7 @@
 
     try {
       // Clear cached data for this trip to force fresh fetch
-      localStorage.removeItem(`jk26.tripData.${docUrl}`);
+      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${docUrl}`);
 
       // Fetch fresh data from Coda (pass token if available)
       await loadTripData(docUrl, false, activeTrip.token || null);
@@ -1756,7 +1755,7 @@
     // Clear all trips and cached trip data
     const trips = getTrips();
     trips.forEach(trip => {
-      localStorage.removeItem(`jk26.tripData.${trip.url}`);
+      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${trip.url}`);
     });
     localStorage.removeItem('jk26.trips');
     localStorage.removeItem('jk26.dismissedUpdate');
@@ -3128,7 +3127,7 @@
 
       const rowId = payload.rowId;
       const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
-      localStorage.removeItem(`jk26.tripData.${normalizedUrl}`);
+      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
       const savedTab = state.tab;
       try {
         await loadTripData(activeTrip.url, false, activeTrip.token || null);
@@ -3430,7 +3429,7 @@
       if (!res.ok) throw new Error(payload.error || 'Failed to update activity');
 
       const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
-      localStorage.removeItem(`jk26.tripData.${normalizedUrl}`);
+      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
       const savedTab = state.tab;
       hideEditActivitySheet();
       try {
@@ -4601,7 +4600,7 @@
         
         // Save to cache
         const normalizedUrl = docUrl.split('#')[0].split('?')[0];
-        const cacheKey = `jk26.tripData.${normalizedUrl}`;
+        const cacheKey = `${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`;
         localStorage.setItem(cacheKey, JSON.stringify(tripData));
         
         applyTripData(tripData);
