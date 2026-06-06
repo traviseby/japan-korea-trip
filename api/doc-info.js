@@ -16,8 +16,14 @@ export default async function handler(req, res) {
     // Match patterns like:
     // https://coda.io/d/Doc-Name_dABCD1234
     // https://coda.io/d/_dABCD1234
-    const match = url.match(/\/d\/[^_]*_d([a-zA-Z0-9-]+)/);
+    // https://coda.io/d/_ABCD1234 (no 'd' prefix)
+    let match = url.match(/\/d\/[^_]*_d([a-zA-Z0-9-]+)/);
     if (match) return match[1];
+    
+    // Try without the 'd' prefix: /d/_ABCD1234
+    match = url.match(/\/d\/_([a-zA-Z0-9-]+)/);
+    if (match) return match[1];
+    
     // Already just an ID
     if (/^[a-zA-Z0-9-]+$/.test(url)) return url;
     return null;

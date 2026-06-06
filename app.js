@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.08';
+  const APP_VERSION = '2.09';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -639,14 +639,19 @@
       let docUrl = docParam;
       if (!docParam.startsWith('http')) {
         docUrl = `https://coda.io/d/_${docParam}`;
+        console.log('📝 Converted doc ID to URL:', docUrl);
       }
       
       // Check if this trip already exists in saved trips
       const existingTrip = trips.find(t => {
         const tripDocId = extractDocId(t.url);
         const paramDocId = extractDocId(docUrl);
-        return tripDocId === paramDocId || t.url === docUrl;
+        const match = tripDocId === paramDocId || t.url === docUrl;
+        console.log(`🔍 Comparing trip ${t.name}: tripDocId=${tripDocId}, paramDocId=${paramDocId}, match=${match}`);
+        return match;
       });
+      
+      console.log('🔍 Existing trip found:', existingTrip ? existingTrip.name : 'none');
       
       if (existingTrip) {
         console.log('✅ Trip already exists, loading normally (keeping ?doc= in URL)');
