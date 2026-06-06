@@ -2185,13 +2185,15 @@
     );
   }
 
-  // ─── Render: TO-DO tab ────────────────────────────────────────────────────
+  // ─── Render: TO-DO tab (now in Plan mode) ────────────────────────────────
   function renderTodoTab(){
-    const bar = $('#todo-header');
+    const bar = $('#plan-todo-header');
+    if (!bar) return;
     bar.innerHTML = '';
     bar.appendChild(buildLargeTitle('To-Do'));
 
-    const root = $('#todo-content');
+    const root = $('#plan-todo-content');
+    if (!root) return;
     root.innerHTML = '';
 
     const sections = [
@@ -2234,6 +2236,360 @@
 
     root.appendChild(el('div', { class: 'bottom-pad' }));
   }
+
+  // ─── Render: ADD ACTIVITY tab ─────────────────────────────────────────────
+  function renderAddActivityTab(){
+    const root = $('#add-activity-content');
+    if (!root) return;
+    root.innerHTML = '';
+
+    root.appendChild(el('div', { class: 'add-activity-container', style: { padding: '20px' } },
+      el('div', { style: { marginBottom: '24px' } },
+        el('h2', { style: { fontSize: '20px', fontWeight: '600', marginBottom: '8px', color: 'var(--fg)' } }, 'Add Activity from URL'),
+        el('p', { style: { fontSize: '14px', color: 'var(--fg-mid)', lineHeight: '1.5' } }, 
+          'Paste a Google Maps or TripAdvisor URL to quickly add an activity to your trip.')
+      ),
+      
+      el('div', { class: 'url-input-section' },
+        el('input', { 
+          type: 'text',
+          id: 'activity-url-input',
+          placeholder: 'https://maps.google.com/...',
+          style: {
+            width: '100%',
+            padding: '12px 16px',
+            fontSize: '15px',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--r)',
+            background: 'var(--surface)',
+            color: 'var(--fg)',
+            marginBottom: '12px'
+          }
+        }),
+        el('button', {
+          id: 'parse-url-btn',
+          class: 'primary-btn',
+          style: {
+            width: '100%',
+            padding: '14px',
+            fontSize: '15px',
+            fontWeight: '600',
+            background: 'var(--accent)',
+            color: 'var(--bg)',
+            border: 'none',
+            borderRadius: 'var(--r)',
+            cursor: 'pointer'
+          },
+          onclick: handleParseUrl
+        }, 'Parse URL')
+      ),
+
+      el('div', { id: 'parse-result', style: { marginTop: '24px' } })
+    ));
+  }
+
+  function handleParseUrl() {
+    const input = $('#activity-url-input');
+    const resultDiv = $('#parse-result');
+    if (!input || !resultDiv) return;
+
+    const url = input.value.trim();
+    if (!url) {
+      resultDiv.innerHTML = el('div', { 
+        style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--fg-mid)' }
+      }, 'Please enter a URL').outerHTML;
+      return;
+    }
+
+    resultDiv.innerHTML = el('div', { 
+      style: { padding: '16px', textAlign: 'center', color: 'var(--fg-mid)' }
+    }, 'Parsing URL...').outerHTML;
+
+    const parsed = parseActivityUrl(url);
+    
+    if (parsed.error) {
+      resultDiv.innerHTML = '';
+      resultDiv.appendChild(el('div', { 
+        style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--error)' }
+      },
+        el('div', { style: { fontWeight: '600', marginBottom: '8px' } }, 'Could not parse URL'),
+        el('div', { style: { fontSize: '14px' } }, parsed.error)
+      ));
+      
+      // Show manual entry form
+      setTimeout(() => {
+        resultDiv.appendChild(buildManualEntryForm(url));
+      }, 100);
+      return;
+    }
+
+    // Show parsed data
+    resultDiv.innerHTML = '';
+    resultDiv.appendChild(el('div', { class: 'parsed-activity', style: { background: 'var(--surface-2)', borderRadius: 'var(--r)', padding: '16px' } },
+      el('h3', { style: { fontSize: '17px', fontWeight: '600', marginBottom: '12px', color: 'var(--fg)' } }, 'Parsed Activity'),
+      
+      el('div', { style: { marginBottom: '12px' } },
+        el('label', { style: { display: 'block', fontSize: '13px', color: 'var(--fg-mid)', marginBottom: '4px' } }, 'Name'),
+        el('div', { style: { fontSize: '15px', color: 'var(--fg)' } }, parsed.name || 'Unknown')
+      ),
+      
+      parsed.lat && parsed.lng ? el('div', { style: { marginBottom: '12px' } },
+        el('label', { style: { display: 'block', fontSize: '13px', color: 'var(--fg-mid)', marginBottom: '4px' } }, 'Location'),
+        el('div', { style: { fontSize: '15px', color: 'var(--fg)' } }, `${parsed.lat.toFixed(4)}, ${parsed.lng.toFixed(4)}`)
+      ) : null,
+      
+      parsed.category ? el('div', { style: { marginBottom: '12px' } },
+        el('label', { style: { display: 'block', fontSize: '13px', color: 'var(--fg-mid)', marginBottom: '4px' } }, 'Category'),
+        el('div', { style: { fontSize: '15px', color: 'var(--fg)' } }, parsed.category)
+      ) : null,
+      
+      el('button', {
+        class: 'primary-btn',
+        style: {
+          width: '100%',
+          padding: '12px',
+          fontSize: '15px',
+          fontWeight: '600',
+          background: 'var(--accent)',
+          color: 'var(--bg)',
+          border: 'none',
+          borderRadius: 'var(--r)',
+          cursor: 'pointer',
+          marginTop: '16px'
+        },
+        onclick: () => submitActivity(parsed, url)
+      }, 'Add to Trip')
+    ));
+  }
+
+  function parseActivityUrl(url) {
+    // Google Maps URL parsing
+    if (url.includes('google.com/maps') || url.includes('maps.google.com') || url.includes('goo.gl/maps') || url.includes('maps.app.goo.gl')) {
+      return parseGoogleMapsUrl(url);
+    }
+    
+    // TripAdvisor URL parsing
+    if (url.includes('tripadvisor.com')) {
+      return parseTripAdvisorUrl(url);
+    }
+    
+    return { error: 'Unsupported URL format. Only Google Maps and TripAdvisor URLs are supported.' };
+  }
+
+  function parseGoogleMapsUrl(url) {
+    let lat, lng, name;
+
+    // Try to extract coordinates from @lat,lng pattern
+    const coordMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (coordMatch) {
+      lat = parseFloat(coordMatch[1]);
+      lng = parseFloat(coordMatch[2]);
+    }
+
+    // Try to extract name from /place/ pattern
+    const placeMatch = url.match(/\/place\/([^\/\?@]+)/);
+    if (placeMatch) {
+      name = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+    }
+
+    // Try query parameter
+    if (!lat && !lng) {
+      const queryMatch = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (queryMatch) {
+        lat = parseFloat(queryMatch[1]);
+        lng = parseFloat(queryMatch[2]);
+      }
+    }
+
+    // Extract name from query if not found in place
+    if (!name) {
+      const nameMatch = url.match(/[?&]q=([^&@]+)/);
+      if (nameMatch) {
+        name = decodeURIComponent(nameMatch[1].replace(/\+/g, ' '));
+        // If it's coordinates, don't use as name
+        if (/^-?\d+\.\d+,-?\d+\.\d+/.test(name)) {
+          name = null;
+        }
+      }
+    }
+
+    if (!lat || !lng) {
+      return { error: 'Could not extract coordinates from Google Maps URL.' };
+    }
+
+    return { name, lat, lng, category: null };
+  }
+
+  function parseTripAdvisorUrl(url) {
+    // TripAdvisor URLs typically have the place name in the path
+    // e.g., https://www.tripadvisor.com/Attraction_Review-g60763-d104675-Reviews-Central_Park-New_York_City_New_York.html
+    
+    let name;
+    const nameMatch = url.match(/Reviews-([^-]+)-/);
+    if (nameMatch) {
+      name = nameMatch[1].replace(/_/g, ' ');
+    }
+
+    // TripAdvisor doesn't include coordinates in URLs
+    // We'd need to fetch the page or use an API
+    return { 
+      error: 'TripAdvisor URLs require fetching the page to extract location data. Please use the manual entry form below.',
+      name
+    };
+  }
+
+  function buildManualEntryForm(originalUrl) {
+    return el('div', { 
+      class: 'manual-entry-form',
+      style: { marginTop: '16px', padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)' }
+    },
+      el('h3', { style: { fontSize: '17px', fontWeight: '600', marginBottom: '12px', color: 'var(--fg)' } }, 'Manual Entry'),
+      
+      el('input', { 
+        type: 'text',
+        id: 'manual-name',
+        placeholder: 'Activity name',
+        style: {
+          width: '100%',
+          padding: '12px 16px',
+          fontSize: '15px',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r)',
+          background: 'var(--surface)',
+          color: 'var(--fg)',
+          marginBottom: '12px'
+        }
+      }),
+      
+      el('input', { 
+        type: 'text',
+        id: 'manual-lat',
+        placeholder: 'Latitude (optional)',
+        style: {
+          width: '100%',
+          padding: '12px 16px',
+          fontSize: '15px',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r)',
+          background: 'var(--surface)',
+          color: 'var(--fg)',
+          marginBottom: '12px'
+        }
+      }),
+      
+      el('input', { 
+        type: 'text',
+        id: 'manual-lng',
+        placeholder: 'Longitude (optional)',
+        style: {
+          width: '100%',
+          padding: '12px 16px',
+          fontSize: '15px',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--r)',
+          background: 'var(--surface)',
+          color: 'var(--fg)',
+          marginBottom: '12px'
+        }
+      }),
+      
+      el('button', {
+        class: 'primary-btn',
+        style: {
+          width: '100%',
+          padding: '12px',
+          fontSize: '15px',
+          fontWeight: '600',
+          background: 'var(--accent)',
+          color: 'var(--bg)',
+          border: 'none',
+          borderRadius: 'var(--r)',
+          cursor: 'pointer'
+        },
+        onclick: () => {
+          const name = $('#manual-name').value.trim();
+          const lat = parseFloat($('#manual-lat').value);
+          const lng = parseFloat($('#manual-lng').value);
+          
+          if (!name) {
+            toast('Please enter an activity name');
+            return;
+          }
+          
+          submitActivity({
+            name,
+            lat: isNaN(lat) ? null : lat,
+            lng: isNaN(lng) ? null : lng,
+            category: null
+          }, originalUrl);
+        }
+      }, 'Add to Trip')
+    );
+  }
+
+  async function submitActivity(parsed, url) {
+    const resultDiv = $('#parse-result');
+    if (!resultDiv) return;
+
+    // Get active trip
+    const trips = getTrips();
+    const activeTrip = trips.find(t => t.active);
+    
+    if (!activeTrip) {
+      toast('No active trip selected');
+      return;
+    }
+
+    resultDiv.innerHTML = el('div', { 
+      style: { padding: '16px', textAlign: 'center', color: 'var(--fg-mid)' }
+    }, 'Adding activity to Coda...').outerHTML;
+
+    try {
+      const res = await fetch('/api/add-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          docUrl: activeTrip.url,
+          activity: {
+            name: parsed.name,
+            lat: parsed.lat,
+            lng: parsed.lng,
+            category: parsed.category,
+            url: url
+          }
+        })
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to add activity');
+      }
+
+      toast('✅ Activity added successfully!');
+      
+      // Clear form
+      const input = $('#activity-url-input');
+      if (input) input.value = '';
+      resultDiv.innerHTML = el('div', { 
+        style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--accent)' }
+      },
+        el('div', { style: { fontSize: '16px', fontWeight: '600', marginBottom: '8px' } }, '✅ Activity Added!'),
+        el('div', { style: { fontSize: '14px', color: 'var(--fg-mid)' } }, `"${parsed.name}" has been added to your trip.`),
+        el('div', { style: { fontSize: '13px', color: 'var(--fg-mute)', marginTop: '8px' } }, 'Reload the app to see it in your itinerary.')
+      ).outerHTML;
+
+    } catch (err) {
+      console.error('Error adding activity:', err);
+      toast('❌ Failed to add activity');
+      resultDiv.innerHTML = el('div', { 
+        style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--error)' }
+      },
+        el('div', { style: { fontWeight: '600', marginBottom: '8px' } }, 'Error'),
+        el('div', { style: { fontSize: '14px' } }, err.message)
+      ).outerHTML;
+    }
+  }
+
   // Emoji prefixes for To-Do types — uses Activity-category emoji where the
   // type maps cleanly; new categories get their own glyph.
   const TODO_TYPE_EMOJI = {
@@ -2647,7 +3003,7 @@
     if (tab === 'today') renderToday();
     if (tab === 'map') renderMapTab();
     if (tab === 'activities') renderActivitiesTab();
-    if (tab === 'todo') renderTodoTab();
+    if (tab === 'add-activity') renderAddActivityTab();
     if (tab === 'settings') renderSettingsTab();
     // give Leaflet a kick after the pane becomes visible
     setTimeout(() => { try { if (leafletFull) leafletFull.invalidateSize(); if (leafletMini) leafletMini.invalidateSize(); } catch{} }, 100);
@@ -3219,4 +3575,9 @@
       }
     });
   });
+
+  // Export for Plan Mode
+  window.TravelMode = {
+    renderTodoTab
+  };
 })();

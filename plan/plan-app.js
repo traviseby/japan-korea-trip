@@ -1670,6 +1670,10 @@
             renderActivitiesTab();
           } else if (tabId === 'generate') {
             renderGenerateTab();
+          } else if (tabId === 'todo') {
+            if (window.TravelMode && window.TravelMode.renderTodoTab) {
+              window.TravelMode.renderTodoTab();
+            }
           }
         }
       });

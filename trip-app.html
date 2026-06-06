@@ -83,12 +83,6 @@
       <div class="scroll act-list" id="activities-list"></div>
     </div>
 
-    <!-- TO-DO -->
-    <div class="tab-pane" id="tab-todo">
-      <div class="filter-bar" id="todo-header"></div>
-      <div class="scroll todo-tab" id="todo-content"></div>
-    </div>
-
     <!-- SETTINGS -->
     <div class="tab-pane" id="tab-settings">
       <div class="filter-bar" id="settings-header"></div>
@@ -144,6 +138,20 @@
       </div>
     </div>
 
+    <!-- TO-DO (moved to Plan mode) -->
+    <div id="plan-todo" class="tab-pane plan-screen">
+      <div class="filter-bar" id="plan-todo-header"></div>
+      <div class="scroll todo-tab" id="plan-todo-content"></div>
+    </div>
+
+    <!-- ADD ACTIVITY (new in Travel mode) -->
+    <div class="tab-pane" id="tab-add-activity">
+      <div class="filter-bar">
+        <div class="filter-label">Add Activity</div>
+      </div>
+      <div class="scroll" id="add-activity-content"></div>
+    </div>
+
   </div>
 
   <!-- Bottom tab bar (Travel Mode) -->
@@ -166,11 +174,11 @@
       </span>
       <span class="tab-label">Activities</span>
     </button>
-    <button data-tab="todo">
+    <button data-tab="add-activity">
       <span class="tab-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="3 7 5 9 9 5"/><line x1="13" y1="7" x2="20" y2="7"/><polyline points="3 14 5 16 9 12"/><line x1="13" y1="14" x2="20" y2="14"/><polyline points="3 21 5 21 5 21"/><line x1="13" y1="20" x2="20" y2="20"/></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       </span>
-      <span class="tab-label">To-Do</span>
+      <span class="tab-label">Add Activity</span>
     </button>
     <button data-tab="settings">
       <span class="tab-icon">
@@ -211,6 +219,12 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
       </span>
       <span class="tab-label">Generate</span>
+    </button>
+    <button data-plan-tab="todo">
+      <span class="tab-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="3 7 5 9 9 5"/><line x1="13" y1="7" x2="20" y2="7"/><polyline points="3 14 5 16 9 12"/><line x1="13" y1="14" x2="20" y2="14"/><polyline points="3 21 5 21 5 21"/><line x1="13" y1="20" x2="20" y2="20"/></svg>
+      </span>
+      <span class="tab-label">To-Do</span>
     </button>
   </nav>
 
