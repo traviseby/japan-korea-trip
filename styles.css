@@ -922,6 +922,8 @@ input { font: inherit; color: inherit; }
 .segmented {
   position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
+  max-width: calc(100% - 40px);
   background: rgba(13,13,13,.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -930,6 +932,7 @@ input { font: inherit; color: inherit; }
   padding: 3px;
   z-index: 500;
   box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  gap: 2px;
 }
 .segmented button {
   padding: 7px 16px;
@@ -938,6 +941,15 @@ input { font: inherit; color: inherit; }
   color: var(--fg-mid);
   display: inline-flex; align-items: center; gap: 6px;
   white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+/* Smaller buttons when 3+ options */
+.segmented button:first-child:nth-last-child(n+3),
+.segmented button:first-child:nth-last-child(n+3) ~ button {
+  padding: 6px 12px;
+  font-size: 12px;
+  gap: 4px;
 }
 .segmented button.active { background: var(--fg); color: var(--bg); }
 

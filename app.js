@@ -1659,30 +1659,26 @@
     // Get unique countries from itinerary days
     const countries = new Set();
     const countryFlags = {
-      'JP': '🇯🇵',
-      'KR': '🇰🇷',
-      'US': '🇺🇸',
-      'GB': '🇬🇧',
-      'FR': '🇫🇷',
-      'IT': '🇮🇹',
-      'ES': '🇪🇸',
-      'DE': '🇩🇪',
-      'CA': '🇨🇦',
-      'MX': '🇲🇽',
-      'AU': '🇦🇺'
+      'JP': '🇯🇵', 'KR': '🇰🇷', 'US': '🇺🇸', 'GB': '🇬🇧', 'FR': '🇫🇷',
+      'IT': '🇮🇹', 'ES': '🇪🇸', 'DE': '🇩🇪', 'CA': '🇨🇦', 'MX': '🇲🇽',
+      'AU': '🇦🇺', 'NZ': '🇳🇿', 'CN': '🇨🇳', 'TH': '🇹🇭', 'VN': '🇻🇳',
+      'SG': '🇸🇬', 'MY': '🇲🇾', 'ID': '🇮🇩', 'PH': '🇵🇭', 'IN': '🇮🇳',
+      'AE': '🇦🇪', 'SA': '🇸🇦', 'IL': '🇮🇱', 'TR': '🇹🇷', 'EG': '🇪🇬',
+      'ZA': '🇿🇦', 'BR': '🇧🇷', 'AR': '🇦🇷', 'CL': '🇨🇱', 'PE': '🇵🇪',
+      'NL': '🇳🇱', 'BE': '🇧🇪', 'CH': '🇨🇭', 'AT': '🇦🇹', 'SE': '🇸🇪',
+      'NO': '🇳🇴', 'DK': '🇩🇰', 'FI': '🇫🇮', 'PL': '🇵🇱', 'CZ': '🇨🇿',
+      'GR': '🇬🇷', 'PT': '🇵🇹', 'IE': '🇮🇪', 'IS': '🇮🇸', 'RU': '🇷🇺'
     };
     const countryFullNames = {
-      'JP': 'Japan',
-      'KR': 'Korea',
-      'US': 'USA',
-      'GB': 'UK',
-      'FR': 'France',
-      'IT': 'Italy',
-      'ES': 'Spain',
-      'DE': 'Germany',
-      'CA': 'Canada',
-      'MX': 'Mexico',
-      'AU': 'Australia'
+      'JP': 'Japan', 'KR': 'Korea', 'US': 'USA', 'GB': 'UK', 'FR': 'France',
+      'IT': 'Italy', 'ES': 'Spain', 'DE': 'Germany', 'CA': 'Canada', 'MX': 'Mexico',
+      'AU': 'Australia', 'NZ': 'New Zealand', 'CN': 'China', 'TH': 'Thailand', 'VN': 'Vietnam',
+      'SG': 'Singapore', 'MY': 'Malaysia', 'ID': 'Indonesia', 'PH': 'Philippines', 'IN': 'India',
+      'AE': 'UAE', 'SA': 'Saudi Arabia', 'IL': 'Israel', 'TR': 'Turkey', 'EG': 'Egypt',
+      'ZA': 'South Africa', 'BR': 'Brazil', 'AR': 'Argentina', 'CL': 'Chile', 'PE': 'Peru',
+      'NL': 'Netherlands', 'BE': 'Belgium', 'CH': 'Switzerland', 'AT': 'Austria', 'SE': 'Sweden',
+      'NO': 'Norway', 'DK': 'Denmark', 'FI': 'Finland', 'PL': 'Poland', 'CZ': 'Czech Republic',
+      'GR': 'Greece', 'PT': 'Portugal', 'IE': 'Ireland', 'IS': 'Iceland', 'RU': 'Russia'
     };
     
     if (D.byDay) {
