@@ -1321,7 +1321,7 @@
                     marginBottom: '20px',
                     lineHeight: '1.5'
                   }
-                }, '🔒 This Coda doc is private. To access it, you need to generate an API token:'),
+                }, 'This Coda doc is private. To access it, you need to generate an API token:'),
                 el('ol', {
                   style: {
                     fontSize: '14px',
@@ -3906,7 +3906,7 @@
                 marginBottom: '20px',
                 lineHeight: '1.5'
               }
-            }, '🔒 This Coda doc is private. To access it, you need to generate an API token:'),
+            }, 'This Coda doc is private. To access it, you need to generate an API token:'),
             el('ol', {
               style: {
                 fontSize: '14px',
@@ -4287,7 +4287,7 @@
             marginBottom: '20px',
             lineHeight: '1.5'
           }
-        }, '🔒 This Coda doc is private. To access it, you need to generate an API token:'),
+        }, 'This Coda doc is private. To access it, you need to generate an API token:'),
         el('ol', {
           style: {
             fontSize: '14px',
