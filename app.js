@@ -1278,15 +1278,40 @@
                     color: 'var(--fg-muted)'
                   }
                 },
-                  el('li', null, 'Go to ', el('a', { 
+                  el('li', { style: { marginBottom: '6px' } }, 'Go to ', el('a', { 
                     href: 'https://coda.io/account', 
                     target: '_blank',
                     style: { color: 'var(--primary)', textDecoration: 'underline' }
                   }, 'coda.io/account')),
-                  el('li', null, 'Click "Generate API token"'),
-                  el('li', null, 'Name it (e.g., "Trip App") and click "Generate"'),
-                  el('li', null, 'Copy the token and paste it below')
+                  el('li', { style: { marginBottom: '6px' } }, 'Click "Generate API token"'),
+                  el('li', { style: { marginBottom: '6px' } }, 'Name it (e.g., "Trip App")'),
+                  el('li', { style: { marginBottom: '6px', fontWeight: '600' } }, 
+                    '⚠️ Click "Add a restriction" and paste this doc URL: ',
+                    el('code', { 
+                      style: { 
+                        fontSize: '10px',
+                        background: 'var(--surface-2)',
+                        padding: '2px 4px',
+                        borderRadius: '3px',
+                        display: 'block',
+                        marginTop: '4px',
+                        wordBreak: 'break-all'
+                      }
+                    }, url)
+                  ),
+                  el('li', { style: { marginBottom: '6px' } }, 'Click "Generate API token"'),
+                  el('li', { style: { marginBottom: '6px' } }, 'Copy the token and paste it below')
                 ),
+                el('div', {
+                  style: {
+                    fontSize: '11px',
+                    color: 'var(--fg-dim)',
+                    marginTop: '8px',
+                    padding: '8px',
+                    background: 'var(--surface-2)',
+                    borderRadius: '4px'
+                  }
+                }, '💡 The restriction limits this token to only this doc for security.'),
                 el('input', {
                   type: 'text',
                   id: 'trip-token-input',
@@ -3685,9 +3710,35 @@
               style: { color: 'var(--primary)', textDecoration: 'underline' }
             }, 'coda.io/account')),
             el('li', { style: { marginBottom: '8px' } }, 'Click "Generate API token"'),
-            el('li', { style: { marginBottom: '8px' } }, 'Name it (e.g., "Trip App") and click "Generate"'),
+            el('li', { style: { marginBottom: '8px' } }, 'Name it (e.g., "Trip App")'),
+            el('li', { style: { marginBottom: '8px', fontWeight: '600' } }, 
+              '⚠️ Click "Add a restriction" and paste this doc URL: ',
+              el('code', { 
+                style: { 
+                  fontSize: '11px',
+                  background: 'var(--surface-2)',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  display: 'block',
+                  marginTop: '4px',
+                  wordBreak: 'break-all'
+                }
+              }, docUrl)
+            ),
+            el('li', { style: { marginBottom: '8px' } }, 'Click "Generate API token"'),
             el('li', { style: { marginBottom: '8px' } }, 'Copy the token and paste it below')
           ),
+          el('div', {
+            style: {
+              fontSize: '12px',
+              color: 'var(--fg-dim)',
+              marginBottom: '12px',
+              padding: '8px',
+              background: 'var(--surface-2)',
+              borderRadius: '4px',
+              textAlign: 'center'
+            }
+          }, '💡 The restriction limits this token to only this doc for security.'),
           el('input', {
             type: 'text',
             id: 'autoload-token-input',
