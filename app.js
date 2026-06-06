@@ -667,9 +667,7 @@
       
       console.log('Setting window.DATA to:', tripData.trip?.title || 'Unknown');
       applyTripData(tripData);
-      
-      // Re-render the entire app
-      render();
+      finalizeAppAfterTripLoad();
       
       if (!fromCache || tripData) {
         toast('Trip data loaded!');
@@ -818,36 +816,35 @@
       sessionStorage.removeItem('autoLoadInProgress');
     }
 
-    const activeTrip = getActiveTrip();
+    let tripToLoad = getActiveTrip();
     
     // If no active trip but we have trips, something is wrong
-    if (!activeTrip && trips.length > 0) {
+    if (!tripToLoad && trips.length > 0) {
       console.log('⚠️ No active trip found, setting first trip as active');
       trips[0].active = true;
       saveTrips(trips);
+      tripToLoad = getActiveTrip();
     }
     
     // Check current URL state (it may have changed during processing)
     const currentUrlParams = new URLSearchParams(window.location.search);
     const currentDocParam = currentUrlParams.get('doc');
     console.log('🔍 Current doc param after processing:', currentDocParam);
-    console.log('🔍 Active trip:', activeTrip?.url);
+    console.log('🔍 Active trip:', tripToLoad?.url);
     
     // If we have an active trip but no doc param in URL, add it (but don't trigger auto-load)
-    if (activeTrip && !currentDocParam) {
-      const docId = extractDocId(activeTrip.url);
-      const docParamToAdd = docId || activeTrip.url;
+    if (tripToLoad && !currentDocParam) {
+      const docId = extractDocId(tripToLoad.url);
+      const docParamToAdd = docId || tripToLoad.url;
       // Query string must come BEFORE hash
       const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParamToAdd) + window.location.hash;
       console.log('📌 Adding doc param to URL:', newUrl);
-      console.log('📌 Current URL before replaceState:', window.location.href);
       window.history.replaceState({}, '', newUrl);
-      console.log('📌 Current URL after replaceState:', window.location.href);
-    } else if (activeTrip && currentDocParam) {
+    } else if (tripToLoad && currentDocParam) {
       console.log('✅ Doc param already in URL, no changes needed');
     }
     
-    if (activeTrip && activeTrip.url) {
+    if (tripToLoad && tripToLoad.url) {
       // Check if we just switched trips - if so, force fresh fetch
       const justSwitched = localStorage.getItem('jk26.justSwitched');
       const useCache = !justSwitched;
@@ -883,7 +880,7 @@
               textAlign: 'center',
               padding: '0 20px'
             } 
-          }, `Loading ${activeTrip.name || 'trip'} data...`),
+          }, `Loading ${tripToLoad.name || 'trip'} data...`),
           el('div', { 
             style: { 
               fontSize: '13px', 
@@ -898,11 +895,7 @@
       
       try {
         // Load the active trip's data (pass token if available)
-        await loadTripData(activeTrip.url, useCache, activeTrip.token || null);
-        
-        // Remove loading overlay if it exists
-        const overlay = $('#trip-loading');
-        if (overlay) overlay.remove();
+        await loadTripData(tripToLoad.url, useCache, tripToLoad.token || null);
       } catch (err) {
         console.error('Failed to load trip data on init:', err);
         
@@ -926,7 +919,7 @@
             zIndex: '9999',
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
           }
-        }, `⚠️ Failed to load ${activeTrip.name || 'trip'} data. Using default data. Try "Sync from Supertrip Doc" in Settings.`);
+        }, `⚠️ Failed to load ${tripToLoad.name || 'trip'} data. Using default data. Try "Sync from Supertrip Doc" in Settings.`);
         
         document.body.appendChild(banner);
         
@@ -4621,17 +4614,10 @@
         throw fetchErr;
       }
 
-      // Remove loading overlay
+      // Remove loading overlay and show the app
       loading.remove();
-
-      // Show the app
-      $('#app').style.display = 'block';
-
-      // Show success toast
       toast(`Welcome to ${tripName}!`);
-
-      // Switch to today tab
-      switchTab('today');
+      finalizeAppAfterTripLoad('today');
       console.log('🎉 Auto-load complete!');
     } catch (error) {
       console.error('❌ Auto-load failed:', error);
@@ -4906,6 +4892,32 @@
     document.body.appendChild(tokenScreen);
   }
   
+  function tripDataReady(){
+    return !!(window.DATA?.days?.length && window.DATA?.byDay);
+  }
+
+  function clearTripLoadOverlays(){
+    $('#trip-loading')?.remove();
+    $('#auto-load-overlay')?.remove();
+  }
+
+  function finalizeAppAfterTripLoad(tab){
+    clearTripLoadOverlays();
+    hideOnboarding();
+    if (!tripDataReady()) {
+      console.warn('finalizeAppAfterTripLoad: trip data not ready yet');
+      return;
+    }
+    const nextTab = tab || state.tab || 'today';
+    state.tab = nextTab;
+    // Wait until the app shell is visible before rendering (avoids blank UI after load overlays).
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        switchTab(nextTab);
+      });
+    });
+  }
+
   function render(){
     // Re-render current tab
     switchTab(state.tab);
@@ -4960,25 +4972,16 @@
     registerSW();
     checkForUpdates();
     initTripData().then(() => {
-      // Skip if onboarding or auto-load overlay is still showing
-      if ($('#onboarding') || $('#auto-load-overlay')) return;
-      // Only switch tab if trip data is ready to render
-      if (getTrips().length > 0 && window.DATA?.byDay) {
+      if ($('#onboarding')) return;
+      if (getTrips().length > 0 && tripDataReady()) {
         const mode = getAppMode();
         if (mode === 'plan') {
-          // Hide all travel tabs, show plan-about
           $$('.tab-pane:not(.plan-screen)').forEach(t => t.classList.remove('active'));
           const aboutTab = $('#plan-about');
-          if (aboutTab) {
-            aboutTab.classList.add('active');
-          }
-          // Render About tab content
-          if (window.PlanMode) {
-            window.PlanMode.renderAboutTab();
-          }
+          if (aboutTab) aboutTab.classList.add('active');
+          if (window.PlanMode) window.PlanMode.renderAboutTab();
         } else {
-          // Travel mode: show today tab
-          switchTab('today');
+          finalizeAppAfterTripLoad('today');
         }
       }
     });
