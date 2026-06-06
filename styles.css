@@ -1330,6 +1330,14 @@ input, textarea { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .sheet-chev:disabled { opacity: 0.35; cursor: default; }
+.sheet-chev.sheet-chev-icon-only { padding: 0; }
+.sheet-chev-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+.sheet-chev-icon svg { display: block; }
 .sheet-nav-actions {
   display: flex;
   align-items: center;

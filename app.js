@@ -2712,11 +2712,11 @@
 
   // ─── Add Activity Sheet ───────────────────────────────────────────────────
   function buildAddActivityButton(){
-    const icon = el('span', { class: 'tab-icon', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
-    icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    const icon = el('span', { class: 'sheet-chev-icon', 'aria-hidden': 'true' });
+    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="6" x2="12" y2="18"/><line x1="6" y1="12" x2="18" y2="12"/></svg>';
     return el('button', {
       type: 'button',
-      class: 'sheet-chev add-btn add-activity-trigger',
+      class: 'sheet-chev sheet-chev-icon-only add-btn add-activity-trigger',
       'aria-label': 'Add activity',
       onclick: (e) => {
         e.preventDefault();
@@ -3126,8 +3126,8 @@
   let editActivityDraft = null;
 
   function buildSheetEditIcon(){
-    const icon = el('span', { class: 'tab-icon', style: { display: 'flex', alignItems: 'center', justifyContent: 'center' } });
-    icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    const icon = el('span', { class: 'sheet-chev-icon', 'aria-hidden': 'true' });
+    icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
     return icon;
   }
 
@@ -3507,11 +3507,11 @@
       el('button', { class: 'sheet-chev', disabled: prev ? null : '', 'aria-label': 'Previous activity', onclick: () => prev && openSheet(prev) }, '\u2039'),
       el('button', { class: 'sheet-chev', disabled: next ? null : '', 'aria-label': 'Next activity', onclick: () => next && openSheet(next) }, '\u203a'),
       el('div', { class: 'sheet-nav-actions' },
-        el('button', {
-          class: 'sheet-chev',
-          'aria-label': 'Edit activity',
-          onclick: () => openEditActivitySheet(a)
-        }, buildSheetEditIcon()),
+      el('button', {
+        class: 'sheet-chev sheet-chev-icon-only',
+        'aria-label': 'Edit activity',
+        onclick: () => openEditActivitySheet(a)
+      }, buildSheetEditIcon()),
         el('button', { class: 'close', onclick: closeSheet }, '\u2715')
       )
     ));
