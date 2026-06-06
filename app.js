@@ -636,7 +636,28 @@
     console.log('🔍 URL pathname:', window.location.pathname);
     console.log('🔍 URL hash:', window.location.hash);
     
-    const trips = getTrips();
+    let trips = getTrips();
+    
+    // Clean up any broken/partial trips (e.g., "Untitled Trip" with no token)
+    const cleanedTrips = trips.filter(t => {
+      // Keep trips that have a real name (not default placeholders)
+      if (t.name && t.name !== 'Untitled Trip' && t.name !== 'My Trip') {
+        return true;
+      }
+      // Keep if it has a token (even if name is placeholder)
+      if (t.token) {
+        return true;
+      }
+      // Remove broken entries
+      console.log('🗑️ Removing broken trip entry:', t);
+      return false;
+    });
+    
+    if (cleanedTrips.length !== trips.length) {
+      console.log(`✨ Cleaned ${trips.length - cleanedTrips.length} broken trip(s)`);
+      saveTrips(cleanedTrips);
+      trips = cleanedTrips;
+    }
     
     // Check for URL parameter to auto-load a doc
     const urlParams = new URLSearchParams(window.location.search);
@@ -3617,7 +3638,21 @@
       
       // If doc is private, show token request UI
       if (!docInfo) {
-        console.log('🔒 Doc requires authentication');
+        console.log('🔒 Doc requires authentication - showing token UI');
+        
+        // First, check if there's already a partial trip saved and remove it
+        const existingTrips = getTrips();
+        const partialTripIndex = existingTrips.findIndex(t => {
+          const tripDocId = extractDocId(t.url);
+          const paramDocId = extractDocId(docUrl);
+          return (tripDocId === paramDocId || t.url === docUrl) && 
+                 (!t.name || t.name === 'Untitled Trip' || t.name === 'My Trip');
+        });
+        if (partialTripIndex !== -1) {
+          console.log('🗑️ Removing existing partial trip before showing token UI');
+          existingTrips.splice(partialTripIndex, 1);
+          saveTrips(existingTrips);
+        }
         
         // Transform loading overlay into token request form
         loading.innerHTML = '';
@@ -3836,15 +3871,38 @@
 
       // Show error with more helpful message
       const errorMsg = error.message || 'Could not load trip data';
+      
+      // Check if user cancelled authentication
+      if (errorMsg.includes('cancelled authentication')) {
+        console.log('User cancelled, showing onboarding');
+        window.history.replaceState({}, '', window.location.pathname);
+        showOnboarding();
+        return;
+      }
+      
       toast(errorMsg);
       
-      // Only remove doc param if this was a genuinely new trip that failed
-      // Don't remove if trip was already saved (would break the URL sharing feature)
+      // Clean up any partially created trips if this was an auth failure
       const trips = getTrips();
       let docUrlToCheck = docParam;
       if (!docParam.startsWith('http')) {
         docUrlToCheck = `https://coda.io/d/_d${docParam}`;
       }
+      
+      // Find and remove any "Untitled Trip" entries for this doc (partial saves)
+      const untitledIndex = trips.findIndex(t => {
+        const tripDocId = extractDocId(t.url);
+        const paramDocId = extractDocId(docUrlToCheck);
+        return (tripDocId === paramDocId || t.url === docUrlToCheck) && 
+               (!t.name || t.name === 'Untitled Trip' || t.name === 'My Trip');
+      });
+      
+      if (untitledIndex !== -1) {
+        console.log('🗑️ Removing partial trip save');
+        trips.splice(untitledIndex, 1);
+        saveTrips(trips);
+      }
+      
       const tripExists = trips.some(t => {
         const tripDocId = extractDocId(t.url);
         const paramDocId = extractDocId(docUrlToCheck);
