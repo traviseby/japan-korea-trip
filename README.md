@@ -1,4 +1,4 @@
-# Japan & Korea 2026 — Trip Companion App
+# Supertrip
 
 Mobile PWA for the Eby family Japan/Korea trip, July 22 – Aug 5, 2026.
 
@@ -16,7 +16,7 @@ Mobile PWA for the Eby family Japan/Korea trip, July 22 – Aug 5, 2026.
 
 ## Family setup (one-time, per phone)
 
-1. Send everyone the deployed URL (e.g. `https://eby-family-trip.vercel.app`).
+1. Send everyone the deployed URL: `https://supertrip-mobile.vercel.app`.
 2. They open it in Safari → Share → **Add to Home Screen**.
 3. The icon now lives on their home screen and opens like a real app.
 4. On first launch with wifi, go to **Map → ⚙ Settings → Download for offline**
@@ -74,7 +74,7 @@ a map pin until you add coordinates).
 
 1. Push this folder to a new GitHub repo.
 2. <https://vercel.com> → Import the repo → click Deploy.
-3. Get a URL like `eby-family-trip.vercel.app`.
+3. Production URL: `https://supertrip-mobile.vercel.app` (Vercel project name: `supertrip-mobile`).
 4. Share it with the family.
 
 GitHub Pages and Netlify also work — anything that serves static files over HTTPS.

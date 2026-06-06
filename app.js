@@ -1,4 +1,4 @@
-/* Superhuman Trips — companion app logic
+/* Supertrip — companion app logic
  * Vanilla JS. Reads from window.DATA. Single source of truth: filterState.
  */
 (function(){
@@ -926,7 +926,7 @@
             zIndex: '9999',
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
           }
-        }, `⚠️ Failed to load ${activeTrip.name || 'trip'} data. Using default data. Try "Sync from Superhuman Docs" in Settings.`);
+        }, `⚠️ Failed to load ${activeTrip.name || 'trip'} data. Using default data. Try "Sync from Supertrip Doc" in Settings.`);
         
         document.body.appendChild(banner);
         
@@ -1055,7 +1055,7 @@
         el('div', { class: 'oc-headline' }, 'Trips'),
         el('span', { class: 'oc-status' }, trips.length === 0 ? 'No trips' : `${trips.length} trip${trips.length > 1 ? 's' : ''}`)
       ),
-      el('div', { class: 'oc-desc' }, 'Manage your Superhuman Docs trip documents. Select a trip to view its itinerary.')
+      el('div', { class: 'oc-desc' }, 'Manage your trip docs in Supertrip. Select a trip to view its itinerary.')
     );
 
     // List of existing trips as inline select controls
@@ -1317,7 +1317,7 @@
         const userToken = tokenInput ? tokenInput.value.trim() : '';
         
         if (!url) {
-          alert('Please paste a Superhuman Docs URL');
+          alert('Please paste a Supertrip doc URL');
           return;
         }
         
@@ -1636,7 +1636,7 @@
       el('input', {
         type: 'text',
         id: 'trip-url-input',
-        placeholder: 'Paste Superhuman Docs URL',
+        placeholder: 'Paste Supertrip doc URL',
         style: { 
           width: '100%', 
           padding: '10px', 
@@ -1666,7 +1666,7 @@
     
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('div', { class: 'oc-headline' }, 'Sync from Superhuman Docs'),
+        el('div', { class: 'oc-headline' }, 'Sync from Supertrip Doc'),
         el('span', { class: 'oc-status', id: 'sync-status' }, activeTrip ? 'Ready' : 'No trip')
       ),
       el('div', { class: 'oc-desc' }, desc),
@@ -3756,7 +3756,7 @@
     root.appendChild(buildResetCard());
     root.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
     root.appendChild(el('div', { class: 'settings-about' },
-      el('div', null, 'Superhuman Trips'),
+      el('div', null, 'Supertrip'),
       el('div', { class: 'sub' }, 'Created by TJ Eby'),
       el('div', { class: 'sub', style: 'margin-top: 8px; opacity: 0.6;' }, `Version ${APP_VERSION}`)
     ));
@@ -4163,11 +4163,11 @@
       }
     },
       el('div', { style: { fontSize: '48px', marginBottom: '20px' } }, '✈️'),
-      el('h1', { style: { fontSize: '24px', fontWeight: '600', color: 'var(--fg)', marginBottom: '12px', textAlign: 'center' } }, 'Welcome to Superhuman Trips'),
+      el('h1', { style: { fontSize: '24px', fontWeight: '600', color: 'var(--fg)', marginBottom: '12px', textAlign: 'center' } }, 'Welcome to Supertrip'),
       el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get Started by adding a link to your trip Doc'),
       
       el('div', { style: { width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' } },
-        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Superhuman Doc URL'),
+        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Supertrip doc URL'),
         el('input', {
           type: 'text',
           id: 'onboarding-url-input',
@@ -4203,7 +4203,7 @@
             const urlInput = $('#onboarding-url-input');
             const url = urlInput.value.trim();
             if (!url) {
-              alert('Please paste a Superhuman Doc URL');
+              alert('Please paste a Supertrip doc URL');
               return;
             }
 

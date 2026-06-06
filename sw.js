@@ -1,4 +1,4 @@
-// Japan & Korea 2026 — Service Worker
+// Supertrip — Service Worker
 // Caches the app shell + CartoCDN map tiles + Unsplash hero images so the
 // app works in airplane mode.
 const VERSION    = 'v8';
