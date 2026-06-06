@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.14';
+  const APP_VERSION = '2.15';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -1724,10 +1724,12 @@
       segmented.appendChild(btn);
     });
     
-    // Set initial region if not set
+    // Set initial region to first country (e.g., Japan for Japan/Korea trip)
     if (!state.region || !uniqueCountries.includes(state.region)) {
       state.region = uniqueCountries[0];
     }
+    
+    console.log('🗺️ buildRegionSelector set region to:', state.region);
   }
   let fullMapMarkers = [];
   let lastMapRegion = null;
@@ -1735,7 +1737,21 @@
     const node = $('#map-full');
     if (!node) return;
 
-    const region = state.region;
+    let region = state.region;
+    
+    // If no region is set and we have a selector, default to first region
+    if (!region) {
+      const segmented = $('#segmented');
+      const firstBtn = segmented && segmented.querySelector('button');
+      if (firstBtn) {
+        region = firstBtn.dataset.region;
+        state.region = region;
+        console.log('🗺️ buildFullMap defaulting to first region:', region);
+      }
+    }
+    
+    console.log('🗺️ buildFullMap rendering with region:', region);
+    
     const fa = filteredActivities();
     
     // Filter activities by region (if a region is selected) and ensure valid coordinates
@@ -1747,6 +1763,8 @@
     
     // Filter out activities without valid coordinates
     inRegion = inRegion.filter(a => a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng));
+    
+    console.log(`🗺️ Showing ${inRegion.length} activities on map for region:`, region);
 
     // Calculate default center and zoom from activities
     let defaultCenter, defaultZoom;
