@@ -914,10 +914,15 @@ input { font: inherit; color: inherit; }
 
 /* ───────────────────────── MAP tab ───────────────────────── */
 
-.map-tab { display: flex; flex-direction: column; height: 100%; }
+.map-tab { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .map-container {
   flex: 1;
   position: relative;
+  min-height: 0;
+}
+#tab-map .filter-bar {
+  position: relative;
+  z-index: 1000;
 }
 .segmented {
   position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);

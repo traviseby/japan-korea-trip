@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.17';
+  const APP_VERSION = '2.18';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -2259,24 +2259,7 @@
     if (anyFilterActive()) {
       rightSlot = el('button', { class: 'reset', onclick: resetFilters }, 'Reset');
     } else {
-      rightSlot = el('button', { 
-        class: 'add-btn add-activity-trigger',
-        style: {
-          padding: '6px',
-          fontSize: '24px',
-          fontWeight: '300',
-          color: 'var(--accent)',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '36px',
-          height: '36px'
-        }
-      }, '+'
-      );
+      rightSlot = buildAddActivityButton();
     }
     
     wrap.appendChild(buildLargeTitle(tab === 'map' ? 'Map' : 'Activities', rightSlot));
@@ -2453,24 +2436,7 @@
       if (anyFilterActive()) {
         rightSlot = el('button', { class: 'reset', onclick: resetFilters }, 'Reset');
       } else {
-        rightSlot = el('button', { 
-          class: 'add-btn add-activity-trigger',
-          style: {
-            padding: '6px',
-            fontSize: '24px',
-            fontWeight: '300',
-            color: 'var(--accent)',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '36px',
-            height: '36px'
-          }
-        }, '+'
-        );
+        rightSlot = buildAddActivityButton();
       }
       
       bar.appendChild(buildLargeTitle('Activities', rightSlot));
@@ -2646,11 +2612,51 @@
   }
 
   // ─── Add Activity Sheet ───────────────────────────────────────────────────
+  function buildAddActivityButton(){
+    return el('button', {
+      type: 'button',
+      class: 'add-btn add-activity-trigger',
+      style: {
+        padding: '6px',
+        fontSize: '24px',
+        fontWeight: '300',
+        color: 'var(--accent)',
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '36px',
+        height: '36px',
+        position: 'relative',
+        zIndex: '1'
+      },
+      onclick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showAddActivitySheet();
+      }
+    }, '+');
+  }
+
+  function ensureAddActivitySheetDom(){
+    const root = $('#app') || $('.phone-fullscreen') || document.body;
+    let backdrop = $('#add-activity-backdrop');
+    let sheet = $('#add-activity-sheet');
+    if (!backdrop) {
+      backdrop = el('div', { id: 'add-activity-backdrop', class: 'sheet-backdrop' });
+      root.appendChild(backdrop);
+    }
+    if (!sheet) {
+      sheet = el('div', { id: 'add-activity-sheet', class: 'sheet' });
+      root.appendChild(sheet);
+    }
+    return { sheet, backdrop };
+  }
+
   function showAddActivitySheet(){
-    const sheet = $('#add-activity-sheet');
-    const backdrop = $('#add-activity-backdrop');
-    if (!sheet || !backdrop) return;
-    
+    const { sheet, backdrop } = ensureAddActivitySheetDom();
     const root = sheet;
     root.innerHTML = '';
 
@@ -2728,8 +2734,8 @@
     ));
 
     // Show sheet and backdrop
-    sheet.classList.add('show');
-    backdrop.classList.add('show');
+    backdrop.classList.add('open');
+    requestAnimationFrame(() => sheet.classList.add('open'));
     
     // Set up backdrop click to close
     backdrop.onclick = hideAddActivitySheet;
@@ -2740,8 +2746,8 @@
     const backdrop = $('#add-activity-backdrop');
     if (!sheet || !backdrop) return;
     
-    sheet.classList.remove('show');
-    backdrop.classList.remove('show');
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
     backdrop.onclick = null;
   }
 

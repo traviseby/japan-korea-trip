@@ -185,8 +185,8 @@
   }
   .screen .tabview {
     flex: 1 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
     padding-bottom: 0 !important; /* Remove safe area padding in phone frame */
   }
   .screen .tab-pane {
@@ -344,27 +344,25 @@
               </button>
             </nav>
 
-          </div>
-
-          <div id="sheet-backdrop" class="sheet-backdrop"></div>
-          <div id="sheet" class="sheet"></div>
-
-          <div id="fullscreen-map" class="fullscreen-map">
-            <div class="fm-header">
-              <div id="fm-title" class="fm-title">Day —</div>
-              <button id="fm-back" class="back-btn" aria-label="Close">✕</button>
+            <div id="sheet-backdrop" class="sheet-backdrop"></div>
+            <div id="sheet" class="sheet"></div>
+            <div id="add-activity-backdrop" class="sheet-backdrop"></div>
+            <div id="add-activity-sheet" class="sheet"></div>
+            <div id="fullscreen-map" class="fullscreen-map">
+              <div class="fm-header">
+                <div id="fm-title" class="fm-title">Day —</div>
+                <button id="fm-back" class="back-btn" aria-label="Close">✕</button>
+              </div>
+              <button id="fm-locate" class="map-action-btn" aria-label="My location">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+              </button>
+              <div id="map-fullscreen"></div>
             </div>
-            <button id="fm-locate" class="map-action-btn" aria-label="My location">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
-            </button>
-            <div id="map-fullscreen"></div>
+            <div id="offline-banner" class="offline-banner">📡 Offline</div>
+            <div id="filter-tray-backdrop" class="sheet-backdrop"></div>
+            <div id="filter-tray" class="sheet tray"></div>
+
           </div>
-
-          <div id="offline-banner" class="offline-banner">📡 Offline</div>
-
-          <!-- Filter tray (Map + Activities) -->
-          <div id="filter-tray-backdrop" class="sheet-backdrop"></div>
-          <div id="filter-tray" class="sheet tray"></div>
         </div>
         <!-- ─── End inlined PWA ─── -->
 
@@ -374,8 +372,8 @@
 
 </div>
 
-<script src="data.js?v=2.17"></script>
-<script src="app.js?v=2.17"></script>
+<script src="data.js?v=2.18"></script>
+<script src="app.js?v=2.18"></script>
 
 </body>
 </html>
