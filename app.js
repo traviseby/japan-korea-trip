@@ -636,6 +636,13 @@
     console.log('🔍 URL pathname:', window.location.pathname);
     console.log('🔍 URL hash:', window.location.hash);
     
+    // Demo mode for previewing token UI
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('demo') === 'token') {
+      showTokenUIDemo();
+      return;
+    }
+    
     let trips = getTrips();
     
     // Clean up any broken/partial trips (e.g., "Untitled Trip" with no token)
@@ -660,7 +667,6 @@
     }
     
     // Check for URL parameter to auto-load a doc
-    const urlParams = new URLSearchParams(window.location.search);
     const docParam = urlParams.get('doc');
     console.log('🔍 Extracted doc param:', docParam);
     console.log('🔍 Number of trips:', trips.length);
@@ -4152,6 +4158,174 @@
         showOnboarding();
       }
     }
+  }
+  
+  function showTokenUIDemo() {
+    // Demo mode to preview the token UI
+    const demoUrl = 'https://coda.io/d/_dABCDEF123456';
+    
+    const tokenScreen = el('div', {
+      id: 'token-demo-screen',
+      style: {
+        position: 'fixed',
+        inset: '0',
+        background: 'var(--bg)',
+        zIndex: '10000',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'auto'
+      }
+    },
+      // Header with back button
+      el('div', {
+        style: {
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }
+      },
+        el('button', {
+          onclick: () => {
+            window.location.href = window.location.pathname;
+          },
+          style: {
+            background: 'none',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer',
+            padding: '0',
+            color: 'var(--primary)',
+            lineHeight: '1'
+          }
+        }, '←'),
+        el('div', {
+          style: {
+            fontSize: '18px',
+            fontWeight: '600',
+            color: 'var(--fg)'
+          }
+        }, 'API Token Required')
+      ),
+      // Content
+      el('div', {
+        style: {
+          flex: '1',
+          padding: '24px 20px',
+          maxWidth: '600px',
+          margin: '0 auto',
+          width: '100%'
+        }
+      },
+        el('div', {
+          style: {
+            fontSize: '15px',
+            color: 'var(--fg)',
+            marginBottom: '20px',
+            lineHeight: '1.5'
+          }
+        }, '🔒 This Coda doc is private. To access it, you need to generate an API token:'),
+        el('ol', {
+          style: {
+            fontSize: '14px',
+            marginBottom: '20px',
+            paddingLeft: '24px',
+            color: 'var(--fg)',
+            lineHeight: '1.8'
+          }
+        },
+          el('li', { style: { marginBottom: '12px' } }, 'Go to ', el('a', {
+            href: 'https://coda.io/account',
+            target: '_blank',
+            style: { color: 'var(--primary)', textDecoration: 'underline' }
+          }, 'coda.io/account')),
+          el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
+          el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
+          el('li', { style: { marginBottom: '12px' } },
+            el('strong', null, '⚠️ Click "Add a restriction"'),
+            ' and paste this doc URL:',
+            el('div', {
+              style: {
+                marginTop: '8px',
+                padding: '10px',
+                background: 'var(--surface-2)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                wordBreak: 'break-all',
+                border: '1px solid var(--border)'
+              }
+            }, demoUrl)
+          ),
+          el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
+          el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
+        ),
+        el('div', {
+          style: {
+            fontSize: '13px',
+            color: 'var(--fg-dim)',
+            marginBottom: '20px',
+            padding: '12px',
+            background: 'var(--surface-2)',
+            borderRadius: '8px',
+            border: '1px solid var(--border)'
+          }
+        }, '💡 The restriction limits this token to only this doc for security.'),
+        el('div', {
+          style: {
+            marginBottom: '12px',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: 'var(--fg)'
+          }
+        }, 'Paste your API token:'),
+        el('input', {
+          type: 'text',
+          placeholder: 'Paste your Coda API token here',
+          style: {
+            width: '100%',
+            padding: '14px',
+            background: 'var(--bg)',
+            border: '2px solid var(--border)',
+            borderRadius: '8px',
+            color: 'var(--fg)',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            boxSizing: 'border-box'
+          }
+        }),
+        el('button', {
+          onclick: () => alert('This is a demo preview - button is not functional'),
+          style: {
+            width: '100%',
+            marginTop: '20px',
+            padding: '16px',
+            background: 'var(--primary)',
+            border: 'none',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '16px',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }
+        }, 'Continue'),
+        el('div', {
+          style: {
+            marginTop: '20px',
+            padding: '12px',
+            background: 'rgba(255, 165, 0, 0.1)',
+            border: '1px solid rgba(255, 165, 0, 0.3)',
+            borderRadius: '8px',
+            fontSize: '13px',
+            color: 'var(--fg)',
+            textAlign: 'center'
+          }
+        }, '👀 Demo Mode - This is a preview of the token UI')
+      )
+    );
+    
+    document.body.appendChild(tokenScreen);
   }
   
   function render(){
