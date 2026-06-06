@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.11';
+  const APP_VERSION = '2.12';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -1606,6 +1606,7 @@
   // ─── Render: MAP tab ──────────────────────────────────────────────────────
   function renderMapTab(){
     renderFilterBar('map');
+    buildRegionSelector(); // Dynamically build region selector based on trip data
     const node = $('#map-full');
     // Hide the map container until it's fully built + sized, so the user
     // never sees the brief mid-render position jump (initial center → setView,
@@ -1623,33 +1624,131 @@
       });
     }));
   }
+  
+  function buildRegionSelector(){
+    const segmented = $('#segmented');
+    if (!segmented) return;
+    
+    // Get unique countries from itinerary days
+    const countries = new Set();
+    const countryFlags = {
+      'JP': '🇯🇵',
+      'KR': '🇰🇷',
+      'US': '🇺🇸',
+      'GB': '🇬🇧',
+      'FR': '🇫🇷',
+      'IT': '🇮🇹',
+      'ES': '🇪🇸',
+      'DE': '🇩🇪',
+      'CA': '🇨🇦',
+      'MX': '🇲🇽',
+      'AU': '🇦🇺'
+    };
+    const countryFullNames = {
+      'JP': 'Japan',
+      'KR': 'Korea',
+      'US': 'USA',
+      'GB': 'UK',
+      'FR': 'France',
+      'IT': 'Italy',
+      'ES': 'Spain',
+      'DE': 'Germany',
+      'CA': 'Canada',
+      'MX': 'Mexico',
+      'AU': 'Australia'
+    };
+    
+    if (D.byDay) {
+      Object.values(D.byDay).forEach(day => {
+        if (day.country) {
+          countries.add(day.country);
+        }
+      });
+    }
+    
+    const uniqueCountries = Array.from(countries).sort();
+    
+    // If only one country or no countries, hide the selector
+    if (uniqueCountries.length <= 1) {
+      segmented.style.display = 'none';
+      if (uniqueCountries.length === 1) {
+        state.region = uniqueCountries[0];
+      } else {
+        state.region = null; // Show all
+      }
+      return;
+    }
+    
+    // Multiple countries - show selector
+    segmented.style.display = 'flex';
+    segmented.innerHTML = '';
+    
+    uniqueCountries.forEach((country, index) => {
+      const flag = countryFlags[country] || '🌍';
+      const name = countryFullNames[country] || country;
+      const btn = el('button', {
+        'data-region': country,
+        class: index === 0 ? 'active' : '',
+        onclick: () => {
+          state.region = country;
+          buildFullMap();
+        }
+      }, `${flag} ${name}`);
+      segmented.appendChild(btn);
+    });
+    
+    // Set initial region if not set
+    if (!state.region || !uniqueCountries.includes(state.region)) {
+      state.region = uniqueCountries[0];
+    }
+  }
   let fullMapMarkers = [];
   let lastMapRegion = null;
   function buildFullMap(){
     const node = $('#map-full');
     if (!node) return;
 
-    const region = state.region || 'JP';
+    const region = state.region;
     const fa = filteredActivities();
-    const inBounds = (a) => {
-      if (region === 'JP') return a.lng > 128 && a.lng < 150 && a.lat > 24 && a.lat < 46;
-      if (region === 'KR') return a.lng > 124 && a.lng < 132 && a.lat > 33 && a.lat < 39;
-      return true;
-    };
-    const inRegion = fa.filter(inBounds);
+    
+    // Filter activities by region (if a region is selected)
+    const inRegion = region ? fa.filter(a => {
+      // Match by country code from the day
+      const day = D.byDay[a.day];
+      return day && day.country === region;
+    }) : fa;
 
-    // Compute the desired default view UP FRONT, so we can pass it as the
-    // initial center/zoom on first construction — avoids the "create at default
-    // → setView to target" two-step that caused the visible jump.
-    const inUserJP = state.location && state.location.lat > 24 && state.location.lat < 46 && state.location.lng > 128 && state.location.lng < 150;
-    const inUserKR = state.location && state.location.lat > 33 && state.location.lat < 39 && state.location.lng > 124 && state.location.lng < 132;
+    // Calculate default center and zoom from activities
     let defaultCenter, defaultZoom;
-    if ((region === 'JP' && inUserJP) || (region === 'KR' && inUserKR)){
-      defaultCenter = [state.location.lat, state.location.lng]; defaultZoom = 13;
-    } else if (region === 'JP'){
-      defaultCenter = [35.6896, 139.6995]; defaultZoom = 11; // Tokyo
+    
+    // If user is near activities, center on them
+    if (state.location && inRegion.length > 0) {
+      const nearbyActivities = inRegion.filter(a => {
+        const dist = Math.sqrt(
+          Math.pow(a.lat - state.location.lat, 2) + 
+          Math.pow(a.lng - state.location.lng, 2)
+        );
+        return dist < 1; // Within ~1 degree (~100km)
+      });
+      
+      if (nearbyActivities.length > 0) {
+        defaultCenter = [state.location.lat, state.location.lng];
+        defaultZoom = 13;
+      }
+    }
+    
+    // Otherwise, calculate center from activities
+    if (!defaultCenter && inRegion.length > 0) {
+      const lats = inRegion.map(a => a.lat);
+      const lngs = inRegion.map(a => a.lng);
+      const avgLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
+      const avgLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
+      defaultCenter = [avgLat, avgLng];
+      defaultZoom = 11;
     } else {
-      defaultCenter = [37.5665, 126.9780]; defaultZoom = 11; // Seoul
+      // Fallback: center of world
+      defaultCenter = [20, 0];
+      defaultZoom = 2;
     }
 
     if (!leafletFull){
@@ -2975,11 +3074,7 @@
     $$('.tabbar button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
     // Update tab bar based on app mode
     updateTabBarForMode();
-    // segmented (map)
-    $$('#segmented button').forEach(b => b.addEventListener('click', () => {
-      state.region = b.dataset.region;
-      buildFullMap();
-    }));
+    // Note: segmented control (map regions) is now dynamically generated in buildRegionSelector()
     // Locate-me buttons (Map tab + fullscreen day map)
     const locateBtn = $('#locate-me');
     if (locateBtn) locateBtn.addEventListener('click', locateMe);
