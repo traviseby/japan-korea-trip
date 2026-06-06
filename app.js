@@ -1705,8 +1705,10 @@
       const inferredCountries = [];
       const hasJP = D.activities.some(a => a.lng > 128 && a.lng < 150 && a.lat > 24 && a.lat < 46);
       const hasKR = D.activities.some(a => a.lng > 124 && a.lng < 132 && a.lat > 33 && a.lat < 39);
+      const hasUS = D.activities.some(a => a.lng > -125 && a.lng < -66 && a.lat > 24 && a.lat < 50);
       if (hasJP) inferredCountries.push('JP');
       if (hasKR) inferredCountries.push('KR');
+      if (hasUS) inferredCountries.push('US');
       uniqueCountries = inferredCountries;
       console.log('🗺️ Inferred countries from coordinates:', uniqueCountries);
     }
@@ -1802,7 +1804,9 @@
           return inBounds;
         }
         if (region === 'US' && a.lat && a.lng) {
-          return a.lng > -125 && a.lng < -66 && a.lat > 24 && a.lat < 50;
+          const inBounds = a.lng > -125 && a.lng < -66 && a.lat > 24 && a.lat < 50;
+          console.log(`  US bounds check: lng=${a.lng} (-125 to -66?), lat=${a.lat} (24-50?) = ${inBounds}`);
+          return inBounds;
         }
       }
       
