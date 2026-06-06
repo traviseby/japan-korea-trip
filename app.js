@@ -1335,7 +1335,7 @@
                     const link = el('a', {
                       href: 'https://coda.io/account',
                       target: '_blank',
-                      style: { color: '#8e44ad', textDecoration: 'none' }
+                      style: { color: '#b39ddb', textDecoration: 'none' }
                     }, 'coda.io/account');
                     link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
                     link.onmouseleave = () => { link.style.textDecoration = 'none'; };
@@ -1411,7 +1411,10 @@
                     width: '100%',
                     padding: '14px',
                     background: 'var(--bg)',
-                    border: '1px solid white',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: 'transparent',
+                    borderImage: 'none',
                     borderRadius: '8px',
                     color: 'var(--fg)',
                     fontSize: '14px',
@@ -3928,7 +3931,7 @@
                 const link = el('a', {
                   href: 'https://coda.io/account',
                   target: '_blank',
-                  style: { color: '#8e44ad', textDecoration: 'none' }
+                  style: { color: '#b39ddb', textDecoration: 'none' }
                 }, 'coda.io/account');
                 link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
                 link.onmouseleave = () => { link.style.textDecoration = 'none'; };
@@ -4004,7 +4007,10 @@
                 width: '100%',
                 padding: '14px',
                 background: 'var(--bg)',
-                border: '1px solid white',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'transparent',
+                borderImage: 'none',
                 borderRadius: '8px',
                 color: 'var(--fg)',
                 fontSize: '14px',
@@ -4317,7 +4323,7 @@
             const link = el('a', {
               href: 'https://coda.io/account',
               target: '_blank',
-              style: { color: '#8e44ad', textDecoration: 'none' }
+              style: { color: '#b39ddb', textDecoration: 'none' }
             }, 'coda.io/account');
             link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
             link.onmouseleave = () => { link.style.textDecoration = 'none'; };
@@ -4392,7 +4398,10 @@
             width: '100%',
             padding: '14px',
             background: 'var(--bg)',
-            border: '1px solid white',
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderColor: 'transparent',
+            borderImage: 'none',
             borderRadius: '8px',
             color: 'var(--fg)',
             fontSize: '14px',
