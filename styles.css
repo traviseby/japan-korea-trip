@@ -702,6 +702,18 @@ input { font: inherit; color: inherit; }
   text-align: left;
 }
 .edit-picker-btn span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit-picker-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.edit-picker-emoji {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
 .edit-picker-btn svg { flex-shrink: 0; opacity: 0.6; }
 .offline-card .oc-left {
   display: flex;

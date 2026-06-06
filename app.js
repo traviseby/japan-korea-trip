@@ -3204,6 +3204,18 @@
 
   function editTimeLabel(time){ return time || 'None'; }
   function editCatLabel(cat){ return cat || 'None'; }
+  function editTimeEmoji(time){ return time ? todEmoji(time) : null; }
+  function editCatEmoji(cat){ return cat ? catEmoji(cat) : null; }
+
+  function updateEditPickerLabel(labelId, text, emoji){
+    const textEl = $(`#${labelId}-text`);
+    if (textEl) textEl.textContent = text;
+    const emojiEl = $(`#${labelId}-emoji`);
+    if (emojiEl) {
+      emojiEl.textContent = emoji || '';
+      emojiEl.style.display = emoji ? 'inline' : 'none';
+    }
+  }
 
   function ensureEditActivitySheetDom(){
     const root = $('#app') || $('.phone-fullscreen') || document.body;
@@ -3244,8 +3256,7 @@
         }))),
       onPick: (value) => {
         editActivityDraft.day = value;
-        const label = $('#edit-day-label');
-        if (label) label.textContent = dayFilterLabel(value);
+        updateEditPickerLabel('edit-day-label', dayFilterLabel(value));
       }
     });
   }
@@ -3259,8 +3270,7 @@
         .concat((D.timesOfDay || []).map(t => ({ value: t.id, label: t.id, sub: '', emoji: t.emoji }))),
       onPick: (value) => {
         editActivityDraft.time = value;
-        const label = $('#edit-time-label');
-        if (label) label.textContent = editTimeLabel(value);
+        updateEditPickerLabel('edit-time-label', editTimeLabel(value), editTimeEmoji(value));
       }
     });
   }
@@ -3274,17 +3284,23 @@
         .concat(Object.values(D.categories || {}).map(c => ({ value: c.label, label: c.label, sub: '', emoji: c.emoji }))),
       onPick: (value) => {
         editActivityDraft.cat = value;
-        const label = $('#edit-type-label');
-        if (label) label.textContent = editCatLabel(value);
+        updateEditPickerLabel('edit-type-label', editCatLabel(value), editCatEmoji(value));
       }
     });
   }
 
-  function buildEditPickerField(label, labelId, displayValue, onOpen){
+  function buildEditPickerField(label, labelId, displayValue, onOpen, emoji){
     return el('div', { class: 'edit-field' },
       el('label', { class: 'edit-label' }, label),
       el('button', { type: 'button', class: 'edit-picker-btn', onclick: onOpen },
-        el('span', { id: labelId }, displayValue),
+        el('span', { class: 'edit-picker-value' },
+          el('span', {
+            id: `${labelId}-emoji`,
+            class: 'edit-picker-emoji',
+            style: { display: emoji ? 'inline' : 'none' }
+          }, emoji || ''),
+          el('span', { id: `${labelId}-text` }, displayValue)
+        ),
         svgIcon('chevron-down')
       )
     );
@@ -3348,8 +3364,8 @@
         }, draft.desc)
       ),
       buildEditPickerField('Date', 'edit-day-label', dayFilterLabel(draft.day), openEditDayPicker),
-      buildEditPickerField('Time of day', 'edit-time-label', editTimeLabel(draft.time), openEditTimePicker),
-      buildEditPickerField('Type', 'edit-type-label', editCatLabel(draft.cat), openEditTypePicker),
+      buildEditPickerField('Time of day', 'edit-time-label', editTimeLabel(draft.time), openEditTimePicker, editTimeEmoji(draft.time)),
+      buildEditPickerField('Type', 'edit-type-label', editCatLabel(draft.cat), openEditTypePicker, editCatEmoji(draft.cat)),
       el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-activity-url' }, 'More info URL'),
         el('input', {
