@@ -1308,6 +1308,14 @@
               },
                 el('div', {
                   style: {
+                    fontSize: '24px',
+                    fontWeight: '600',
+                    color: 'var(--fg)',
+                    marginBottom: '16px'
+                  }
+                }, 'API Token Required'),
+                el('div', {
+                  style: {
                     fontSize: '15px',
                     color: 'var(--fg)',
                     marginBottom: '20px',
@@ -3866,6 +3874,14 @@
           },
             el('div', {
               style: {
+                fontSize: '24px',
+                fontWeight: '600',
+                color: 'var(--fg)',
+                marginBottom: '16px'
+              }
+            }, 'API Token Required'),
+            el('div', {
+              style: {
                 fontSize: '15px',
                 color: 'var(--fg)',
                 marginBottom: '20px',
@@ -4218,6 +4234,14 @@
           width: '100%'
         }
       },
+        el('div', {
+          style: {
+            fontSize: '24px',
+            fontWeight: '600',
+            color: 'var(--fg)',
+            marginBottom: '16px'
+          }
+        }, 'API Token Required'),
         el('div', {
           style: {
             fontSize: '15px',
