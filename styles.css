@@ -632,6 +632,19 @@ input { font: inherit; color: inherit; }
   color: var(--fg);
   border: 1px solid var(--border);
 }
+
+.add-activity-container .oc-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border: 0;
+}
 .offline-card .oc-left {
   display: flex;
   align-items: flex-start;
@@ -791,6 +804,15 @@ input { font: inherit; color: inherit; }
   font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
   color: var(--fg);
   font-weight: 600;
+}
+.lt-title .add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 .lt-title .todo-sub { font-size: 13px; color: var(--fg-mute); letter-spacing: 0.01em; }
 

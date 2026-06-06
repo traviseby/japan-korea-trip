@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.19';
+  const APP_VERSION = '2.20';
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
   function getAppMode() {
@@ -2612,31 +2612,17 @@
 
   // ─── Add Activity Sheet ───────────────────────────────────────────────────
   function buildAddActivityButton(){
+    const icon = el('span', { class: 'tab-icon' });
+    icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
     return el('button', {
       type: 'button',
       class: 'add-btn add-activity-trigger',
-      style: {
-        padding: '6px',
-        fontSize: '24px',
-        fontWeight: '300',
-        color: 'var(--accent)',
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '36px',
-        height: '36px',
-        position: 'relative',
-        zIndex: '1'
-      },
       onclick: (e) => {
         e.preventDefault();
         e.stopPropagation();
         showAddActivitySheet();
       }
-    }, '+');
+    }, icon);
   }
 
   function ensureAddActivitySheetDom(){
@@ -2704,7 +2690,7 @@
             width: '100%',
             padding: '12px 16px',
             fontSize: '15px',
-            border: '1px solid var(--border)',
+            border: '1px solid white',
             borderRadius: 'var(--r)',
             background: 'var(--surface)',
             color: 'var(--fg)',
@@ -2713,18 +2699,7 @@
         }),
         el('button', {
           id: 'parse-url-btn',
-          class: 'primary-btn',
-          style: {
-            width: '100%',
-            padding: '14px',
-            fontSize: '15px',
-            fontWeight: '600',
-            background: 'var(--accent)',
-            color: 'var(--bg)',
-            border: 'none',
-            borderRadius: 'var(--r)',
-            cursor: 'pointer'
-          },
+          class: 'oc-btn',
           onclick: handleParseUrl
         }, 'Parse URL')
       ),
