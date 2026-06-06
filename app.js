@@ -1331,11 +1331,16 @@
                     lineHeight: '1.8'
                   }
                 },
-                  el('li', { style: { marginBottom: '12px' } }, 'Go to ', el('a', {
-                    href: 'https://coda.io/account',
-                    target: '_blank',
-                    style: { color: 'var(--primary)', textDecoration: 'underline' }
-                  }, 'coda.io/account')),
+                  el('li', { style: { marginBottom: '12px' } }, 'Go to ', (() => {
+                    const link = el('a', {
+                      href: 'https://coda.io/account',
+                      target: '_blank',
+                      style: { color: '#8e44ad', textDecoration: 'none' }
+                    }, 'coda.io/account');
+                    link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
+                    link.onmouseleave = () => { link.style.textDecoration = 'none'; };
+                    return link;
+                  })()),
                   el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
                   el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
                   el('li', { style: { marginBottom: '12px' } },
@@ -3920,11 +3925,16 @@
                 lineHeight: '1.8'
               }
             },
-              el('li', { style: { marginBottom: '12px' } }, 'Go to ', el('a', {
-                href: 'https://coda.io/account',
-                target: '_blank',
-                style: { color: 'var(--primary)', textDecoration: 'underline' }
-              }, 'coda.io/account')),
+              el('li', { style: { marginBottom: '12px' } }, 'Go to ', (() => {
+                const link = el('a', {
+                  href: 'https://coda.io/account',
+                  target: '_blank',
+                  style: { color: '#8e44ad', textDecoration: 'none' }
+                }, 'coda.io/account');
+                link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
+                link.onmouseleave = () => { link.style.textDecoration = 'none'; };
+                return link;
+              })()),
               el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
               el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
               el('li', { style: { marginBottom: '12px' } },
@@ -4305,11 +4315,16 @@
             lineHeight: '1.8'
           }
         },
-          el('li', { style: { marginBottom: '12px' } }, 'Go to ', el('a', {
-            href: 'https://coda.io/account',
-            target: '_blank',
-            style: { color: 'var(--primary)', textDecoration: 'underline' }
-          }, 'coda.io/account')),
+          el('li', { style: { marginBottom: '12px' } }, 'Go to ', (() => {
+            const link = el('a', {
+              href: 'https://coda.io/account',
+              target: '_blank',
+              style: { color: '#8e44ad', textDecoration: 'none' }
+            }, 'coda.io/account');
+            link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
+            link.onmouseleave = () => { link.style.textDecoration = 'none'; };
+            return link;
+          })()),
           el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
           el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
           el('li', { style: { marginBottom: '12px' } },
