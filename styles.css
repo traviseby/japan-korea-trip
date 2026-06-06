@@ -1042,8 +1042,8 @@ input, textarea { font: inherit; color: inherit; }
 .segmented {
   position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
   display: flex;
-  flex-wrap: wrap;
-  max-width: calc(100% - 40px);
+  flex-wrap: nowrap;
+  max-width: calc(100% - 16px);
   background: rgba(13,13,13,.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -1061,13 +1061,12 @@ input, textarea { font: inherit; color: inherit; }
   color: var(--fg-mid);
   display: inline-flex; align-items: center; gap: 6px;
   white-space: nowrap;
-  flex-shrink: 1;
-  min-width: 0;
+  flex-shrink: 0;
 }
-/* Smaller buttons when 3+ options */
+/* Compact buttons when 3+ options */
 .segmented button:first-child:nth-last-child(n+3),
 .segmented button:first-child:nth-last-child(n+3) ~ button {
-  padding: 6px 12px;
+  padding: 6px 11px;
   font-size: 12px;
   gap: 4px;
 }
@@ -1379,7 +1378,7 @@ input, textarea { font: inherit; color: inherit; }
   display: inline-flex; align-items: center; gap: 5px;
 }
 .sheet .sheet-desc { font-size: 14.5px; line-height: 1.6; color: var(--fg-mid); margin-bottom: 22px; }
-.sheet .sheet-actions { display: grid; gap: 8px; padding: 0 var(--pad) 0; grid-template-columns: 1fr 1fr; }
+.sheet .sheet-actions { display: grid; gap: 8px; padding: 0 var(--pad) calc(var(--sab) + 20px); grid-template-columns: 1fr 1fr; }
 .sheet .sheet-actions.single { grid-template-columns: 1fr; }
 .sheet .btn {
   padding: 14px;

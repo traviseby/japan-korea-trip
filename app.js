@@ -445,6 +445,8 @@
   }
 
   const TRIP_DATA_CACHE_PREFIX = 'jk26.tripData.v2.';
+
+  function getTrips(){
     const stored = localStorage.getItem('jk26.trips');
     if (stored) {
       try {
