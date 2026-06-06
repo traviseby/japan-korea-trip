@@ -1901,8 +1901,7 @@
       rightSlot = el('button', { class: 'reset', onclick: resetFilters }, 'Reset');
     } else {
       rightSlot = el('button', { 
-        class: 'add-btn',
-        onclick: () => showAddActivitySheet(),
+        class: 'add-btn add-activity-trigger',
         style: {
           padding: '6px',
           fontSize: '24px',
@@ -2096,8 +2095,7 @@
         rightSlot = el('button', { class: 'reset', onclick: resetFilters }, 'Reset');
       } else {
         rightSlot = el('button', { 
-          class: 'add-btn',
-          onclick: () => showAddActivitySheet(),
+          class: 'add-btn add-activity-trigger',
           style: {
             padding: '6px',
             fontSize: '24px',
@@ -3610,6 +3608,12 @@
     $$('.tabbar button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
     // Update tab bar based on app mode
     updateTabBarForMode();
+    // Add activity button (event delegation since button is dynamically created)
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.add-activity-trigger')) {
+        showAddActivitySheet();
+      }
+    });
     // Note: segmented control (map regions) is now dynamically generated in buildRegionSelector()
     // Locate-me buttons (Map tab + fullscreen day map)
     const locateBtn = $('#locate-me');
