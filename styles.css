@@ -498,15 +498,40 @@ input, textarea { font: inherit; color: inherit; }
   font-size: 24px; font-weight: 400; margin: 0;
   letter-spacing: 0.01em;
 }
-.settings-header .close {
-  width: 32px; height: 32px;
+.settings-header .close,
+.sheet .close {
+  position: absolute;
+  top: 16px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--surface);
+  background: rgba(13,13,13,0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg);
+  z-index: 800;
   border: 1px solid var(--border);
-  color: var(--fg-mid);
-  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
   cursor: pointer;
-  font-size: 14px;
+}
+.sheet-form-header {
+  position: relative;
+  padding: 20px 56px 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sheet-form-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--fg);
 }
 .settings-body {
   flex: 1;
@@ -1360,21 +1385,6 @@ input, textarea { font: inherit; color: inherit; }
   background: var(--fg); color: var(--bg);
 }
 .sheet .btn.secondary { background: var(--surface-2); color: var(--fg); border: 1px solid var(--border); }
-.sheet .close {
-  position: absolute; top: 16px; right: 14px;
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  background: rgba(13,13,13,0.78);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--fg);
-  z-index: 800;
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-  font-size: 13px;
-  cursor: pointer;
-}
 
 /* Tray (filter picker) — extends .sheet */
 .sheet.tray .tray-title {

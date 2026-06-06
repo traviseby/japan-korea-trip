@@ -2750,6 +2750,14 @@
     return btn;
   }
 
+  function buildSheetCloseButton(onclick, ariaLabel = 'Close'){
+    return el('button', {
+      class: 'close',
+      'aria-label': ariaLabel,
+      onclick
+    }, '\u2715');
+  }
+
   function ensureAddActivitySheetDom(){
     const root = $('#app') || $('.phone-fullscreen') || document.body;
     let backdrop = $('#add-activity-backdrop');
@@ -2770,35 +2778,9 @@
     const root = sheet;
     root.innerHTML = '';
 
-    root.appendChild(el('div', { 
-      class: 'sheet-header',
-      style: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '20px 20px 12px',
-        borderBottom: '1px solid var(--border)'
-      }
-    },
-      el('h2', { style: { fontSize: '20px', fontWeight: '600', margin: '0', color: 'var(--fg)' } }, 'Add Activity'),
-      el('button', {
-        class: 'close-btn',
-        onclick: hideAddActivitySheet,
-        style: {
-          fontSize: '24px',
-          fontWeight: '300',
-          color: 'var(--fg-mid)',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '0',
-          width: '32px',
-          height: '32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }
-      }, '✕')
+    root.appendChild(buildSheetCloseButton(hideAddActivitySheet));
+    root.appendChild(el('div', { class: 'sheet-form-header' },
+      el('h2', { class: 'sheet-form-title' }, 'Add Activity')
     ));
 
     root.appendChild(el('div', { class: 'add-activity-container', style: { padding: '20px', paddingTop: '16px' } },
@@ -3312,36 +3294,9 @@
     const draft = editActivityDraft;
     sheet.innerHTML = '';
 
-    sheet.appendChild(el('div', {
-      class: 'sheet-header',
-      style: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '20px 20px 12px',
-        borderBottom: '1px solid var(--border)',
-        flexShrink: '0'
-      }
-    },
-      el('h2', { style: { fontSize: '20px', fontWeight: '600', margin: '0', color: 'var(--fg)' } }, 'Edit Activity'),
-      el('button', {
-        class: 'close-btn',
-        onclick: hideEditActivitySheet,
-        style: {
-          fontSize: '24px',
-          fontWeight: '300',
-          color: 'var(--fg-mid)',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '0',
-          width: '32px',
-          height: '32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }
-      }, '\u2715')
+    sheet.appendChild(buildSheetCloseButton(hideEditActivitySheet));
+    sheet.appendChild(el('div', { class: 'sheet-form-header' },
+      el('h2', { class: 'sheet-form-title' }, 'Edit Activity')
     ));
 
     const form = el('div', { class: 'edit-activity-container' },
