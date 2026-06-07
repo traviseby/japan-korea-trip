@@ -4016,18 +4016,14 @@
     function canGoNext(){ return state.todayDay < (D.days?.length || 1); }
 
     const SWIPE_LOCK_PX = 10;
-    const SWIPE_ARM_PX = 36;
-    const SWIPE_ARM_MAX_DRAG = 12;
+    const SWIPE_ARM_PX = 40;
 
-    // Pull-to-refresh style: little movement at first, then catch and follow the finger.
+    // Dead zone, then 1:1 catch-up with the finger (like pull-to-refresh).
     function swipeDragOffset(rawDx){
       const sign = rawDx < 0 ? -1 : rawDx > 0 ? 1 : 0;
       const abs = Math.abs(rawDx);
-      if (abs <= SWIPE_ARM_PX) {
-        const t = abs / SWIPE_ARM_PX;
-        return sign * SWIPE_ARM_MAX_DRAG * (1 - Math.pow(1 - t, 2));
-      }
-      return sign * (SWIPE_ARM_MAX_DRAG + (abs - SWIPE_ARM_PX));
+      if (abs <= SWIPE_ARM_PX) return 0;
+      return sign * (abs - SWIPE_ARM_PX);
     }
 
     function visualSwipeX(rawDx){
@@ -4102,8 +4098,6 @@
             dragging = true;
             scroll.classList.add('is-swiping');
           }
-        }
-        if (Math.abs(dx) > SWIPE_LOCK_PX) {
           setDragTransform(currentX, false);
           e.preventDefault();
         }
@@ -4115,9 +4109,9 @@
       const t = e.changedTouches[0];
       const dx = t.clientX - startX;
       const w = scroll.offsetWidth || document.documentElement.clientWidth;
-      const threshold = Math.min(80, w * 0.22);
+      const threshold = Math.min(80, w * 0.22) + SWIPE_ARM_PX;
 
-      if (locked === 'x' && (dragging || Math.abs(dx) > SWIPE_LOCK_PX)) {
+      if (locked === 'x' && dragging) {
         if (dx <= -threshold && canGoNext()) finishSwipe('next');
         else if (dx >= threshold && canGoPrev()) finishSwipe('prev');
         else resetDrag(true);
