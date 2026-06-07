@@ -3483,6 +3483,13 @@
       const rowId = payload.rowId;
       const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
       localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+
+      hideAddActivitySheet();
+      openEditActivitySheet(
+        resolveAddedActivity({ rowId, name, url, parsed }),
+        'Activity Added'
+      );
+
       const savedTab = state.tab;
       try {
         await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
@@ -3490,11 +3497,6 @@
       } catch (reloadErr) {
         console.warn('Added to Coda but failed to refresh trip data:', reloadErr);
       }
-
-      hideAddActivitySheet();
-      const added = findAddedActivity({ rowId, name, url, lat: parsed.lat, lng: parsed.lng });
-      if (added) openEditActivitySheet(added, 'Activity Added');
-      else toast('Activity added');
 
     } catch (err) {
       console.error('Error adding activity:', err);
@@ -3521,15 +3523,45 @@
     };
   }
 
-  function findAddedActivity({ rowId, name, url, lat, lng }){
-    if (rowId && D.byId[rowId]) return D.byId[rowId];
-    const unscheduled = (D.activities || []).filter(a => isUnscheduledDay(a.day));
-    return unscheduled.find(a =>
-      a.name === name &&
-      (!url || a.url === url) &&
-      (lat == null || a.lat === lat) &&
-      (lng == null || a.lng === lng)
-    ) || unscheduled.find(a => a.name === name);
+  function coordsRoughlyEqual(a, b) {
+    if (a == null || b == null) return true;
+    return Math.abs(Number(a) - Number(b)) < 1e-4;
+  }
+
+  function findAddedActivity({ rowId, name, url, lat, lng }) {
+    if (rowId) {
+      const byId = D.byId?.[rowId] || (D.activities || []).find(a => a.id === rowId);
+      if (byId) return byId;
+    }
+
+    const candidates = (D.activities || []).filter(a => a.name === name);
+    const match = candidates.find(a =>
+      (!url || a.url === url || !a.url) &&
+      coordsRoughlyEqual(a.lat, lat) &&
+      coordsRoughlyEqual(a.lng, lng)
+    ) || candidates.find(a => isUnscheduledDay(a.day))
+      || candidates[0];
+
+    return match || null;
+  }
+
+  function buildAddedActivityFromParsed({ rowId, name, url, parsed }) {
+    return {
+      id: rowId || null,
+      day: UNSCHEDULED_DAY,
+      time: '',
+      cat: parsed.category || '',
+      name,
+      desc: '',
+      url,
+      lat: parsed.lat ?? null,
+      lng: parsed.lng ?? null
+    };
+  }
+
+  function resolveAddedActivity({ rowId, name, url, parsed }) {
+    return findAddedActivity({ rowId, name, url, lat: parsed.lat, lng: parsed.lng })
+      || buildAddedActivityFromParsed({ rowId, name, url, parsed });
   }
 
   function editTimeLabel(time){ return time || 'None'; }
