@@ -188,11 +188,24 @@
   }
 
   // ─── Filtered dataset (for Map + Activities) ──────────────────────────────
-  function filteredActivities(){
+  function filteredActivities(options = {}){
+    const forMap = options.forMap === true;
     const q = filterState.search.trim().toLowerCase();
+    const allTimes = !filterState.timeOfDay.length;
     return D.activities.filter(a => {
-      if (filterState.day.length && !filterState.day.includes(a.day)) return false;
-      if (filterState.timeOfDay.length && !filterState.timeOfDay.includes(a.time)) return false;
+      const unscheduled = isUnscheduledDay(a.day);
+
+      if (filterState.day.length && !filterState.day.includes(a.day)) {
+        // Unscheduled ideas aren't tied to an itinerary day — still show them
+        // on the map whenever the time filter is "All Times".
+        if (!(forMap && unscheduled && allTimes)) return false;
+      }
+
+      if (filterState.timeOfDay.length) {
+        if (unscheduled) return false;
+        if (!filterState.timeOfDay.includes(a.time)) return false;
+      }
+
       if (filterState.category.length && !filterState.category.includes(a.cat)) return false;
       if (q && !((a.name + ' ' + (a.desc||'')).toLowerCase().includes(q))) return false;
       return true;
@@ -1049,6 +1062,26 @@
     }
   }
 
+  function usesTripSwipeDelete(){
+    return window.matchMedia('(hover: none), (pointer: coarse)').matches;
+  }
+
+  function setTripSwipeContainerState(container, { open = false, revealing = false } = {}){
+    if (!container) return;
+    container.classList.toggle('is-swipe-open', open);
+    container.classList.toggle('is-revealing', revealing);
+  }
+
+  function closeOpenTripSwipes(exceptRow){
+    $$('.trip-swipe-container .trip-select-item').forEach(row => {
+      if (row === exceptRow) return;
+      row.style.transition = 'transform 0.2s ease-out';
+      row.style.transform = 'translateX(0)';
+      delete row.dataset.swipeOpen;
+      setTripSwipeContainerState(row.closest('.trip-swipe-container'));
+    });
+  }
+
   function buildTripsCard(){
     const trips = getTrips();
     const activeTrip = getActiveTrip();
@@ -1067,63 +1100,11 @@
       const showBorders = trips.length > 1;
       
       trips.forEach(trip => {
-        // Container for swipe-to-delete
-        const container = el('div', { 
-          class: 'trip-swipe-container',
-          style: { 
-            position: 'relative', 
-            overflow: 'hidden',
-            borderRadius: '8px'
-          } 
-        });
-        
-        // Check if device supports touch
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        
-        // Delete button (revealed on swipe for touch, or on hover for desktop)
-        const deleteBtn = el('div', {
+        const container = el('div', { class: 'trip-swipe-container' });
+
+        const deleteBtn = el('button', {
+          type: 'button',
           class: 'trip-delete-action',
-          style: {
-            position: 'absolute',
-            right: '0',
-            top: '0',
-            bottom: '0',
-            width: '80px',
-            background: '#ff3b30',
-            display: isTouchDevice ? 'flex' : 'none', // Hide on desktop by default
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: '600',
-            fontSize: '14px',
-            cursor: 'pointer',
-            zIndex: '0'
-          },
-          onclick: async () => {
-            if (confirm(`Remove "${trip.name}"?`)) {
-              await removeTrip(trip.url);
-              toast(`Removed ${trip.name}`);
-            }
-          }
-        }, 'Delete');
-        
-        // Desktop delete button (hidden on touch devices)
-        const desktopDeleteBtn = !isTouchDevice ? el('button', {
-          class: 'trip-desktop-delete',
-          style: {
-            marginLeft: '12px',
-            padding: '6px 10px',
-            fontSize: '22px',
-            background: 'transparent',
-            border: 'none',
-            borderRadius: '4px',
-            color: 'var(--fg-mid)',
-            cursor: 'pointer',
-            lineHeight: '1',
-            transition: 'all 0.15s',
-            opacity: '0',
-            pointerEvents: 'none'
-          },
           onclick: async (e) => {
             e.stopPropagation();
             if (confirm(`Remove "${trip.name}"?`)) {
@@ -1131,35 +1112,34 @@
               toast(`Removed ${trip.name}`);
             }
           }
-        }, '×') : null;
-        
-        // Trip row (swipeable on touch, hoverable on desktop)
-        const tripRow = el('div', { 
-          class: 'trip-select-item' + (trip.active ? ' selected' : ''),
-          'data-trip-url': trip.url,
-          style: { 
-            display: 'flex', 
-            alignItems: 'center', 
-            padding: '12px',
-            background: trip.active ? 'rgba(255,255,255,0.05)' : 'var(--bg)',
-            border: showBorders ? `2px solid ${trip.active ? 'white' : 'var(--border)'}` : '2px solid transparent',
-            borderRadius: '8px',
-            cursor: trips.length > 1 ? 'pointer' : 'default',
-            transition: 'transform 0.2s ease-out, background 0.2s',
-            position: 'relative',
-            touchAction: 'pan-y',
-            zIndex: '1',
-            boxSizing: 'border-box',
-            transform: 'translateX(0)' // Ensure starting position
+        }, 'Delete');
+
+        const desktopDeleteBtn = el('button', {
+          type: 'button',
+          class: 'trip-desktop-delete',
+          'aria-label': `Remove ${trip.name}`,
+          onclick: async (e) => {
+            e.stopPropagation();
+            if (confirm(`Remove "${trip.name}"?`)) {
+              await removeTrip(trip.url);
+              toast(`Removed ${trip.name}`);
+            }
           }
+        }, '×');
+
+        const tripRow = el('div', {
+          class: 'trip-select-item' +
+            (trip.active ? ' selected' : '') +
+            (showBorders ? ' has-border' : ''),
+          'data-trip-url': trip.url
         },
-          el('div', { 
-            style: { 
-              fontSize: '24px', 
+          el('div', {
+            style: {
+              fontSize: '24px',
               marginRight: '12px',
               flexShrink: '0',
               lineHeight: '1'
-            } 
+            }
           }, trip.icon || '✈️'),
           el('div', { style: { flex: '1', minWidth: 0 } },
             el('div', { style: { fontWeight: '500', fontSize: '15px', color: 'var(--fg)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, trip.name),
@@ -1167,101 +1147,89 @@
           ),
           desktopDeleteBtn
         );
-        
-        // Add hover effect for desktop delete button
-        if (!isTouchDevice && desktopDeleteBtn) {
-          tripRow.addEventListener('mouseenter', () => {
-            desktopDeleteBtn.style.opacity = '1';
-            desktopDeleteBtn.style.pointerEvents = 'auto';
+
+        if (usesTripSwipeDelete()) {
+          let touchStartX = 0;
+          let touchStartY = 0;
+          let currentX = 0;
+          let isDragging = false;
+          let isVerticalScroll = false;
+
+          tripRow.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isDragging = false;
+            isVerticalScroll = false;
+            tripRow.style.transition = 'none';
+          }, { passive: true });
+
+          tripRow.addEventListener('touchmove', (e) => {
+            if (isVerticalScroll) return;
+
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const deltaX = touchX - touchStartX;
+            const deltaY = touchY - touchStartY;
+
+            if (!isDragging && Math.abs(deltaY) > Math.abs(deltaX)) {
+              isVerticalScroll = true;
+              return;
+            }
+
+            if (deltaX < 0) {
+              isDragging = true;
+              closeOpenTripSwipes(tripRow);
+              setTripSwipeContainerState(container, { revealing: true, open: !!tripRow.dataset.swipeOpen });
+              currentX = Math.max(deltaX, -80);
+              tripRow.style.transform = `translateX(${currentX}px)`;
+              e.preventDefault();
+            } else if (tripRow.dataset.swipeOpen && deltaX > 0) {
+              isDragging = true;
+              setTripSwipeContainerState(container, { revealing: true, open: true });
+              currentX = Math.min(0, -80 + deltaX);
+              tripRow.style.transform = `translateX(${currentX}px)`;
+              e.preventDefault();
+            }
+          }, { passive: false });
+
+          tripRow.addEventListener('touchend', async () => {
+            tripRow.style.transition = 'transform 0.2s ease-out';
+
+            if (!isDragging) {
+              if (tripRow.dataset.swipeOpen) {
+                delete tripRow.dataset.swipeOpen;
+                tripRow.style.transform = 'translateX(0)';
+                setTripSwipeContainerState(container);
+                return;
+              }
+              if (!trip.active && trips.length > 1) {
+                await setActiveTrip(trip.url);
+              }
+              return;
+            }
+
+            if (currentX < -40) {
+              tripRow.style.transform = 'translateX(-80px)';
+              tripRow.dataset.swipeOpen = '1';
+              currentX = -80;
+              setTripSwipeContainerState(container, { open: true });
+            } else {
+              tripRow.style.transform = 'translateX(0)';
+              delete tripRow.dataset.swipeOpen;
+              currentX = 0;
+              setTripSwipeContainerState(container);
+            }
+
+            isDragging = false;
           });
-          tripRow.addEventListener('mouseleave', () => {
-            desktopDeleteBtn.style.opacity = '0';
-            desktopDeleteBtn.style.pointerEvents = 'none';
-          });
-        }
-        
-        // Desktop click handler to switch trips
-        if (!isTouchDevice) {
+        } else {
           tripRow.addEventListener('click', async () => {
             if (!trip.active && trips.length > 1) {
               await setActiveTrip(trip.url);
             }
           });
         }
-        
-        // Swipe gesture handling (only for touch devices)
-        if (isTouchDevice) {
-          let touchStartX = 0;
-          let touchStartY = 0;
-          let currentX = 0;
-          let isDragging = false;
-          let isVerticalScroll = false;
-          
-          tripRow.addEventListener('touchstart', (e) => {
-          touchStartX = e.touches[0].clientX;
-          touchStartY = e.touches[0].clientY;
-          isDragging = false;
-          isVerticalScroll = false;
-          tripRow.style.transition = 'none';
-        }, { passive: true });
-        
-        tripRow.addEventListener('touchmove', (e) => {
-          if (isVerticalScroll) return;
-          
-          const touchX = e.touches[0].clientX;
-          const touchY = e.touches[0].clientY;
-          const deltaX = touchX - touchStartX;
-          const deltaY = touchY - touchStartY;
-          
-          // Determine if this is a vertical scroll (let it pass through)
-          if (!isDragging && Math.abs(deltaY) > Math.abs(deltaX)) {
-            isVerticalScroll = true;
-            return;
-          }
-          
-          // Only allow left swipe
-          if (deltaX < 0) {
-            isDragging = true;
-            currentX = Math.max(deltaX, -80); // Max swipe of 80px (delete button width)
-            tripRow.style.transform = `translateX(${currentX}px)`;
-            e.preventDefault();
-          }
-        });
-        
-        tripRow.addEventListener('touchend', async () => {
-          if (!isDragging) {
-            // Treat as a click
-            if (!trip.active && trips.length > 1) {
-              await setActiveTrip(trip.url);
-            }
-            return;
-          }
-          
-          tripRow.style.transition = 'transform 0.2s ease-out';
-          
-          // If swiped more than halfway, keep it open
-          if (currentX < -40) {
-            tripRow.style.transform = 'translateX(-80px)';
-          } else {
-            // Snap back
-            tripRow.style.transform = 'translateX(0)';
-          }
-          
-            isDragging = false;
-          });
-          
-          // Close swipe on tap outside
-          tripRow.addEventListener('click', (e) => {
-            if (currentX < -40) {
-              e.preventDefault();
-              e.stopPropagation();
-              tripRow.style.transition = 'transform 0.2s ease-out';
-              tripRow.style.transform = 'translateX(0)';
-              currentX = 0;
-            }
-          });
-        }
-        
+
         container.appendChild(deleteBtn);
         container.appendChild(tripRow);
         tripsList.appendChild(container);
@@ -1947,29 +1915,50 @@
     return wrap;
   }
 
-  function navTo(n){
+  function scrollActiveDayPill(){
+    const active = $('#tab-today .day-pill.active');
+    if (active) active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+
+  function navTo(n, opts = {}){
     if (n < 1 || n > D.days.length) return;
     const old = state.todayDay;
+    const forward = n > old;
     state.todayDay = n;
-    // simple slide transition
+
+    if (opts.fromSwipe) {
+      renderToday();
+      const r2 = $('#tab-today .scroll');
+      const w = r2.offsetWidth || document.documentElement.clientWidth;
+      r2.style.transition = 'none';
+      r2.style.transform = `translateX(${forward ? w : -w}px)`;
+      r2.style.opacity = '1';
+      requestAnimationFrame(() => {
+        r2.style.transition = 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.32s ease';
+        r2.style.transform = 'translateX(0)';
+        r2.style.opacity = '1';
+        setTimeout(() => { r2.style.transition = ''; }, 340);
+      });
+      scrollActiveDayPill();
+      return;
+    }
+
     const root = $('#tab-today .scroll');
     root.style.transition = 'transform .22s ease, opacity .22s ease';
-    root.style.transform = `translateX(${n > old ? -20 : 20}px)`;
+    root.style.transform = `translateX(${forward ? -20 : 20}px)`;
     root.style.opacity = '0';
     setTimeout(() => {
       renderToday();
       const r2 = $('#tab-today .scroll');
       r2.style.transition = 'none';
-      r2.style.transform = `translateX(${n > old ? 20 : -20}px)`;
+      r2.style.transform = `translateX(${forward ? 20 : -20}px)`;
       r2.style.opacity = '0';
       requestAnimationFrame(() => {
         r2.style.transition = 'transform .25s ease, opacity .25s ease';
         r2.style.transform = 'translateX(0)';
         r2.style.opacity = '1';
       });
-      // scroll active pill into view
-      const active = $('#tab-today .day-pill.active');
-      if (active) active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      scrollActiveDayPill();
     }, 180);
   }
 
@@ -2071,6 +2060,32 @@
     if (lng > -10 && lng < 3 && lat > 49 && lat < 61) return 'GB';
     if (lng > -5 && lng < 10 && lat > 41 && lat < 52) return 'FR';
     return null;
+  }
+
+  function normalizeCoord(val){
+    if (val == null || val === '') return null;
+    const n = Number(val);
+    return isNaN(n) ? null : n;
+  }
+
+  function hasMapCoordinates(a){
+    return normalizeCoord(a.lat) != null && normalizeCoord(a.lng) != null;
+  }
+
+  function activityInMapRegion(a, region){
+    if (!region) return true;
+    if (isFlightOrTransit(a)) return false;
+
+    const lat = normalizeCoord(a.lat);
+    const lng = normalizeCoord(a.lng);
+    if (lat == null || lng == null) return false;
+
+    if (!isUnscheduledDay(a.day)) {
+      const day = D.byDay[a.day];
+      if (day && (day.country || '').trim() === region) return true;
+    }
+
+    return countryFromCoords(lat, lng) === region;
   }
 
   function getDestinationCountries(){
@@ -2205,46 +2220,8 @@
     
     console.log('🗺️ buildFullMap rendering with region:', region);
     
-    const fa = filteredActivities();
-    
-    // Filter activities by region (if a region is selected) and ensure valid coordinates
-    let inRegion = region ? fa.filter(a => {
-      const day = D.byDay[a.day];
-      
-      console.log(`🗺️ Checking activity "${a.name}": day=${a.day}, lat=${a.lat}, lng=${a.lng}, day.country=${day?.country}`);
-      
-      // First try to match by country code
-      if (day && day.country === region) {
-        console.log(`  ✅ Matched by country code`);
-        return true;
-      }
-      
-      // Fallback: use geographic bounds if country field missing/undefined/empty (for older data)
-      if (!day || !day.country) {
-        // Check activity coordinates against region bounds
-        if (region === 'JP' && a.lat && a.lng) {
-          const inBounds = a.lng > 128 && a.lng < 150 && a.lat > 24 && a.lat < 46;
-          console.log(`  JP bounds check: lng=${a.lng} (128-150?), lat=${a.lat} (24-46?) = ${inBounds}`);
-          return inBounds;
-        }
-        if (region === 'KR' && a.lat && a.lng) {
-          const inBounds = a.lng > 124 && a.lng < 132 && a.lat > 33 && a.lat < 39;
-          console.log(`  KR bounds check: lng=${a.lng} (124-132?), lat=${a.lat} (33-39?) = ${inBounds}`);
-          return inBounds;
-        }
-        if (region === 'US' && a.lat && a.lng) {
-          const inBounds = a.lng > -125 && a.lng < -66 && a.lat > 24 && a.lat < 50;
-          console.log(`  US bounds check: lng=${a.lng} (-125 to -66?), lat=${a.lat} (24-50?) = ${inBounds}`);
-          return inBounds;
-        }
-      }
-      
-      console.log(`  ❌ No match`);
-      return false;
-    }) : fa;
-    
-    // Filter out activities without valid coordinates
-    inRegion = inRegion.filter(a => a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng));
+    const fa = filteredActivities({ forMap: true });
+    let inRegion = region ? fa.filter(a => activityInMapRegion(a, region)) : fa.filter(hasMapCoordinates);
     
     console.log(`🗺️ Showing ${inRegion.length} activities on map for region:`, region);
 
@@ -2254,9 +2231,12 @@
     // If user is near activities, center on them
     if (state.location && inRegion.length > 0) {
       const nearbyActivities = inRegion.filter(a => {
+        const lat = normalizeCoord(a.lat);
+        const lng = normalizeCoord(a.lng);
+        if (lat == null || lng == null) return false;
         const dist = Math.sqrt(
-          Math.pow(a.lat - state.location.lat, 2) + 
-          Math.pow(a.lng - state.location.lng, 2)
+          Math.pow(lat - state.location.lat, 2) +
+          Math.pow(lng - state.location.lng, 2)
         );
         return dist < 1; // Within ~1 degree (~100km)
       });
@@ -2269,8 +2249,8 @@
     
     // Otherwise, calculate center from activities
     if (!defaultCenter && inRegion.length > 0) {
-      const lats = inRegion.map(a => a.lat);
-      const lngs = inRegion.map(a => a.lng);
+      const lats = inRegion.map(a => normalizeCoord(a.lat));
+      const lngs = inRegion.map(a => normalizeCoord(a.lng));
       const avgLat = lats.reduce((sum, lat) => sum + lat, 0) / lats.length;
       const avgLng = lngs.reduce((sum, lng) => sum + lng, 0) / lngs.length;
       defaultCenter = [avgLat, avgLng];
@@ -2316,13 +2296,13 @@
       fullMapMarkers = [];
 
       inRegion.forEach(a => {
-        // Double-check coordinates are valid before adding marker
-        if (a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng)) {
-          const color = dayAccent(a.day);
-          const m = L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, color) }).addTo(leafletFull);
-          m.on('click', () => openSheet(a));
-          fullMapMarkers.push(m);
-        }
+        const lat = normalizeCoord(a.lat);
+        const lng = normalizeCoord(a.lng);
+        if (lat == null || lng == null) return;
+        const color = dayAccent(a.day);
+        const m = L.marker([lat, lng], { icon: pinIcon(a.cat, color) }).addTo(leafletFull);
+        m.on('click', () => openSheet(a));
+        fullMapMarkers.push(m);
       });
       if (state.location){
         const lm = L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletFull);
@@ -3687,32 +3667,112 @@
     const scroll = $('#tab-today .scroll');
     if (!scroll || scroll.__swipeBound) return;
     scroll.__swipeBound = true;
-    let startX = null, startY = null, locked = null;
+
+    let startX = null;
+    let startY = null;
+    let locked = null;
+    let dragging = false;
+    let currentX = 0;
+
+    function canGoPrev(){ return state.todayDay > 1; }
+    function canGoNext(){ return state.todayDay < (D.days?.length || 1); }
+
+    function rubberBand(dx){
+      if (dx > 0 && !canGoPrev()) return dx * 0.22;
+      if (dx < 0 && !canGoNext()) return dx * 0.22;
+      return dx;
+    }
+
+    function setDragTransform(x, animate){
+      const w = scroll.offsetWidth || document.documentElement.clientWidth;
+      scroll.style.transition = animate
+        ? 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease'
+        : 'none';
+      scroll.style.transform = `translateX(${x}px)`;
+      scroll.style.opacity = String(1 - Math.min(Math.abs(x) / (w * 0.55), 1) * 0.18);
+    }
+
+    function resetDrag(animate){
+      scroll.classList.remove('is-swiping');
+      if (animate) setDragTransform(0, true);
+      else {
+        scroll.style.transition = 'none';
+        scroll.style.transform = 'translateX(0)';
+        scroll.style.opacity = '1';
+      }
+      if (animate) {
+        setTimeout(() => {
+          scroll.style.transition = '';
+          scroll.style.opacity = '';
+        }, 360);
+      } else {
+        scroll.style.opacity = '';
+      }
+      dragging = false;
+      currentX = 0;
+    }
+
+    function finishSwipe(direction){
+      const w = scroll.offsetWidth || document.documentElement.clientWidth;
+      const target = direction === 'next' ? state.todayDay + 1 : state.todayDay - 1;
+      setDragTransform(direction === 'next' ? -w : w, true);
+      scroll.style.opacity = '0';
+      scroll.classList.remove('is-swiping');
+      dragging = false;
+      setTimeout(() => navTo(target, { fromSwipe: true }), 220);
+    }
+
     scroll.addEventListener('touchstart', e => {
       if (e.touches.length !== 1) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       locked = null;
+      dragging = false;
+      currentX = 0;
+      scroll.style.transition = 'none';
     }, { passive: true });
+
     scroll.addEventListener('touchmove', e => {
       if (startX == null) return;
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
-      if (locked == null && Math.abs(dx) + Math.abs(dy) > 8){
+
+      if (locked == null && Math.abs(dx) + Math.abs(dy) > 8) {
         locked = Math.abs(dx) > Math.abs(dy) * 1.4 ? 'x' : 'y';
       }
-    }, { passive: true });
+
+      if (locked === 'x') {
+        dragging = true;
+        scroll.classList.add('is-swiping');
+        currentX = rubberBand(dx);
+        setDragTransform(currentX, false);
+        e.preventDefault();
+      }
+    }, { passive: false });
+
     scroll.addEventListener('touchend', e => {
       if (startX == null) return;
       const t = e.changedTouches[0];
       const dx = t.clientX - startX;
-      const dy = t.clientY - startY;
-      const adx = Math.abs(dx), ady = Math.abs(dy);
-      if (locked === 'x' && adx > 60 && ady < 50){
-        if (dx < 0) navTo(state.todayDay + 1);
-        else        navTo(state.todayDay - 1);
+      const w = scroll.offsetWidth || document.documentElement.clientWidth;
+      const threshold = Math.min(80, w * 0.22);
+
+      if (locked === 'x' && dragging) {
+        if (dx <= -threshold && canGoNext()) finishSwipe('next');
+        else if (dx >= threshold && canGoPrev()) finishSwipe('prev');
+        else resetDrag(true);
       }
-      startX = null; startY = null; locked = null;
+
+      startX = null;
+      startY = null;
+      locked = null;
+    }, { passive: true });
+
+    scroll.addEventListener('touchcancel', () => {
+      if (dragging) resetDrag(true);
+      startX = null;
+      startY = null;
+      locked = null;
     }, { passive: true });
   }
 

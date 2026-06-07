@@ -116,6 +116,12 @@ input, textarea { font: inherit; color: inherit; }
   -webkit-overflow-scrolling: touch;
 }
 .scroll::-webkit-scrollbar { width: 0; height: 0; }
+.today-scroll {
+  touch-action: pan-y;
+}
+.today-scroll.is-swiping {
+  overflow-y: hidden;
+}
 
 /* status bar simulation — only used in browser preview */
 .status-bar {
@@ -1597,15 +1603,91 @@ input, textarea { font: inherit; color: inherit; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* Trip management - inline select controls */
+.trip-swipe-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.trip-delete-action {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  background: #ff3b30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 0;
+  border: none;
+  visibility: hidden;
+}
+.trip-swipe-container .trip-select-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--surface-2);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease-out, background-color 0.2s, border-color 0.2s;
+  touch-action: pan-y;
+  transform: translateX(0);
+  user-select: none;
+  isolation: isolate;
+}
+.trip-swipe-container .trip-select-item.has-border {
+  border-color: var(--border);
+}
+.trip-swipe-container .trip-select-item.has-border.selected {
+  border-color: #fff;
+}
+.trip-swipe-container .trip-select-item.selected {
+  background-color: var(--surface-2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.trip-desktop-delete {
+  margin-left: 12px;
+  padding: 6px 10px;
+  font-size: 22px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--fg-mid);
+  cursor: pointer;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .trip-delete-action { display: none; }
+  .trip-swipe-container .trip-select-item:hover .trip-desktop-delete {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .trip-desktop-delete { display: none !important; }
+  .trip-swipe-container.is-revealing .trip-delete-action,
+  .trip-swipe-container.is-swipe-open .trip-delete-action {
+    visibility: visible;
+  }
+}
 .trip-select-item {
   user-select: none;
 }
-.trip-select-item:not(.selected):hover {
-  border-color: var(--fg-mid) !important;
-  background: rgba(255,255,255,0.02);
-}
-.trip-select-item.selected {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+.trip-swipe-container .trip-select-item:not(.selected):hover {
+  border-color: var(--fg-mid);
 }
 .trip-remove-btn:hover {
   background: rgba(255,255,255,0.08) !important;
