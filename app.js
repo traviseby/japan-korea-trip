@@ -2731,6 +2731,7 @@
   function closeFilterTray(){
     state.filterTray = null;
     state.pickTray = null;
+    clearSheetDragStyles($('#filter-tray'));
     $('#filter-tray').classList.remove('open');
     $('#filter-tray-backdrop').classList.remove('open');
   }
@@ -3078,15 +3079,6 @@
     const btn = el('button', {
       type: 'button',
       'aria-label': 'Paste from clipboard',
-      onclick: async () => {
-        try {
-          const text = await navigator.clipboard.readText();
-          const input = document.getElementById(inputId);
-          if (input && text) input.value = text.trim();
-        } catch {
-          toast('Could not paste from clipboard');
-        }
-      },
       style: {
         background: 'none',
         border: 'none',
@@ -3096,10 +3088,71 @@
         color: 'white',
         display: 'flex',
         alignItems: 'center',
-        flexShrink: '0'
+        flexShrink: '0',
+        touchAction: 'manipulation'
       }
     });
     btn.innerHTML = pasteIcon;
+
+    let clipboardRead = null;
+
+    function applyText(input, text){
+      if (!input || !text?.trim()) return false;
+      input.value = text.trim();
+      return true;
+    }
+
+    function finishPaste(input){
+      if (!input) return;
+      input.focus();
+
+      if (!clipboardRead) {
+        toast('Could not paste from clipboard');
+        return;
+      }
+
+      clipboardRead
+        .then((text) => {
+          if (!applyText(input, text)) input.focus();
+        })
+        .catch(() => {
+          input.focus();
+          toast('Could not paste from clipboard');
+        })
+        .finally(() => {
+          clipboardRead = null;
+        });
+    }
+
+    // Start reading on touchstart so iOS keeps user activation through the Paste chip.
+    btn.addEventListener('touchstart', () => {
+      if (navigator.clipboard?.readText) {
+        clipboardRead = navigator.clipboard.readText();
+      }
+    }, { passive: true });
+
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      finishPaste(document.getElementById(inputId));
+    }, { passive: false });
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (clipboardRead) return;
+
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      input.focus();
+
+      navigator.clipboard?.readText?.()
+        .then((text) => {
+          if (!applyText(input, text)) toast('Clipboard is empty');
+        })
+        .catch(() => toast('Could not paste from clipboard'));
+    });
+
     return btn;
   }
 
@@ -3193,7 +3246,8 @@
     const sheet = $('#add-activity-sheet');
     const backdrop = $('#add-activity-backdrop');
     if (!sheet || !backdrop) return;
-    
+
+    clearSheetDragStyles(sheet);
     sheet.classList.remove('open');
     backdrop.classList.remove('open');
     backdrop.onclick = null;
@@ -3229,19 +3283,9 @@
       const parsed = await parseActivityUrl(url);
       
       if (parsed.error) {
-        resultDiv.innerHTML = '';
-        resultDiv.appendChild(el('div', { 
-          style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--error)' }
-        },
-          el('div', { style: { fontWeight: '600', marginBottom: '8px' } }, 'Could not parse URL'),
-          el('div', { style: { fontSize: '14px' } }, parsed.error)
-        ));
-        
-        // Show manual entry form
-        setTimeout(() => {
-          resultDiv.appendChild(buildManualEntryForm(url));
-        }, 100);
         setParseUrlBtnBusy(false);
+        toast('Couldn\u2019t parse URL');
+        openEditActivitySheetForUnparsedUrl(url, parsed);
         return;
       }
 
@@ -3256,8 +3300,20 @@
     return /google\.com\/maps|maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl/i.test(url);
   }
 
+  function isGoogleShareUrl(url) {
+    return /share\.google(?:\.com)?\/|google\.com\/share\.google/i.test(url);
+  }
+
   function isShortGoogleMapsUrl(url) {
     return /maps\.app\.goo\.gl|goo\.gl\/maps/i.test(url);
+  }
+
+  function normalizeActivityUrl(url) {
+    const trimmed = url.trim();
+    if (/^share\.google/i.test(trimmed)) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
   }
 
   async function resolveGoogleMapsUrl(url) {
@@ -3273,8 +3329,13 @@
     return { name: data.name, lat: data.lat, lng: data.lng, category: null };
   }
 
-  async function parseActivityUrl(url) {
-    // Google Maps URL parsing
+  async function parseActivityUrl(rawUrl) {
+    const url = normalizeActivityUrl(rawUrl);
+
+    if (isGoogleShareUrl(url)) {
+      return resolveGoogleMapsUrl(url);
+    }
+
     if (isGoogleMapsUrl(url)) {
       return parseGoogleMapsUrl(url);
     }
@@ -3284,7 +3345,7 @@
       return parseTripAdvisorUrl(url);
     }
     
-    return { error: 'Unsupported URL format. Only Google Maps and TripAdvisor URLs are supported.' };
+    return { error: 'Unsupported URL format. Only Google Maps, share.google, and TripAdvisor URLs are supported.' };
   }
 
   function parseGoogleMapsUrlFromString(url) {
@@ -3359,99 +3420,25 @@
 
     // TripAdvisor doesn't include coordinates in URLs
     // We'd need to fetch the page or use an API
-    return { 
-      error: 'TripAdvisor URLs require fetching the page to extract location data. Please use the manual entry form below.',
+    return {
+      error: 'TripAdvisor URLs require fetching the page to extract location data.',
       name
     };
   }
 
-  function buildManualEntryForm(originalUrl) {
-    return el('div', { 
-      class: 'manual-entry-form',
-      style: { marginTop: '16px', padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)' }
-    },
-      el('h3', { style: { fontSize: '17px', fontWeight: '600', marginBottom: '12px', color: 'var(--fg)' } }, 'Manual Entry'),
-      
-      el('input', { 
-        type: 'text',
-        id: 'manual-name',
-        placeholder: 'Activity name',
-        style: {
-          width: '100%',
-          padding: '12px 16px',
-          fontSize: '15px',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r)',
-          background: 'var(--surface)',
-          color: 'var(--fg)',
-          marginBottom: '12px'
-        }
-      }),
-      
-      el('input', { 
-        type: 'text',
-        id: 'manual-lat',
-        placeholder: 'Latitude (optional)',
-        style: {
-          width: '100%',
-          padding: '12px 16px',
-          fontSize: '15px',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r)',
-          background: 'var(--surface)',
-          color: 'var(--fg)',
-          marginBottom: '12px'
-        }
-      }),
-      
-      el('input', { 
-        type: 'text',
-        id: 'manual-lng',
-        placeholder: 'Longitude (optional)',
-        style: {
-          width: '100%',
-          padding: '12px 16px',
-          fontSize: '15px',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--r)',
-          background: 'var(--surface)',
-          color: 'var(--fg)',
-          marginBottom: '12px'
-        }
-      }),
-      
-      el('button', {
-        class: 'primary-btn',
-        style: {
-          width: '100%',
-          padding: '12px',
-          fontSize: '15px',
-          fontWeight: '600',
-          background: 'var(--accent)',
-          color: 'var(--bg)',
-          border: 'none',
-          borderRadius: 'var(--r)',
-          cursor: 'pointer'
-        },
-        onclick: () => {
-          const name = $('#manual-name').value.trim();
-          const lat = parseFloat($('#manual-lat').value);
-          const lng = parseFloat($('#manual-lng').value);
-          
-          if (!name) {
-            toast('Please enter an activity name');
-            return;
-          }
-          
-          submitActivity({
-            name,
-            lat: isNaN(lat) ? null : lat,
-            lng: isNaN(lng) ? null : lng,
-            category: null
-          }, originalUrl);
-        }
-      }, 'Add to Trip')
-    );
+  function openEditActivitySheetForUnparsedUrl(url, parsed = {}){
+    hideAddActivitySheet();
+    openEditActivitySheet({
+      id: null,
+      day: UNSCHEDULED_DAY,
+      time: '',
+      cat: parsed.category || '',
+      name: parsed.name || '',
+      desc: '',
+      url,
+      lat: parsed.lat ?? null,
+      lng: parsed.lng ?? null
+    }, 'Add Activity');
   }
 
   async function submitActivity(parsed, url) {
@@ -3525,7 +3512,7 @@
 
   function activityToDraft(a){
     return {
-      rowId: a.id,
+      rowId: a.id || null,
       day: a.day,
       time: a.time || '',
       cat: a.cat || '',
@@ -3582,6 +3569,7 @@
     const sheet = $('#edit-activity-sheet');
     const backdrop = $('#edit-activity-backdrop');
     if (!sheet || !backdrop) return;
+    clearSheetDragStyles(sheet);
     sheet.classList.remove('open');
     backdrop.classList.remove('open');
     backdrop.onclick = null;
@@ -3656,6 +3644,7 @@
     editActivityDraft = activityToDraft(a);
     const { sheet, backdrop } = ensureEditActivitySheetDom();
     const draft = editActivityDraft;
+    const isNew = !draft.rowId;
     sheet.innerHTML = '';
 
     sheet.appendChild(buildSheetCloseButton(hideEditActivitySheet));
@@ -3723,7 +3712,7 @@
         class: 'oc-btn',
         style: { marginTop: '8px', marginBottom: '24px' },
         onclick: submitUpdateActivity
-      }, 'Update')
+      }, isNew ? 'Add' : 'Update')
     );
     sheet.appendChild(form);
 
@@ -3759,15 +3748,41 @@
     }
 
     const btn = $('#edit-activity-submit');
+    const isNew = !draft.rowId;
     if (btn) {
       btn.disabled = true;
-      btn.textContent = 'Updating...';
+      btn.textContent = isNew ? 'Adding...' : 'Updating...';
     }
 
     const date = isUnscheduledDay(draft.day) ? null : (D.byDay[draft.day]?.date || null);
-    const rowId = draft.rowId;
+    let rowId = draft.rowId;
 
     try {
+      if (!rowId) {
+        toast('Updating table in Doc');
+        const addBody = {
+          docUrl: activeTrip.url,
+          activity: {
+            name,
+            lat,
+            lng,
+            category: draft.cat || null,
+            url: draft.url.trim()
+          }
+        };
+        if (activeTrip.token) addBody.token = activeTrip.token;
+
+        const addRes = await fetch('/api/add-activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(addBody)
+        });
+        const addPayload = await addRes.json().catch(() => ({}));
+        if (!addRes.ok) throw new Error(addPayload.error || 'Failed to add activity');
+        rowId = addPayload.rowId;
+        draft.rowId = rowId;
+      }
+
       const body = {
         docUrl: activeTrip.url,
         rowId,
@@ -3806,13 +3821,13 @@
         console.warn('Updated in Coda but failed to refresh trip data:', reloadErr);
         closeSheet();
       }
-      toast('Activity updated');
+      toast(isNew ? 'Activity added' : 'Activity updated');
     } catch (err) {
       console.error('Error updating activity:', err);
-      toast('Failed to update activity');
+      toast(isNew ? 'Failed to add activity' : 'Failed to update activity');
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Update';
+        btn.textContent = isNew ? 'Add' : 'Update';
       }
     }
   }
@@ -3983,10 +3998,134 @@
   function closeSheet(){
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
+    clearSheetDragStyles(sheet);
     sheet.classList.remove('open');
     backdrop.classList.remove('open');
     state.sheet = null;
     if (leafletSheet){ setTimeout(() => { try { leafletSheet.remove(); } catch{} leafletSheet = null; }, 350); }
+  }
+
+  function clearSheetDragStyles(sheet){
+    if (!sheet) return;
+    sheet.classList.remove('is-dismissing');
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+  }
+
+  // Swipe down to dismiss bottom sheets — follows the finger, then closes or snaps back.
+  function attachBottomSheetDismiss(selector, onClose){
+    const sheet = $(selector);
+    if (!sheet || sheet.__dismissBound) return;
+    sheet.__dismissBound = true;
+
+    const HEADER_DRAG = '.handle, .sheet-nav, .sheet-form-header, .tray-title, .sheet-form-title';
+    const SCROLL_DRAG = '.tray-list, .sheet-scroll, .sheet-body, .add-activity-container';
+
+    let startY = 0;
+    let dy = 0;
+    let dragging = false;
+    let armed = false;
+    let scrollEl = null;
+
+    function isHeaderTarget(target){
+      return !!target.closest(HEADER_DRAG);
+    }
+
+    function scrollContainer(target){
+      return target.closest(SCROLL_DRAG);
+    }
+
+    function isInteractiveTarget(target){
+      return !!target.closest('input, textarea, select, button, a, .leaflet-container, #map-sheet');
+    }
+
+    function canStartDismiss(target){
+      if (isInteractiveTarget(target)) return false;
+      if (isHeaderTarget(target)) return true;
+      const scroller = scrollContainer(target);
+      if (scroller) return scroller.scrollTop <= 0;
+      return !!target.closest('.sheet-actions, .sheet-desc, .distance, .map-wrap, .bottom-pad');
+    }
+
+    function resetDragStyles(animate){
+      clearSheetDragStyles(sheet);
+      if (animate) {
+        sheet.style.transition = 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)';
+        sheet.style.transform = '';
+        setTimeout(() => { sheet.style.transition = ''; }, 340);
+      }
+      dragging = false;
+      dy = 0;
+      armed = false;
+      scrollEl = null;
+    }
+
+    function dismissSheet(){
+      const h = sheet.getBoundingClientRect().height || window.innerHeight;
+      sheet.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+      sheet.style.transform = `translateY(${h + 24}px)`;
+      setTimeout(() => {
+        clearSheetDragStyles(sheet);
+        onClose();
+      }, 280);
+    }
+
+    sheet.addEventListener('touchstart', e => {
+      if (!sheet.classList.contains('open') || e.touches.length !== 1) return;
+      if (!canStartDismiss(e.target)) return;
+      scrollEl = scrollContainer(e.target);
+      startY = e.touches[0].clientY;
+      armed = true;
+      dragging = false;
+      dy = 0;
+    }, { passive: true });
+
+    sheet.addEventListener('touchmove', e => {
+      if (!armed || !sheet.classList.contains('open')) return;
+      const y = e.touches[0].clientY;
+      const delta = y - startY;
+
+      if (!dragging) {
+        if (delta <= 0) return;
+        if (scrollEl && scrollEl.scrollTop > 0 && !isHeaderTarget(e.target)) {
+          armed = false;
+          return;
+        }
+        dragging = true;
+        sheet.style.transition = 'none';
+        sheet.classList.add('is-dismissing');
+      }
+
+      dy = Math.max(0, delta);
+      sheet.style.transform = `translateY(${dy}px)`;
+      e.preventDefault();
+    }, { passive: false });
+
+    sheet.addEventListener('touchend', () => {
+      if (!armed) return;
+      const h = sheet.getBoundingClientRect().height || 400;
+      const threshold = Math.min(90, h * 0.16);
+
+      if (dragging && dy >= threshold) dismissSheet();
+      else if (dragging) resetDragStyles(true);
+
+      armed = false;
+      dragging = false;
+      scrollEl = null;
+    }, { passive: true });
+
+    sheet.addEventListener('touchcancel', () => {
+      if (dragging) resetDragStyles(true);
+      armed = false;
+      scrollEl = null;
+    }, { passive: true });
+  }
+
+  function attachAllBottomSheetDismiss(){
+    attachBottomSheetDismiss('#sheet', closeSheet);
+    attachBottomSheetDismiss('#filter-tray', closeFilterTray);
+    attachBottomSheetDismiss('#add-activity-sheet', hideAddActivitySheet);
+    attachBottomSheetDismiss('#edit-activity-sheet', hideEditActivitySheet);
   }
 
   // Block pinch-zoom on fixed UI (Safari ignores touch-action for pinch).
@@ -4128,32 +4267,6 @@
       startY = null;
       locked = null;
     }, { passive: true });
-  }
-
-  // Swipe-to-dismiss for sheet
-  function attachSheetGestures(){
-    const sheet = $('#sheet');
-    let startY = null, dy = 0;
-    sheet.addEventListener('touchstart', (e) => {
-      const t = e.touches[0];
-      // only start drag if touch is in the upper drag region
-      const rect = sheet.getBoundingClientRect();
-      if (t.clientY - rect.top > 80) return;
-      startY = t.clientY; dy = 0;
-      sheet.style.transition = 'none';
-    }, { passive: true });
-    sheet.addEventListener('touchmove', (e) => {
-      if (startY == null) return;
-      dy = Math.max(0, e.touches[0].clientY - startY);
-      sheet.style.transform = `translateY(${dy}px)`;
-    }, { passive: true });
-    sheet.addEventListener('touchend', () => {
-      if (startY == null) return;
-      sheet.style.transition = '';
-      if (dy > 80) closeSheet();
-      else sheet.style.transform = '';
-      startY = null;
-    });
   }
 
   // ─── Fullscreen day map (opened from Today mini-map) ──────────────────────
@@ -5457,7 +5570,7 @@
     });
     // sheet
     $('#sheet-backdrop').addEventListener('click', closeSheet);
-    attachSheetGestures();
+    attachAllBottomSheetDismiss();
     attachFilterBarPinchLock();
     attachTodaySwipe();
     // fullscreen map back

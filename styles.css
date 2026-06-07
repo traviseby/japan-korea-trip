@@ -1342,6 +1342,14 @@ input, textarea { font: inherit; color: inherit; }
   touch-action: pan-y;
 }
 .sheet.open { transform: translateY(0); }
+/* iOS WebKit: inputs inside transformed layers don't accept paste reliably */
+.sheet.open:focus-within { transform: none; }
+.sheet.is-dismissing {
+  touch-action: none;
+}
+.sheet.is-dismissing .tray-list {
+  overflow: hidden;
+}
 .sheet .handle {
   width: 36px; height: 5px;
   background: var(--border-strong);
