@@ -28,15 +28,26 @@
 <link rel="stylesheet" href="plan/plan-styles.css">
 
 <script>
-// iOS viewport height fix - MUST run before page renders
+// Viewport height — MUST run before first paint.
+// Safari browser: 100dvh (CSS default) tracks the visible area below the URL bar.
+// iOS standalone PWA: 100vh fills the full screen; 100dvh and innerHeight lie on cold start.
 (function() {
-  function setVH() {
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', vh + 'px');
+  function isStandalonePWA() {
+    return window.navigator.standalone === true
+      || window.matchMedia('(display-mode: standalone)').matches;
   }
-  setVH();
-  window.addEventListener('resize', setVH);
-  window.addEventListener('orientationchange', setVH);
+
+  function applyAppHeight() {
+    var root = document.documentElement;
+    if (isStandalonePWA()) {
+      root.style.setProperty('--app-height', '100vh');
+    } else {
+      root.style.removeProperty('--app-height');
+    }
+  }
+
+  applyAppHeight();
+  window.addEventListener('orientationchange', applyAppHeight);
 })();
 </script>
 </head>
