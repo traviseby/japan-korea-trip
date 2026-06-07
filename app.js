@@ -1775,7 +1775,6 @@
                     borderImage: 'none',
                     borderRadius: '8px',
                     color: 'var(--fg)',
-                    fontSize: '14px',
                     fontFamily: 'monospace',
                     boxSizing: 'border-box'
                   }
@@ -1923,8 +1922,7 @@
           background: 'var(--bg)', 
           border: '1px solid var(--border)', 
           borderRadius: '6px',
-          color: 'var(--fg)',
-          fontSize: '14px'
+          color: 'var(--fg)'
         }
       }),
       formButtonRow
@@ -3215,7 +3213,6 @@
               flex: '1',
               minWidth: '0',
               padding: '0',
-              fontSize: '15px',
               border: 'none',
               background: 'transparent',
               color: 'var(--fg)',
@@ -4780,7 +4777,6 @@
             border: '1px solid var(--border)',
             borderRadius: '8px',
             color: 'var(--fg)',
-            fontSize: '15px',
             boxSizing: 'border-box'
           }
         }),
@@ -5076,7 +5072,6 @@
                 borderImage: 'none',
                 borderRadius: '8px',
                 color: 'var(--fg)',
-                fontSize: '14px',
                 fontFamily: 'monospace',
                 boxSizing: 'border-box'
               }
@@ -5462,7 +5457,6 @@
             borderImage: 'none',
             borderRadius: '8px',
             color: 'var(--fg)',
-            fontSize: '14px',
             fontFamily: 'monospace',
             boxSizing: 'border-box'
           }
@@ -5534,6 +5528,15 @@
   }
 
   // ─── Wire up ──────────────────────────────────────────────────────────────
+  function attachIosKeyboardZoomFix(){
+    document.addEventListener('focusout', (e) => {
+      if (!e.target.matches('input, textarea, select')) return;
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     // tab bar
     $$('.tabbar button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -5572,6 +5575,7 @@
     $('#sheet-backdrop').addEventListener('click', closeSheet);
     attachAllBottomSheetDismiss();
     attachFilterBarPinchLock();
+    attachIosKeyboardZoomFix();
     attachTodaySwipe();
     // fullscreen map back
     $('#fm-back').addEventListener('click', closeFullscreenMap);
