@@ -1062,24 +1062,133 @@
     }
   }
 
-  function usesTripSwipeDelete(){
+  function usesSwipeDelete(){
     return window.matchMedia('(hover: none), (pointer: coarse)').matches;
   }
 
-  function setTripSwipeContainerState(container, { open = false, revealing = false } = {}){
+  function setSwipeContainerState(container, { open = false, revealing = false } = {}){
     if (!container) return;
     container.classList.toggle('is-swipe-open', open);
     container.classList.toggle('is-revealing', revealing);
   }
 
-  function closeOpenTripSwipes(exceptRow){
-    $$('.trip-swipe-container .trip-select-item').forEach(row => {
+  function closeOpenSwipeRows(exceptRow){
+    $$('.swipe-delete-row').forEach(row => {
       if (row === exceptRow) return;
       row.style.transition = 'transform 0.2s ease-out';
       row.style.transform = 'translateX(0)';
       delete row.dataset.swipeOpen;
-      setTripSwipeContainerState(row.closest('.trip-swipe-container'));
+      setSwipeContainerState(row.closest('.swipe-delete-container'));
     });
+  }
+
+  function attachSwipeDeleteHandlers({ container, row, onTap }){
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let currentX = 0;
+    let isDragging = false;
+    let isVerticalScroll = false;
+
+    row.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      isDragging = false;
+      isVerticalScroll = false;
+      row.style.transition = 'none';
+    }, { passive: true });
+
+    row.addEventListener('touchmove', (e) => {
+      if (isVerticalScroll) return;
+
+      const touchX = e.touches[0].clientX;
+      const touchY = e.touches[0].clientY;
+      const deltaX = touchX - touchStartX;
+      const deltaY = touchY - touchStartY;
+
+      if (!isDragging && Math.abs(deltaY) > Math.abs(deltaX)) {
+        isVerticalScroll = true;
+        return;
+      }
+
+      if (deltaX < 0) {
+        isDragging = true;
+        closeOpenSwipeRows(row);
+        setSwipeContainerState(container, { revealing: true, open: !!row.dataset.swipeOpen });
+        currentX = Math.max(deltaX, -80);
+        row.style.transform = `translateX(${currentX}px)`;
+        e.preventDefault();
+      } else if (row.dataset.swipeOpen && deltaX > 0) {
+        isDragging = true;
+        setSwipeContainerState(container, { revealing: true, open: true });
+        currentX = Math.min(0, -80 + deltaX);
+        row.style.transform = `translateX(${currentX}px)`;
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    row.addEventListener('touchend', async () => {
+      row.style.transition = 'transform 0.2s ease-out';
+
+      if (!isDragging) {
+        if (row.dataset.swipeOpen) {
+          delete row.dataset.swipeOpen;
+          row.style.transform = 'translateX(0)';
+          setSwipeContainerState(container);
+          return;
+        }
+        if (onTap) await onTap();
+        return;
+      }
+
+      if (currentX < -40) {
+        row.style.transform = 'translateX(-80px)';
+        row.dataset.swipeOpen = '1';
+        currentX = -80;
+        setSwipeContainerState(container, { open: true });
+      } else {
+        row.style.transform = 'translateX(0)';
+        delete row.dataset.swipeOpen;
+        currentX = 0;
+        setSwipeContainerState(container);
+      }
+
+      isDragging = false;
+    }, { passive: true });
+  }
+
+  async function removeActivity(a){
+    const trips = getTrips();
+    const activeTrip = trips.find(t => t.active);
+    if (!activeTrip) {
+      toast('No active trip selected');
+      return;
+    }
+
+    try {
+      const body = { docUrl: activeTrip.url, rowId: a.id };
+      if (activeTrip.token) body.token = activeTrip.token;
+
+      const res = await fetch('/api/delete-activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || 'Failed to delete activity');
+
+      const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+      const savedTab = state.tab;
+      await loadTripData(activeTrip.url, false, activeTrip.token || null);
+      state.tab = savedTab;
+      if (state.tab === 'activities') renderActivitiesList();
+      else syncFilters();
+      toast(`Removed ${a.name}`);
+    } catch (err) {
+      console.error('Error deleting activity:', err);
+      toast('Failed to remove activity');
+    }
   }
 
   function buildTripsCard(){
@@ -1100,11 +1209,11 @@
       const showBorders = trips.length > 1;
       
       trips.forEach(trip => {
-        const container = el('div', { class: 'trip-swipe-container' });
+        const container = el('div', { class: 'trip-swipe-container swipe-delete-container' });
 
         const deleteBtn = el('button', {
           type: 'button',
-          class: 'trip-delete-action',
+          class: 'swipe-delete-action',
           onclick: async (e) => {
             e.stopPropagation();
             if (confirm(`Remove "${trip.name}"?`)) {
@@ -1116,7 +1225,7 @@
 
         const desktopDeleteBtn = el('button', {
           type: 'button',
-          class: 'trip-desktop-delete',
+          class: 'swipe-desktop-delete',
           'aria-label': `Remove ${trip.name}`,
           onclick: async (e) => {
             e.stopPropagation();
@@ -1128,7 +1237,7 @@
         }, '×');
 
         const tripRow = el('div', {
-          class: 'trip-select-item' +
+          class: 'trip-select-item swipe-delete-row' +
             (trip.active ? ' selected' : '') +
             (showBorders ? ' has-border' : ''),
           'data-trip-url': trip.url
@@ -1148,85 +1257,17 @@
           desktopDeleteBtn
         );
 
-        if (usesTripSwipeDelete()) {
-          let touchStartX = 0;
-          let touchStartY = 0;
-          let currentX = 0;
-          let isDragging = false;
-          let isVerticalScroll = false;
-
-          tripRow.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            isDragging = false;
-            isVerticalScroll = false;
-            tripRow.style.transition = 'none';
-          }, { passive: true });
-
-          tripRow.addEventListener('touchmove', (e) => {
-            if (isVerticalScroll) return;
-
-            const touchX = e.touches[0].clientX;
-            const touchY = e.touches[0].clientY;
-            const deltaX = touchX - touchStartX;
-            const deltaY = touchY - touchStartY;
-
-            if (!isDragging && Math.abs(deltaY) > Math.abs(deltaX)) {
-              isVerticalScroll = true;
-              return;
+        if (usesSwipeDelete()) {
+          attachSwipeDeleteHandlers({
+            container,
+            row: tripRow,
+            onTap: async () => {
+              if (!trip.active && trips.length > 1) await setActiveTrip(trip.url);
             }
-
-            if (deltaX < 0) {
-              isDragging = true;
-              closeOpenTripSwipes(tripRow);
-              setTripSwipeContainerState(container, { revealing: true, open: !!tripRow.dataset.swipeOpen });
-              currentX = Math.max(deltaX, -80);
-              tripRow.style.transform = `translateX(${currentX}px)`;
-              e.preventDefault();
-            } else if (tripRow.dataset.swipeOpen && deltaX > 0) {
-              isDragging = true;
-              setTripSwipeContainerState(container, { revealing: true, open: true });
-              currentX = Math.min(0, -80 + deltaX);
-              tripRow.style.transform = `translateX(${currentX}px)`;
-              e.preventDefault();
-            }
-          }, { passive: false });
-
-          tripRow.addEventListener('touchend', async () => {
-            tripRow.style.transition = 'transform 0.2s ease-out';
-
-            if (!isDragging) {
-              if (tripRow.dataset.swipeOpen) {
-                delete tripRow.dataset.swipeOpen;
-                tripRow.style.transform = 'translateX(0)';
-                setTripSwipeContainerState(container);
-                return;
-              }
-              if (!trip.active && trips.length > 1) {
-                await setActiveTrip(trip.url);
-              }
-              return;
-            }
-
-            if (currentX < -40) {
-              tripRow.style.transform = 'translateX(-80px)';
-              tripRow.dataset.swipeOpen = '1';
-              currentX = -80;
-              setTripSwipeContainerState(container, { open: true });
-            } else {
-              tripRow.style.transform = 'translateX(0)';
-              delete tripRow.dataset.swipeOpen;
-              currentX = 0;
-              setTripSwipeContainerState(container);
-            }
-
-            isDragging = false;
           });
         } else {
           tripRow.addEventListener('click', async () => {
-            if (!trip.active && trips.length > 1) {
-              await setActiveTrip(trip.url);
-            }
+            if (!trip.active && trips.length > 1) await setActiveTrip(trip.url);
           });
         }
 
@@ -2726,14 +2767,42 @@
     if (a.time) badges.appendChild(el('span', { class: 'badge' }, todEmoji(a.time) + ' ' + a.time));
     if (a.cat) badges.appendChild(el('span', { class: 'badge' }, catEmoji(a.cat) + ' ' + a.cat));
 
-    return el('div', { class: 'full-row', style: { '--day-accent': accent }, onclick: () => openActivity(a) },
+    const confirmDelete = async (e) => {
+      e.stopPropagation();
+      if (confirm(`Remove "${a.name}"?`)) await removeActivity(a);
+    };
+
+    const row = el('div', { class: 'full-row swipe-delete-row', style: { '--day-accent': accent } },
       el('div', { class: 'em' }, catEmoji(a.cat)),
       el('div', null,
         el('div', { class: 'name' }, a.name),
         firstSentence ? el('div', { class: 'desc' }, firstSentence) : null,
         badges
-      )
+      ),
+      el('button', {
+        type: 'button',
+        class: 'swipe-desktop-delete',
+        'aria-label': `Remove ${a.name}`,
+        onclick: confirmDelete
+      }, '×')
     );
+
+    const container = el('div', { class: 'act-swipe-container swipe-delete-container' });
+    const deleteBtn = el('button', {
+      type: 'button',
+      class: 'swipe-delete-action',
+      onclick: confirmDelete
+    }, 'Delete');
+
+    if (usesSwipeDelete()) {
+      attachSwipeDeleteHandlers({ container, row, onTap: () => openActivity(a) });
+    } else {
+      row.addEventListener('click', () => openActivity(a));
+    }
+
+    container.appendChild(deleteBtn);
+    container.appendChild(row);
+    return container;
   }
 
   // ─── Render: TO-DO tab (now in Plan mode) ────────────────────────────────

@@ -1602,13 +1602,18 @@ input, textarea { font: inherit; color: inherit; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* Trip management - inline select controls */
-.trip-swipe-container {
+/* Swipe-to-delete rows (trips, activities) */
+.swipe-delete-container {
   position: relative;
   overflow: hidden;
+}
+.trip-swipe-container {
   border-radius: 8px;
 }
-.trip-delete-action {
+.act-swipe-container {
+  border-bottom: 1px solid var(--border);
+}
+.swipe-delete-action {
   position: absolute;
   right: 0;
   top: 0;
@@ -1626,9 +1631,16 @@ input, textarea { font: inherit; color: inherit; }
   border: none;
   visibility: hidden;
 }
-.trip-swipe-container .trip-select-item {
+.swipe-delete-row {
   position: relative;
   z-index: 1;
+  touch-action: pan-y;
+  transform: translateX(0);
+  user-select: none;
+  isolation: isolate;
+  transition: transform 0.2s ease-out;
+}
+.trip-swipe-container .trip-select-item {
   display: flex;
   align-items: center;
   padding: 12px;
@@ -1639,11 +1651,35 @@ input, textarea { font: inherit; color: inherit; }
   border-radius: 8px;
   cursor: pointer;
   transition: transform 0.2s ease-out, background-color 0.2s, border-color 0.2s;
-  touch-action: pan-y;
-  transform: translateX(0);
-  user-select: none;
-  isolation: isolate;
 }
+.act-swipe-container .full-row {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  padding: 12px var(--pad);
+  padding-right: calc(var(--pad) + 36px);
+  background-color: var(--bg);
+  cursor: pointer;
+  border-bottom: none;
+}
+.act-swipe-container .full-row:hover { background-color: var(--bg); }
+.act-swipe-container .full-row .em { font-size: 19px; text-align: center; padding-top: 2px; }
+.act-swipe-container .full-row .name { font-size: 15px; font-weight: 500; color: var(--fg); margin-bottom: 3px; letter-spacing: -0.005em; }
+.act-swipe-container .full-row .desc { font-size: 12px; color: var(--fg-mute); line-height: 1.5; margin-bottom: 6px; }
+.act-swipe-container .full-row .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.act-swipe-container .full-row .badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--fg-mid);
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  display: inline-flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+}
+.act-swipe-container .full-row .badge.day-badge { background: var(--day-accent, #333); color: #fff; border-color: transparent; }
 .trip-swipe-container .trip-select-item.has-border {
   border-color: var(--border);
 }
@@ -1654,7 +1690,7 @@ input, textarea { font: inherit; color: inherit; }
   background-color: var(--surface-2);
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-.trip-desktop-delete {
+.swipe-desktop-delete {
   margin-left: 12px;
   padding: 6px 10px;
   font-size: 22px;
@@ -1669,17 +1705,25 @@ input, textarea { font: inherit; color: inherit; }
   transition: opacity 0.15s;
   flex-shrink: 0;
 }
+.act-swipe-container .full-row .swipe-desktop-delete {
+  position: absolute;
+  right: var(--pad);
+  top: 50%;
+  margin-left: 0;
+  transform: translateY(-50%);
+}
 @media (hover: hover) and (pointer: fine) {
-  .trip-delete-action { display: none; }
-  .trip-swipe-container .trip-select-item:hover .trip-desktop-delete {
+  .swipe-delete-action { display: none; }
+  .trip-swipe-container .trip-select-item:hover .swipe-desktop-delete,
+  .act-swipe-container .full-row:hover .swipe-desktop-delete {
     opacity: 1;
     pointer-events: auto;
   }
 }
 @media (hover: none), (pointer: coarse) {
-  .trip-desktop-delete { display: none !important; }
-  .trip-swipe-container.is-revealing .trip-delete-action,
-  .trip-swipe-container.is-swipe-open .trip-delete-action {
+  .swipe-desktop-delete { display: none !important; }
+  .swipe-delete-container.is-revealing .swipe-delete-action,
+  .swipe-delete-container.is-swipe-open .swipe-delete-action {
     visibility: visible;
   }
 }
