@@ -1324,6 +1324,7 @@ input, textarea { font: inherit; color: inherit; }
   opacity: 0;
   pointer-events: none;
   transition: opacity .3s ease;
+  touch-action: none;
 }
 .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
 .sheet {
@@ -1338,6 +1339,7 @@ input, textarea { font: inherit; color: inherit; }
   display: flex; flex-direction: column;
   overflow: hidden;
   border-top: 1px solid var(--border);
+  touch-action: pan-y;
 }
 .sheet.open { transform: translateY(0); }
 .sheet .handle {

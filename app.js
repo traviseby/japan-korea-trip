@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.24';
+  const APP_VERSION = '2.26';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -1099,20 +1099,52 @@
     return window.matchMedia('(hover: none), (pointer: coarse)').matches;
   }
 
-  const TAP_MOVE_PX = 12;
+  const TAP_MOVE_PX = 14;
+  const TAP_SCROLL_PX = 3;
+  const GHOST_CLICK_MS = 450;
 
-  // Ignore taps that follow touch movement (e.g. scrolling a list on mobile).
+  function getScrollParent(el){
+    let node = el.parentElement;
+    while (node && node !== document.body) {
+      const { overflowY } = getComputedStyle(node);
+      if ((overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
+          node.scrollHeight > node.clientHeight + 1) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  // Ignore taps that follow touch movement or list scrolling (common on mobile flicks).
   function attachScrollSafeTap(el, onTap){
     let startX = null;
     let startY = null;
     let moved = false;
+    let sawScroll = false;
+    let scrollEl = null;
+    let startScrollTop = 0;
     let blockClickUntil = 0;
+
+    const onScroll = () => { sawScroll = true; };
+
+    const resetTouch = () => {
+      scrollEl?.removeEventListener('scroll', onScroll, true);
+      startX = startY = null;
+      scrollEl = null;
+      moved = false;
+      sawScroll = false;
+    };
 
     el.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       moved = false;
+      sawScroll = false;
+      scrollEl = getScrollParent(el);
+      startScrollTop = scrollEl?.scrollTop ?? 0;
+      scrollEl?.addEventListener('scroll', onScroll, { passive: true, capture: true });
     }, { passive: true });
 
     el.addEventListener('touchmove', (e) => {
@@ -1122,19 +1154,29 @@
       if (Math.abs(dx) > TAP_MOVE_PX || Math.abs(dy) > TAP_MOVE_PX) moved = true;
     }, { passive: true });
 
-    el.addEventListener('touchend', (e) => {
+    const finishTouch = (e) => {
       if (startX == null) return;
-      const tap = !moved;
-      startX = startY = null;
-      moved = false;
-      if (!tap) return;
+      const scrollDelta = scrollEl ? Math.abs(scrollEl.scrollTop - startScrollTop) : 0;
+      const tap = !moved && !sawScroll && scrollDelta < TAP_SCROLL_PX;
+      resetTouch();
+      blockClickUntil = Date.now() + GHOST_CLICK_MS;
+      if (!tap) {
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
-      blockClickUntil = Date.now() + 400;
       onTap(e);
-    }, { passive: false });
+    };
+
+    el.addEventListener('touchend', finishTouch, { passive: false });
+    el.addEventListener('touchcancel', finishTouch, { passive: false });
 
     el.addEventListener('click', (e) => {
-      if (Date.now() < blockClickUntil) return;
+      if (Date.now() < blockClickUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       onTap(e);
     });
   }
@@ -1162,6 +1204,17 @@
     let isDragging = false;
     let isVerticalScroll = false;
     let touchMoved = false;
+    let sawScroll = false;
+    let scrollEl = null;
+    let startScrollTop = 0;
+
+    const onScroll = () => { sawScroll = true; };
+
+    const clearScrollWatch = () => {
+      scrollEl?.removeEventListener('scroll', onScroll, true);
+      scrollEl = null;
+      sawScroll = false;
+    };
 
     row.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
@@ -1170,6 +1223,10 @@
       isDragging = false;
       isVerticalScroll = false;
       touchMoved = false;
+      sawScroll = false;
+      scrollEl = getScrollParent(row);
+      startScrollTop = scrollEl?.scrollTop ?? 0;
+      scrollEl?.addEventListener('scroll', onScroll, { passive: true, capture: true });
       row.style.transition = 'none';
     }, { passive: true });
 
@@ -1206,8 +1263,11 @@
       }
     }, { passive: false });
 
-    row.addEventListener('touchend', async () => {
+    const finishTouch = async () => {
       row.style.transition = 'transform 0.2s ease-out';
+      const scrollDelta = scrollEl ? Math.abs(scrollEl.scrollTop - startScrollTop) : 0;
+      const scrolled = sawScroll || scrollDelta >= TAP_SCROLL_PX;
+      clearScrollWatch();
 
       if (!isDragging) {
         if (row.dataset.swipeOpen) {
@@ -1216,7 +1276,7 @@
           setSwipeContainerState(container);
           return;
         }
-        if (onTap && !touchMoved) await onTap();
+        if (onTap && !touchMoved && !isVerticalScroll && !scrolled) await onTap();
         return;
       }
 
@@ -1233,7 +1293,10 @@
       }
 
       isDragging = false;
-    }, { passive: true });
+    };
+
+    row.addEventListener('touchend', finishTouch, { passive: true });
+    row.addEventListener('touchcancel', finishTouch, { passive: true });
   }
 
   async function removeActivity(a){
@@ -3890,13 +3953,14 @@
     if (leafletSheet){ setTimeout(() => { try { leafletSheet.remove(); } catch{} leafletSheet = null; }, 350); }
   }
 
-  // Block pinch-zoom on pinned tab headers (Safari ignores touch-action for pinch).
+  // Block pinch-zoom on fixed UI (Safari ignores touch-action for pinch).
   function attachFilterBarPinchLock(){
     if (document.documentElement.__filterBarPinchLocked) return;
     document.documentElement.__filterBarPinchLocked = true;
+    const PINCH_LOCK = '.filter-bar, .sheet, .sheet-backdrop';
     document.addEventListener('touchmove', (e) => {
       if (e.touches.length < 2) return;
-      if (e.target.closest('.filter-bar')) e.preventDefault();
+      if (e.target.closest(PINCH_LOCK)) e.preventDefault();
     }, { passive: false });
   }
 
