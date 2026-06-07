@@ -4015,10 +4015,26 @@
     function canGoPrev(){ return state.todayDay > 1; }
     function canGoNext(){ return state.todayDay < (D.days?.length || 1); }
 
-    function rubberBand(dx){
-      if (dx > 0 && !canGoPrev()) return dx * 0.22;
-      if (dx < 0 && !canGoNext()) return dx * 0.22;
-      return dx;
+    const SWIPE_LOCK_PX = 10;
+    const SWIPE_ARM_PX = 36;
+    const SWIPE_ARM_MAX_DRAG = 12;
+
+    // Pull-to-refresh style: little movement at first, then catch and follow the finger.
+    function swipeDragOffset(rawDx){
+      const sign = rawDx < 0 ? -1 : rawDx > 0 ? 1 : 0;
+      const abs = Math.abs(rawDx);
+      if (abs <= SWIPE_ARM_PX) {
+        const t = abs / SWIPE_ARM_PX;
+        return sign * SWIPE_ARM_MAX_DRAG * (1 - Math.pow(1 - t, 2));
+      }
+      return sign * (SWIPE_ARM_MAX_DRAG + (abs - SWIPE_ARM_PX));
+    }
+
+    function visualSwipeX(rawDx){
+      let x = swipeDragOffset(rawDx);
+      if (x > 0 && !canGoPrev()) x *= 0.22;
+      if (x < 0 && !canGoNext()) x *= 0.22;
+      return x;
     }
 
     function setDragTransform(x, animate){
@@ -4075,16 +4091,22 @@
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
 
-      if (locked == null && Math.abs(dx) + Math.abs(dy) > 8) {
-        locked = Math.abs(dx) > Math.abs(dy) * 1.4 ? 'x' : 'y';
+      if (locked == null && Math.abs(dx) + Math.abs(dy) > SWIPE_LOCK_PX) {
+        locked = Math.abs(dx) > Math.abs(dy) * 1.25 ? 'x' : 'y';
       }
 
       if (locked === 'x') {
-        dragging = true;
-        scroll.classList.add('is-swiping');
-        currentX = rubberBand(dx);
-        setDragTransform(currentX, false);
-        e.preventDefault();
+        currentX = visualSwipeX(dx);
+        if (Math.abs(dx) >= SWIPE_ARM_PX) {
+          if (!dragging) {
+            dragging = true;
+            scroll.classList.add('is-swiping');
+          }
+        }
+        if (Math.abs(dx) > SWIPE_LOCK_PX) {
+          setDragTransform(currentX, false);
+          e.preventDefault();
+        }
       }
     }, { passive: false });
 
@@ -4095,7 +4117,7 @@
       const w = scroll.offsetWidth || document.documentElement.clientWidth;
       const threshold = Math.min(80, w * 0.22);
 
-      if (locked === 'x' && dragging) {
+      if (locked === 'x' && (dragging || Math.abs(dx) > SWIPE_LOCK_PX)) {
         if (dx <= -threshold && canGoNext()) finishSwipe('next');
         else if (dx >= threshold && canGoPrev()) finishSwipe('prev');
         else resetDrag(true);
