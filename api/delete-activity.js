@@ -33,15 +33,31 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid Coda doc URL' });
   }
 
-  try {
-    const deleteRowResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/rows/${rowId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${CODA_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
+  const headers = {
+    'Authorization': `Bearer ${CODA_TOKEN}`,
+    'Content-Type': 'application/json'
+  };
 
+  try {
+    const tablesResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/tables`, { headers });
+    if (!tablesResp.ok) {
+      throw new Error(`Failed to fetch tables: ${tablesResp.status}`);
+    }
+
+    const tablesData = await tablesResp.json();
+    const activitiesTable = tablesData.items.find(t => t.name === 'All activities');
+    if (!activitiesTable) {
+      throw new Error('Activities table "All activities" not found in doc');
+    }
+
+    const tableId = encodeURIComponent(activitiesTable.id);
+    const encodedRowId = encodeURIComponent(rowId);
+    const deleteUrl = `https://coda.io/apis/v1/docs/${docId}/tables/${tableId}/rows/${encodedRowId}`;
+    console.log('Deleting row:', deleteUrl);
+
+    const deleteRowResp = await fetch(deleteUrl, { method: 'DELETE', headers });
+
+    // Coda queues deletions and returns 202 Accepted
     if (!deleteRowResp.ok) {
       const errorText = await deleteRowResp.text();
       console.error('Coda API error:', errorText);
