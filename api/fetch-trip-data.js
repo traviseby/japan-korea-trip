@@ -133,6 +133,12 @@ export default async function handler(req, res) {
       return stripFence(String(v));
     }
 
+    function moreInfoFromCell(v) {
+      if (v == null) return '';
+      if (typeof v === 'object' && typeof v.url === 'string') return stripFence(v.url);
+      return cellText(v);
+    }
+
     // Column ids from the original trip template — used when a column is renamed in Coda
     // but still maps to the same id (see sync.mjs ACT fallbacks).
     const ACT_TEMPLATE_IDS = {
@@ -322,7 +328,7 @@ export default async function handler(req, res) {
         time: cellText(v[ACT.timeOfDay]?.name || v[ACT.timeOfDay]),
         name: cellText(v[ACT.activity]),
         desc: cellText(v[ACT.description]),
-        url: cellText(v[ACT.moreInfo]),
+        url: moreInfoFromCell(v[ACT.moreInfo]),
         cat: cellText(v[ACT.category]?.name || v[ACT.category]),
         lat: v[ACT.latitude] ?? null,
         lng: v[ACT.longitude] ?? null

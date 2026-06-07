@@ -127,7 +127,12 @@ export default async function handler(req, res) {
 
     console.log('Updating row with cells:', cells);
 
-    const updateRowResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/rows/${rowId}`, {
+    const tableId = encodeURIComponent(activitiesTable.id);
+    const encodedRowId = encodeURIComponent(rowId);
+    const updateUrl = `https://coda.io/apis/v1/docs/${docId}/tables/${tableId}/rows/${encodedRowId}`;
+    console.log('Updating row:', updateUrl);
+
+    const updateRowResp = await fetch(updateUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${CODA_TOKEN}`,

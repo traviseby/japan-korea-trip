@@ -511,6 +511,18 @@
     return url.split('#')[0].split('?')[0];
   }
 
+  function isHttpUrl(str){
+    if (!str || typeof str !== 'string') return false;
+    const s = str.trim();
+    if (!/^https?:\/\//i.test(s)) return false;
+    try {
+      const u = new URL(s);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
   function getTripDayCount(tripUrl){
     const normalized = normalizeTripUrl(tripUrl);
     const active = getActiveTrip();
@@ -1066,6 +1078,46 @@
     return window.matchMedia('(hover: none), (pointer: coarse)').matches;
   }
 
+  const TAP_MOVE_PX = 12;
+
+  // Ignore taps that follow touch movement (e.g. scrolling a list on mobile).
+  function attachScrollSafeTap(el, onTap){
+    let startX = null;
+    let startY = null;
+    let moved = false;
+    let blockClickUntil = 0;
+
+    el.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      moved = false;
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+      if (startX == null) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dx) > TAP_MOVE_PX || Math.abs(dy) > TAP_MOVE_PX) moved = true;
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e) => {
+      if (startX == null) return;
+      const tap = !moved;
+      startX = startY = null;
+      moved = false;
+      if (!tap) return;
+      e.preventDefault();
+      blockClickUntil = Date.now() + 400;
+      onTap(e);
+    }, { passive: false });
+
+    el.addEventListener('click', (e) => {
+      if (Date.now() < blockClickUntil) return;
+      onTap(e);
+    });
+  }
+
   function setSwipeContainerState(container, { open = false, revealing = false } = {}){
     if (!container) return;
     container.classList.toggle('is-swipe-open', open);
@@ -1088,6 +1140,7 @@
     let currentX = 0;
     let isDragging = false;
     let isVerticalScroll = false;
+    let touchMoved = false;
 
     row.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
@@ -1095,6 +1148,7 @@
       touchStartY = e.touches[0].clientY;
       isDragging = false;
       isVerticalScroll = false;
+      touchMoved = false;
       row.style.transition = 'none';
     }, { passive: true });
 
@@ -1105,6 +1159,10 @@
       const touchY = e.touches[0].clientY;
       const deltaX = touchX - touchStartX;
       const deltaY = touchY - touchStartY;
+
+      if (Math.abs(deltaX) > TAP_MOVE_PX || Math.abs(deltaY) > TAP_MOVE_PX) {
+        touchMoved = true;
+      }
 
       if (!isDragging && Math.abs(deltaY) > Math.abs(deltaX)) {
         isVerticalScroll = true;
@@ -1137,7 +1195,7 @@
           setSwipeContainerState(container);
           return;
         }
-        if (onTap) await onTap();
+        if (onTap && !touchMoved) await onTap();
         return;
       }
 
@@ -1791,9 +1849,13 @@
   }
 
   function buildLargeTitle(title, right){
+    let rightEl;
+    if (!right) rightEl = el('span');
+    else if (right.classList?.contains('lt-title-actions') || right.classList?.contains('iti-chevrons')) rightEl = right;
+    else rightEl = el('div', { class: 'lt-title-actions' }, right);
     return el('div', { class: 'lt-title with-status' },
       el('h2', null, title),
-      right || el('span')
+      rightEl
     );
   }
 
@@ -1903,16 +1965,31 @@
   function buildActivityRow(a, day){
     const id = a.id;
     const checked = checkedActs.has(id);
-    const row = el('div', { class: 'act-row' + (checked ? ' done' : ''), style: { '--day-accent': day.color }, 'data-id': id },
-      el('div', { class: 'act-emoji' }, catEmoji(a.cat)),
-      el('div', { class: 'act-body', onclick: (e) => { e.stopPropagation(); openSheet(a); } },
-        el('div', { class: 'act-name' }, a.name),
-        el('div', { class: 'act-meta' }, a.cat)
-      ),
-      el('div', { class: 'checkbox', onclick: (e) => { e.stopPropagation(); toggleAct(id, row); } },
-        svgCheck()
-      )
+    const row = el('div', {
+      class: 'act-row' + (checked ? ' done' : ''),
+      style: { '--day-accent': day.color },
+      'data-id': id
+    },
+      el('div', { class: 'act-emoji' }, catEmoji(a.cat))
     );
+
+    const actBody = el('div', { class: 'act-body' },
+      el('div', { class: 'act-name' }, a.name),
+      el('div', { class: 'act-meta' }, a.cat)
+    );
+    attachScrollSafeTap(actBody, (e) => {
+      e.stopPropagation();
+      openSheet(a);
+    });
+
+    const checkbox = el('div', { class: 'checkbox' }, svgCheck());
+    attachScrollSafeTap(checkbox, (e) => {
+      e.stopPropagation();
+      toggleAct(id, row);
+    });
+
+    row.appendChild(actBody);
+    row.appendChild(checkbox);
     return row;
   }
 
@@ -2045,6 +2122,7 @@
 
   // ─── Render: MAP tab ──────────────────────────────────────────────────────
   function renderMapTab(){
+    requestMapGeolocation();
     renderFilterBar('map');
     buildRegionSelector(); // Dynamically build region selector based on trip data
     const node = $('#map-full');
@@ -2435,9 +2513,12 @@
 
   // ─── Filter tray (bottom sheet for picking a filter value) ──────────────
   function openFilterTray(kind){
-    state.filterTray = kind;
     const tray = $('#filter-tray');
     const backdrop = $('#filter-tray-backdrop');
+    const prevKind = state.filterTray;
+    const prevList = tray.querySelector('.tray-list');
+    const savedScroll = (prevKind === kind && prevList) ? prevList.scrollTop : 0;
+    state.filterTray = kind;
     tray.innerHTML = '';
 
     tray.appendChild(el('div', { class: 'handle' }));
@@ -2530,6 +2611,7 @@
       list.appendChild(row);
     });
     tray.appendChild(list);
+    if (savedScroll) list.scrollTop = savedScroll;
     tray.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
@@ -2604,13 +2686,24 @@
     state.searching = false;
     syncFilters();
   }
-  function syncFilters(){
+  function focusSearchInput(){
+    const barId = state.tab === 'activities' ? '#filter-bar-activities' : '#filter-bar-map';
+    const input = document.querySelector(`${barId} .search-row input`);
+    if (input) input.focus({ preventScroll: true });
+  }
+  function syncFilters(opts){
     // Always re-render the filter bar (and Activities list header) so chip
     // states, Reset button, and search-mode toggle stay in sync. Typing in
     // the search input bypasses this via debouncedSync().
     renderFilterBar('map');
+    if (state.tab === 'activities' && opts && opts.focusSearch) {
+      renderActivitiesFilterBar();
+    }
+    if (opts && opts.focusSearch) focusSearchInput();
     if (state.tab === 'map') buildFullMap();
-    if (state.tab === 'activities') renderActivitiesList();
+    if (state.tab === 'activities') {
+      renderActivitiesList(!!(opts && opts.focusSearch));
+    }
   }
 
   // ─── Render: ACTIVITIES tab ───────────────────────────────────────────────
@@ -2618,23 +2711,20 @@
     renderActivitiesList();
   }
 
-  function renderActivitiesList(skipBar){
-    if (!skipBar){
-      // Pinned header (title + chips) above the scroll
-      const bar = $('#filter-bar-activities');
-      bar.innerHTML = '';
-      
-      // Right slot: Reset button (if filters active) or Plus button (to add activity)
-      let rightSlot;
-      if (anyFilterActive()) {
-        rightSlot = el('button', { class: 'reset', onclick: resetFilters }, 'Reset');
-      } else {
-        rightSlot = buildAddActivityButton();
-      }
-      
-      bar.appendChild(buildLargeTitle('Activities', rightSlot));
-      bar.appendChild(buildFilterChipRow('activities'));
+  function renderActivitiesFilterBar(){
+    const bar = $('#filter-bar-activities');
+    bar.innerHTML = '';
+    let rightSlot;
+    if (anyFilterActive()) {
+      rightSlot = el('button', { class: 'reset', onclick: resetFilters }, 'Reset');
+    } else {
+      rightSlot = buildAddActivityButton();
     }
+    bar.appendChild(buildLargeTitle('Activities', rightSlot));
+    bar.appendChild(buildFilterChipRow('activities'));
+  }
+  function renderActivitiesList(skipBar){
+    if (!skipBar) renderActivitiesFilterBar();
 
     const root = $('#activities-list');
     root.innerHTML = '';
@@ -2682,7 +2772,7 @@
   function buildUnscheduledDayHeader(){
     return el('div', { class: 'day-header day-header-unscheduled', style: { '--day-accent': 'var(--fg-mute)' } },
       el('span', { class: 'day-num' }, 'Unscheduled'),
-      el('span', { class: 'day-date' }, 'Update date to include')
+      el('span', { class: 'day-date' }, 'Add date to include')
     );
   }
 
@@ -2695,6 +2785,7 @@
       const input = el('input', {
         type: 'search',
         placeholder: 'Search activities',
+        enterkeyhint: 'search',
         value: filterState.search,
         oninput: (e) => { filterState.search = e.target.value; debouncedSync(); }
       });
@@ -2710,7 +2801,6 @@
         )
       );
       wrap.appendChild(row);
-      setTimeout(() => input.focus(), 50);
       return wrap;
     }
 
@@ -2719,7 +2809,7 @@
     chips.appendChild(el('button', {
       class: 'chip chip-icon',
       'aria-label': 'Search',
-      onclick: () => { state.searching = true; syncFilters(); }
+      onclick: () => { state.searching = true; syncFilters({ focusSearch: true }); }
     }, svgIcon('search')));
 
     chips.appendChild(summaryChip(
@@ -2797,7 +2887,7 @@
     if (usesSwipeDelete()) {
       attachSwipeDeleteHandlers({ container, row, onTap: () => openActivity(a) });
     } else {
-      row.addEventListener('click', () => openActivity(a));
+      attachScrollSafeTap(row, () => openActivity(a));
     }
 
     container.appendChild(deleteBtn);
@@ -3684,15 +3774,16 @@
     body.appendChild(el('div', { class: 'sheet-desc' }, a.desc || ''));
     sheet.appendChild(body);
 
-    const actions = el('div', { class: 'sheet-actions' + (a.url ? '' : ' single') },
+    const infoUrl = isHttpUrl(a.url) ? a.url.trim() : '';
+    const actions = el('div', { class: 'sheet-actions' + (infoUrl ? '' : ' single') },
       el('a', {
         class: 'btn',
         href: `https://maps.google.com/?saddr=My+Location&daddr=${a.lat},${a.lng}`,
         target: '_blank', rel: 'noopener'
       }, 'Get Directions')
     );
-    if (a.url){
-      actions.appendChild(el('a', { class: 'btn secondary', href: a.url, target: '_blank', rel: 'noopener' }, 'More Info'));
+    if (infoUrl){
+      actions.appendChild(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
     }
     sheet.appendChild(actions);
     sheet.appendChild(el('div', { class: 'bottom-pad' }));
@@ -3707,13 +3798,18 @@
       leafletSheet = L.map(node, {
         center: [a.lat, a.lng], zoom: 14,
         zoomControl: false, attributionControl: false,
-        dragging: true, scrollWheelZoom: false
+        dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        touchZoom: false, boxZoom: false, keyboard: false, tap: false
       });
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         subdomains: 'abcd'
       }).addTo(leafletSheet);
       L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, accent) }).addTo(leafletSheet);
-      if (state.location){
+      const kmFromUser = state.location
+        ? haversine(state.location, { lat: a.lat, lng: a.lng })
+        : null;
+      const showUserOnSheetMap = kmFromUser != null && kmFromUser <= 100 * 1.60934;
+      if (showUserOnSheetMap){
         L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletSheet);
         const dashed = L.polyline([[state.location.lat, state.location.lng], [a.lat, a.lng]], {
           color: '#bfb', weight: 1.5, dashArray: '4 4', opacity: 0.6
@@ -3729,6 +3825,16 @@
     backdrop.classList.remove('open');
     state.sheet = null;
     if (leafletSheet){ setTimeout(() => { try { leafletSheet.remove(); } catch{} leafletSheet = null; }, 350); }
+  }
+
+  // Block pinch-zoom on pinned tab headers (Safari ignores touch-action for pinch).
+  function attachFilterBarPinchLock(){
+    if (document.documentElement.__filterBarPinchLocked) return;
+    document.documentElement.__filterBarPinchLocked = true;
+    document.addEventListener('touchmove', (e) => {
+      if (e.touches.length < 2) return;
+      if (e.target.closest('.filter-bar')) e.preventDefault();
+    }, { passive: false });
   }
 
   // Swipe-anywhere day navigation on the Today scroll
@@ -3909,6 +4015,8 @@
   }
 
   // ─── Geolocation ──────────────────────────────────────────────────────────
+  let mapGeolocateRequested = false;
+
   function tryGeolocate(){
     if (!('geolocation' in navigator)) return;
     navigator.geolocation.getCurrentPosition(
@@ -3917,10 +4025,17 @@
         const distJP = haversine(state.location, { lat: 35.68, lng: 139.7 });
         const distKR = haversine(state.location, { lat: 37.55, lng: 126.97 });
         if (state.region == null) state.region = distJP < distKR ? 'JP' : 'KR';
+        if (state.tab === 'map') buildFullMap();
       },
       _err => {},
       { enableHighAccuracy: false, timeout: 4000, maximumAge: 60_000 }
     );
+  }
+
+  function requestMapGeolocation(){
+    if (mapGeolocateRequested) return;
+    mapGeolocateRequested = true;
+    tryGeolocate();
   }
 
   // ─── Settings overlay ─────────────────────────────────────────────────────
@@ -4031,7 +4146,7 @@
             // user-location marker and frame the visible activities.
             buildFullMap();
             setTimeout(fitMapToVisibleActivities, 100);
-            toast('You\u2019re not in Japan or Korea — showing all activities');
+            toast('Showing all activities');
           }
         }
         if (btn) btn.classList.remove('loading');
@@ -5168,13 +5283,13 @@
     // sheet
     $('#sheet-backdrop').addEventListener('click', closeSheet);
     attachSheetGestures();
+    attachFilterBarPinchLock();
     attachTodaySwipe();
     // fullscreen map back
     $('#fm-back').addEventListener('click', closeFullscreenMap);
     // filter tray
     $('#filter-tray-backdrop').addEventListener('click', closeFilterTray);
     // initial
-    tryGeolocate();
     updateOnline();
     registerSW();
     checkForUpdates();

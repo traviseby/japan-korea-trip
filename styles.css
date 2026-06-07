@@ -562,8 +562,10 @@ input, textarea { font: inherit; color: inherit; }
   flex-shrink: 0;
 }
 .sheet-form-title {
-  font-size: 20px;
-  font-weight: 600;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
   margin: 0;
   color: var(--fg);
 }
@@ -885,12 +887,14 @@ input, textarea { font: inherit; color: inherit; }
   font-weight: 500;
 }
 
-/* Itinerary bar chevrons (Today tab — sit beside the title) */
+/* Top-right actions beside large titles (Today chevrons, Map/Activities +, Reset) */
+.lt-title-actions,
 .iti-chevrons {
   display: flex;
   gap: 0;
   align-items: center;
   margin: -6px -8px -6px 0;
+  flex-shrink: 0;
 }
 
 /* Day pills in the Itinerary bar — day accent when active. */
@@ -965,8 +969,27 @@ input, textarea { font: inherit; color: inherit; }
   position: relative;
   z-index: 10;
 }
+.filter-bar .lt-title,
+.filter-bar .lt-sticky {
+  touch-action: none;
+}
+.filter-bar .chips {
+  touch-action: pan-x;
+}
+.filter-bar .search-row {
+  touch-action: manipulation;
+}
 #settings-header {
   border-bottom: none;
+}
+#filter-bar-activities,
+#filter-bar-map {
+  border-bottom: none;
+}
+#filter-bar-activities .lt-sticky,
+#filter-bar-map .lt-sticky {
+  border-bottom: none;
+  box-shadow: none;
 }
 
 /* Single-line filter row */
@@ -1386,6 +1409,7 @@ input, textarea { font: inherit; color: inherit; }
 .sheet .sheet-desc { font-size: 14.5px; line-height: 1.6; color: var(--fg-mid); margin-bottom: 22px; }
 .sheet .sheet-actions { display: grid; gap: 8px; padding: 0 var(--pad) calc(var(--sab) + 20px); grid-template-columns: 1fr 1fr; }
 .sheet .sheet-actions.single { grid-template-columns: 1fr; }
+.sheet .sheet-actions.single .btn { width: 100%; }
 .sheet .btn {
   padding: 14px;
   text-align: center;
