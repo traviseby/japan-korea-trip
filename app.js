@@ -588,7 +588,13 @@
     rebuildActivityIndexes();
   }
 
-  function applyTripData(tripData){
+  function currentTab(){
+    const pane = document.querySelector('.tab-pane.active');
+    if (pane?.id?.startsWith('tab-')) return pane.id.slice(4);
+    return state.tab;
+  }
+
+  function applyTripData(tripData, opts = {}){
     window.DATA = tripData;
 
     // Build lookup objects (same as data.js does)
@@ -597,6 +603,8 @@
     window.DATA.byDay = {};
     (window.DATA.days || []).forEach(d => { window.DATA.byDay[d.n] = d; });
     rebuildActivityIndexes();
+
+    if (opts.preserveUi) return;
 
     // Reset UI state for the new trip
     state.todayDay = currentDay();
@@ -611,7 +619,7 @@
     filterState.category = [];
   }
 
-  async function loadTripData(docUrl, fromCache = true, token = null){
+  async function loadTripData(docUrl, fromCache = true, token = null, opts = {}){
     try {
       // Normalize URL by removing fragments/query params for consistent cache keys
       const normalizedUrl = docUrl.split('#')[0].split('?')[0];
@@ -714,8 +722,8 @@
       }
       
       console.log('Setting window.DATA to:', tripData.trip?.title || 'Unknown');
-      applyTripData(tripData);
-      finalizeAppAfterTripLoad();
+      applyTripData(tripData, opts);
+      finalizeAppAfterTripLoad(opts.preserveUi ? state.tab : undefined);
 
       if (tripDataReady()) {
         toast('Trip loaded');
@@ -1259,8 +1267,10 @@
       } catch {}
 
       if (state.sheet === a.id) closeSheet();
-      if (state.tab === 'activities') renderActivitiesList();
+      const tab = currentTab();
+      if (tab === 'activities') renderActivitiesList();
       else syncFilters();
+      switchTab(tab);
       toast(`Removed ${a.name}`);
     } catch (err) {
       console.error('Error deleting activity:', err);
@@ -1802,7 +1812,7 @@
       localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${docUrl}`);
 
       // Fetch fresh data from Coda (pass token if available)
-      await loadTripData(docUrl, false, activeTrip.token || null);
+      await loadTripData(docUrl, false, activeTrip.token || null, { preserveUi: true });
 
       status.textContent = 'Synced!';
       toast(`${activeTrip.name} data updated! Refreshing...`);
@@ -3392,8 +3402,7 @@
       localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
       const savedTab = state.tab;
       try {
-        await loadTripData(activeTrip.url, false, activeTrip.token || null);
-        state.tab = savedTab;
+        await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
         switchTab(savedTab);
       } catch (reloadErr) {
         console.warn('Added to Coda but failed to refresh trip data:', reloadErr);
@@ -3689,8 +3698,7 @@
       const savedTab = state.tab;
       hideEditActivitySheet();
       try {
-        await loadTripData(activeTrip.url, false, activeTrip.token || null);
-        state.tab = savedTab;
+        await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
         switchTab(savedTab);
         const refreshed = D.byId[rowId];
         if (refreshed) openSheet(refreshed);
