@@ -66,7 +66,7 @@
   const state = {
     tab: 'today',
     todayDay: 1,
-    region: null,             // 'JP' or 'KR' for Map tab — set later
+    region: null,             // map city key for Map tab — set later
     sheet: null,              // current activity id shown in sheet
     fullscreenMap: null,      // day number, or null
     location: null,           // {lat,lng} from geolocation, or null
@@ -376,7 +376,7 @@
       filterState.category = [];
       filterState.search = '';
       state.searching = false;
-      state.region = day.country; // 'JP' or 'KR' — flips the segmented control
+      state.region = mapCityForDay(day);
       switchTab('map');
     } });
     miniWrap.appendChild(el('div', { id: 'map-mini' }));
@@ -580,6 +580,123 @@
     (window.DATA.activities || []).forEach(a => {
       (window.DATA.dayActivities[a.day] = window.DATA.dayActivities[a.day] || []).push(a);
     });
+    rebuildMapCityIndex();
+  }
+
+  let mapCityIndex = null;
+
+  const NON_CITY_LOCS = /^(travel|transit|en route|airport|flight|transfer|connection)$/i;
+
+  function mapCityLabel(loc){
+    const s = String(loc || '').replace(/\s+/g, ' ').trim();
+    if (!s || NON_CITY_LOCS.test(s)) return null;
+    return s;
+  }
+
+  function mapCityKey(label){
+    return String(label || '').trim().toLowerCase();
+  }
+
+  function rebuildMapCityIndex(){
+    if (!window.DATA?.days) {
+      mapCityIndex = null;
+      return;
+    }
+
+    const groups = new Map();
+    [...(D.days || [])].sort((a, b) => a.n - b.n).forEach(day => {
+      if (!isDestinationDay(day)) return;
+      const label = mapCityLabel(day.loc);
+      if (!label) return;
+      const key = mapCityKey(label);
+      if (!groups.has(key)) groups.set(key, { key, label, lats: [], lngs: [], order: day.n });
+      const group = groups.get(key);
+      activitiesForDay(day.n).forEach(a => {
+        if (isFlightOrTransit(a)) return;
+        const lat = normalizeCoord(a.lat);
+        const lng = normalizeCoord(a.lng);
+        if (lat == null || lng == null) return;
+        group.lats.push(lat);
+        group.lngs.push(lng);
+      });
+    });
+
+    const cities = Array.from(groups.values())
+      .filter(g => g.lats.length > 0)
+      .map(g => ({
+        key: g.key,
+        label: g.label,
+        lat: g.lats.reduce((sum, v) => sum + v, 0) / g.lats.length,
+        lng: g.lngs.reduce((sum, v) => sum + v, 0) / g.lngs.length,
+        order: g.order
+      }))
+      .sort((a, b) => a.order - b.order);
+
+    mapCityIndex = {
+      cities,
+      byKey: Object.fromEntries(cities.map(c => [c.key, c]))
+    };
+  }
+
+  function getDestinationCities(){
+    return mapCityIndex?.cities || [];
+  }
+
+  function nearestMapCity(lat, lng, maxKm = 150){
+    const cities = getDestinationCities();
+    if (!cities.length || lat == null || lng == null) return null;
+    let best = null;
+    let bestDist = Infinity;
+    cities.forEach(c => {
+      const dist = haversine({ lat, lng }, { lat: c.lat, lng: c.lng });
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = c.key;
+      }
+    });
+    return bestDist <= maxKm ? best : null;
+  }
+
+  function activityCityKey(a){
+    if (!a) return null;
+    const lat = normalizeCoord(a.lat);
+    const lng = normalizeCoord(a.lng);
+    if (lat == null || lng == null) return null;
+
+    if (!isUnscheduledDay(a.day)) {
+      const day = D.byDay[a.day];
+      const label = mapCityLabel(day?.loc);
+      if (label) return mapCityKey(label);
+    }
+
+    return nearestMapCity(lat, lng, 250);
+  }
+
+  function mapCityForDay(day){
+    if (!day) return null;
+    const label = mapCityLabel(day.loc);
+    if (label) return mapCityKey(label);
+
+    const acts = activitiesForDay(day.n).filter(a => hasMapCoordinates(a) && !isFlightOrTransit(a));
+    if (!acts.length) return null;
+    const lat = acts.reduce((sum, a) => sum + normalizeCoord(a.lat), 0) / acts.length;
+    const lng = acts.reduce((sum, a) => sum + normalizeCoord(a.lng), 0) / acts.length;
+    return nearestMapCity(lat, lng, 250);
+  }
+
+  function nearestMapCityToUser(maxKm = 150){
+    if (!state.location) return null;
+    return nearestMapCity(state.location.lat, state.location.lng, maxKm);
+  }
+
+  function normalizeCoord(val){
+    if (val == null || val === '') return null;
+    const n = Number(val);
+    return isNaN(n) ? null : n;
+  }
+
+  function hasMapCoordinates(a){
+    return normalizeCoord(a.lat) != null && normalizeCoord(a.lng) != null;
   }
 
   function removeActivityFromLocalData(rowId){
@@ -2252,83 +2369,11 @@
     );
   }
 
-  function shouldShowMapRegion(code){
-    if (Object.values(D.byDay || {}).some(d => (d.country || '').trim() === code && isDestinationDay(d))) {
-      return true;
-    }
-    return (D.activities || []).some(a => {
-      if (isFlightOrTransit(a)) return false;
-      if (a.lat == null || a.lng == null || isNaN(a.lat) || isNaN(a.lng)) return false;
-      return countryFromCoords(a.lat, a.lng) === code;
-    });
-  }
-
-  function countryFromCoords(lat, lng){
-    if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) return null;
-    if (lng > 128 && lng < 150 && lat > 24 && lat < 46) return 'JP';
-    if (lng > 124 && lng < 132 && lat > 33 && lat < 39) return 'KR';
-    if (lng > -125 && lng < -66 && lat > 24 && lat < 50) return 'US';
-    if (lng > -10 && lng < 3 && lat > 49 && lat < 61) return 'GB';
-    if (lng > -5 && lng < 10 && lat > 41 && lat < 52) return 'FR';
-    return null;
-  }
-
-  function normalizeCoord(val){
-    if (val == null || val === '') return null;
-    const n = Number(val);
-    return isNaN(n) ? null : n;
-  }
-
-  function hasMapCoordinates(a){
-    return normalizeCoord(a.lat) != null && normalizeCoord(a.lng) != null;
-  }
-
   function activityInMapRegion(a, region){
     if (!region) return true;
     if (isFlightOrTransit(a)) return false;
-
-    const lat = normalizeCoord(a.lat);
-    const lng = normalizeCoord(a.lng);
-    if (lat == null || lng == null) return false;
-
-    if (!isUnscheduledDay(a.day)) {
-      const day = D.byDay[a.day];
-      if (day && (day.country || '').trim() === region) return true;
-    }
-
-    return countryFromCoords(lat, lng) === region;
-  }
-
-  function getDestinationCountries(){
-    const countries = new Set();
-
-    Object.values(D.byDay || {}).forEach(day => {
-      const code = (day.country || '').trim();
-      if (code && isDestinationDay(day)) countries.add(code);
-    });
-
-    // Fallback when itinerary days have no country (dynamic Coda docs).
-    if (countries.size === 0) {
-      const counts = {};
-      const countPin = (lat, lng) => {
-        const code = countryFromCoords(lat, lng);
-        if (code) counts[code] = (counts[code] || 0) + 1;
-      };
-      (D.activities || []).forEach(a => {
-        if (isFlightOrTransit(a)) return;
-        if (a.lat == null || a.lng == null || isNaN(a.lat) || isNaN(a.lng)) return;
-        countPin(a.lat, a.lng);
-      });
-      (D.hotels || []).forEach(h => {
-        if (h.lat == null || h.lng == null || isNaN(h.lat) || isNaN(h.lng)) return;
-        countPin(h.lat, h.lng);
-      });
-      Object.entries(counts).forEach(([code, n]) => {
-        if (n >= 1) countries.add(code);
-      });
-    }
-
-    return Array.from(countries).filter(shouldShowMapRegion).sort();
+    if (!hasMapCoordinates(a)) return false;
+    return activityCityKey(a) === region;
   }
 
   function buildRegionSelector(){
@@ -2341,65 +2386,39 @@
       segmented.style.display = 'none';
       return;
     }
-    
-    let uniqueCountries = getDestinationCountries();
-    console.log('🗺️ Destination countries:', uniqueCountries);
 
-    const countryFlags = {
-      'JP': '🇯🇵', 'KR': '🇰🇷', 'US': '🇺🇸', 'GB': '🇬🇧', 'FR': '🇫🇷',
-      'IT': '🇮🇹', 'ES': '🇪🇸', 'DE': '🇩🇪', 'CA': '🇨🇦', 'MX': '🇲🇽',
-      'AU': '🇦🇺', 'NZ': '🇳🇿', 'CN': '🇨🇳', 'TH': '🇹🇭', 'VN': '🇻🇳',
-      'SG': '🇸🇬', 'MY': '🇲🇾', 'ID': '🇮🇩', 'PH': '🇵🇭', 'IN': '🇮🇳',
-      'AE': '🇦🇪', 'SA': '🇸🇦', 'IL': '🇮🇱', 'TR': '🇹🇷', 'EG': '🇪🇬',
-      'ZA': '🇿🇦', 'BR': '🇧🇷', 'AR': '🇦🇷', 'CL': '🇨🇱', 'PE': '🇵🇪',
-      'NL': '🇳🇱', 'BE': '🇧🇪', 'CH': '🇨🇭', 'AT': '🇦🇹', 'SE': '🇸🇪',
-      'NO': '🇳🇴', 'DK': '🇩🇰', 'FI': '🇫🇮', 'PL': '🇵🇱', 'CZ': '🇨🇿',
-      'GR': '🇬🇷', 'PT': '🇵🇹', 'IE': '🇮🇪', 'IS': '🇮🇸', 'RU': '🇷🇺'
-    };
-    const countryFullNames = {
-      'JP': 'Japan', 'KR': 'Korea', 'US': 'USA', 'GB': 'UK', 'FR': 'France',
-      'IT': 'Italy', 'ES': 'Spain', 'DE': 'Germany', 'CA': 'Canada', 'MX': 'Mexico',
-      'AU': 'Australia', 'NZ': 'New Zealand', 'CN': 'China', 'TH': 'Thailand', 'VN': 'Vietnam',
-      'SG': 'Singapore', 'MY': 'Malaysia', 'ID': 'Indonesia', 'PH': 'Philippines', 'IN': 'India',
-      'AE': 'UAE', 'SA': 'Saudi Arabia', 'IL': 'Israel', 'TR': 'Turkey', 'EG': 'Egypt',
-      'ZA': 'South Africa', 'BR': 'Brazil', 'AR': 'Argentina', 'CL': 'Chile', 'PE': 'Peru',
-      'NL': 'Netherlands', 'BE': 'Belgium', 'CH': 'Switzerland', 'AT': 'Austria', 'SE': 'Sweden',
-      'NO': 'Norway', 'DK': 'Denmark', 'FI': 'Finland', 'PL': 'Poland', 'CZ': 'Czech Republic',
-      'GR': 'Greece', 'PT': 'Portugal', 'IE': 'Ireland', 'IS': 'Iceland', 'RU': 'Russia'
-    };
-    
-    // If only one country or no countries, hide the selector
-    if (uniqueCountries.length <= 1) {
+    const cities = getDestinationCities();
+    console.log('🗺️ Destination cities:', cities.map(c => c.label));
+
+    // If only one city or no cities, hide the selector
+    if (cities.length <= 1) {
       segmented.style.display = 'none';
-      if (uniqueCountries.length === 1) {
-        state.region = uniqueCountries[0];
+      if (cities.length === 1) {
+        state.region = cities[0].key;
       } else {
         state.region = null; // Show all
       }
       return;
     }
     
-    // Multiple countries - show selector
+    // Multiple cities - show selector
     segmented.style.display = 'flex';
     segmented.innerHTML = '';
     
-    uniqueCountries.forEach((country, index) => {
-      const flag = countryFlags[country] || '🌍';
-      const name = countryFullNames[country] || country;
+    cities.forEach((city, index) => {
       const btn = el('button', {
-        'data-region': country,
+        'data-region': city.key,
         class: index === 0 ? 'active' : '',
         onclick: () => {
-          state.region = country;
+          state.region = city.key;
           buildFullMap();
         }
-      }, `${flag} ${name}`);
+      }, city.label);
       segmented.appendChild(btn);
     });
     
-    // Set initial region to first country (e.g., Japan for Japan/Korea trip)
-    if (!state.region || !uniqueCountries.includes(state.region)) {
-      state.region = uniqueCountries[0];
+    if (!state.region || !cities.some(c => c.key === state.region)) {
+      state.region = cities[0].key;
     }
     
     console.log('🗺️ buildRegionSelector set region to:', state.region);
@@ -3180,6 +3199,16 @@
     backdrop.onclick = null;
   }
 
+  const ADD_ACTIVITY_BTN_LABEL = 'Add activity';
+  const ADD_ACTIVITY_BTN_BUSY = 'Adding activity...';
+
+  function setParseUrlBtnBusy(busy){
+    const btn = $('#parse-url-btn');
+    if (!btn) return;
+    btn.disabled = busy;
+    btn.textContent = busy ? ADD_ACTIVITY_BTN_BUSY : ADD_ACTIVITY_BTN_LABEL;
+  }
+
   async function handleParseUrl() {
     const input = $('#activity-url-input');
     const resultDiv = $('#parse-result');
@@ -3194,26 +3223,33 @@
     }
 
     resultDiv.innerHTML = '';
+    setParseUrlBtnBusy(true);
 
-    const parsed = await parseActivityUrl(url);
-    
-    if (parsed.error) {
-      resultDiv.innerHTML = '';
-      resultDiv.appendChild(el('div', { 
-        style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--error)' }
-      },
-        el('div', { style: { fontWeight: '600', marginBottom: '8px' } }, 'Could not parse URL'),
-        el('div', { style: { fontSize: '14px' } }, parsed.error)
-      ));
+    try {
+      const parsed = await parseActivityUrl(url);
       
-      // Show manual entry form
-      setTimeout(() => {
-        resultDiv.appendChild(buildManualEntryForm(url));
-      }, 100);
-      return;
-    }
+      if (parsed.error) {
+        resultDiv.innerHTML = '';
+        resultDiv.appendChild(el('div', { 
+          style: { padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r)', color: 'var(--error)' }
+        },
+          el('div', { style: { fontWeight: '600', marginBottom: '8px' } }, 'Could not parse URL'),
+          el('div', { style: { fontSize: '14px' } }, parsed.error)
+        ));
+        
+        // Show manual entry form
+        setTimeout(() => {
+          resultDiv.appendChild(buildManualEntryForm(url));
+        }, 100);
+        setParseUrlBtnBusy(false);
+        return;
+      }
 
-    submitActivity(parsed, url);
+      await submitActivity(parsed, url);
+    } catch (err) {
+      console.error('Error parsing URL:', err);
+      setParseUrlBtnBusy(false);
+    }
   }
 
   function isGoogleMapsUrl(url) {
@@ -3424,11 +3460,11 @@
     
     if (!activeTrip) {
       toast('No active trip selected');
+      setParseUrlBtnBusy(false);
       return;
     }
 
-    const parseBtn = $('#parse-url-btn');
-    if (parseBtn) parseBtn.disabled = true;
+    setParseUrlBtnBusy(true);
     toast('Updating table in Doc');
 
     try {
@@ -3480,7 +3516,7 @@
       console.error('Error adding activity:', err);
       toast(err.message || 'Failed to add activity');
     } finally {
-      if (parseBtn) parseBtn.disabled = false;
+      setParseUrlBtnBusy(false);
     }
   }
 
@@ -4149,9 +4185,8 @@
     navigator.geolocation.getCurrentPosition(
       pos => {
         state.location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const distJP = haversine(state.location, { lat: 35.68, lng: 139.7 });
-        const distKR = haversine(state.location, { lat: 37.55, lng: 126.97 });
-        if (state.region == null) state.region = distJP < distKR ? 'JP' : 'KR';
+        const city = nearestMapCityToUser();
+        if (state.region == null && city) state.region = city;
         if (state.tab === 'map') buildFullMap();
       },
       _err => {},
@@ -4259,18 +4294,15 @@
       pos => {
         state.location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         if (state.tab === 'map'){
-          const inJP = state.location.lng > 128 && state.location.lng < 150 && state.location.lat > 24 && state.location.lat < 46;
-          const inKR = state.location.lng > 124 && state.location.lng < 132 && state.location.lat > 33 && state.location.lat < 39;
-          if (inJP || inKR){
-            state.region = inJP ? 'JP' : 'KR';
+          const city = nearestMapCityToUser();
+          if (city){
+            state.region = city;
             buildFullMap();
             setTimeout(() => {
               if (leafletFull) leafletFull.flyTo([state.location.lat, state.location.lng], 14, { duration: 0.8 });
             }, 100);
           } else {
-            // User is somewhere else in the world — flying to them would dump
-            // the user in an empty map far from any pin. Instead, drop the
-            // user-location marker and frame the visible activities.
+            // User is far from any trip city — frame visible activities instead.
             buildFullMap();
             setTimeout(fitMapToVisibleActivities, 100);
             toast('Showing all activities');
