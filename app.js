@@ -3087,7 +3087,7 @@
     backdrop.onclick = null;
   }
 
-  function handleParseUrl() {
+  async function handleParseUrl() {
     const input = $('#activity-url-input');
     const resultDiv = $('#parse-result');
     if (!input || !resultDiv) return;
@@ -3104,7 +3104,7 @@
       style: { padding: '16px', textAlign: 'center', color: 'var(--fg-mid)' }
     }, 'Parsing URL...').outerHTML;
 
-    const parsed = parseActivityUrl(url);
+    const parsed = await parseActivityUrl(url);
     
     if (parsed.error) {
       resultDiv.innerHTML = '';
@@ -3125,9 +3125,30 @@
     submitActivity(parsed, url);
   }
 
-  function parseActivityUrl(url) {
+  function isGoogleMapsUrl(url) {
+    return /google\.com\/maps|maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl/i.test(url);
+  }
+
+  function isShortGoogleMapsUrl(url) {
+    return /maps\.app\.goo\.gl|goo\.gl\/maps/i.test(url);
+  }
+
+  async function resolveGoogleMapsUrl(url) {
+    const res = await fetch('/api/resolve-map-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { error: data.error || 'Could not resolve Google Maps URL.' };
+    }
+    return { name: data.name, lat: data.lat, lng: data.lng, category: null };
+  }
+
+  async function parseActivityUrl(url) {
     // Google Maps URL parsing
-    if (url.includes('google.com/maps') || url.includes('maps.google.com') || url.includes('goo.gl/maps') || url.includes('maps.app.goo.gl')) {
+    if (isGoogleMapsUrl(url)) {
       return parseGoogleMapsUrl(url);
     }
     
@@ -3139,48 +3160,64 @@
     return { error: 'Unsupported URL format. Only Google Maps and TripAdvisor URLs are supported.' };
   }
 
-  function parseGoogleMapsUrl(url) {
-    let lat, lng, name;
+  function parseGoogleMapsUrlFromString(url) {
+    let lat;
+    let lng;
+    let name;
 
-    // Try to extract coordinates from @lat,lng pattern
-    const coordMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (coordMatch) {
-      lat = parseFloat(coordMatch[1]);
-      lng = parseFloat(coordMatch[2]);
+    const pinMatch = url.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
+    if (pinMatch) {
+      lat = parseFloat(pinMatch[1]);
+      lng = parseFloat(pinMatch[2]);
     }
 
-    // Try to extract name from /place/ pattern
-    const placeMatch = url.match(/\/place\/([^\/\?@]+)/);
+    if (lat == null || lng == null) {
+      const coordMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      if (coordMatch) {
+        lat = parseFloat(coordMatch[1]);
+        lng = parseFloat(coordMatch[2]);
+      }
+    }
+
+    const placeMatch = url.match(/\/place\/([^/?@]+)/);
     if (placeMatch) {
       name = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
     }
 
-    // Try query parameter
-    if (!lat && !lng) {
-      const queryMatch = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (lat == null || lng == null) {
+      const queryMatch = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
       if (queryMatch) {
         lat = parseFloat(queryMatch[1]);
         lng = parseFloat(queryMatch[2]);
       }
     }
 
-    // Extract name from query if not found in place
     if (!name) {
       const nameMatch = url.match(/[?&]q=([^&@]+)/);
       if (nameMatch) {
         name = decodeURIComponent(nameMatch[1].replace(/\+/g, ' '));
-        // If it's coordinates, don't use as name
-        if (/^-?\d+\.\d+,-?\d+\.\d+/.test(name)) {
+        if (/^-?\d+\.?\d*,-?\d+\.?\d*/.test(name)) {
           name = null;
         }
       }
     }
 
-    if (!lat || !lng) {
+    if (lat == null || lng == null || Number.isNaN(lat) || Number.isNaN(lng)) {
       return { error: 'Could not extract coordinates from Google Maps URL.' };
     }
 
     return { name, lat, lng, category: null };
+  }
+
+  async function parseGoogleMapsUrl(url) {
+    if (isShortGoogleMapsUrl(url)) {
+      return resolveGoogleMapsUrl(url);
+    }
+
+    const local = parseGoogleMapsUrlFromString(url);
+    if (!local.error) return local;
+
+    return resolveGoogleMapsUrl(url);
   }
 
   function parseTripAdvisorUrl(url) {
