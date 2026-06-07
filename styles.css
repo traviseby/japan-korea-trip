@@ -498,8 +498,7 @@ input, textarea { font: inherit; color: inherit; }
   font-size: 24px; font-weight: 400; margin: 0;
   letter-spacing: 0.01em;
 }
-.settings-header .close,
-.sheet .close {
+.settings-header .close {
   position: absolute;
   top: 16px;
   right: 14px;
@@ -517,6 +516,29 @@ input, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--border);
   box-shadow: 0 4px 12px rgba(0,0,0,0.35);
   font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+.sheet .close {
+  position: absolute;
+  top: 16px;
+  right: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg);
+  z-index: 800;
+  font-size: 22px;
+  font-weight: 400;
   line-height: 1;
   padding: 0;
   cursor: pointer;
@@ -596,7 +618,13 @@ input, textarea { font: inherit; color: inherit; }
 .offline-card .oc-desc {
   font-size: 12.5px; color: var(--fg-mid);
   line-height: 1.55;
-  margin-bottom: 14px;
+  margin-bottom: 0;
+}
+.offline-card .oc-desc + .oc-btn {
+  margin-top: 12px;
+}
+.offline-card .oc-desc + .oc-progress {
+  margin-top: 12px;
 }
 .offline-card .oc-progress {
   height: 4px;
@@ -763,7 +791,7 @@ input, textarea { font: inherit; color: inherit; }
   margin-bottom: 2px;
   color: var(--fg);
 }
-.offline-card .oc-desc {
+.mode-card .oc-desc {
   font-size: 12px;
   color: var(--fg-mid);
   line-height: 1.4;
@@ -848,19 +876,23 @@ input, textarea { font: inherit; color: inherit; }
 /* Itinerary bar chevrons (Today tab — sit beside the title) */
 .iti-chevrons {
   display: flex;
-  gap: 4px;
+  gap: 8px;
+  align-items: center;
 }
 .iti-chev {
-  width: 32px; height: 32px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--fg-mid);
-  background: var(--surface);
-  font-size: 18px;
-  font-weight: 500;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg);
+  background: transparent;
+  font-size: 26px;
+  font-weight: 400;
   line-height: 1;
-  padding-bottom: 2px;
+  padding: 0;
 }
 .iti-chev:disabled { opacity: 0.35; }
 
@@ -1309,23 +1341,28 @@ input, textarea { font: inherit; color: inherit; }
 .sheet-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 12px 14px 6px;
   position: relative;
   z-index: 10;
 }
 .sheet-chev {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  background: rgba(13,13,13,0.78);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  display: flex; align-items: center; justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--fg);
-  border: 1px solid var(--border);
-  font-size: 16px;
+  border: 0;
+  box-shadow: none;
+  font-size: 26px;
+  font-weight: 400;
   line-height: 1;
-  padding: 0 0 2px 0;
+  padding: 0;
   cursor: pointer;
 }
 .sheet-chev:disabled { opacity: 0.35; cursor: default; }
@@ -1336,20 +1373,32 @@ input, textarea { font: inherit; color: inherit; }
   justify-content: center;
   line-height: 0;
 }
-.sheet-chev-icon svg { display: block; }
+.sheet-chev-icon svg { display: block; width: 22px; height: 22px; }
 .sheet-nav-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
   margin-left: auto;
 }
-.sheet .sheet-nav .close {
+.sheet .sheet-nav .close,
+.sheet .sheet-nav .icon-close {
   position: static;
   top: auto;
   right: auto;
   z-index: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
   box-shadow: none;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--fg);
   flex-shrink: 0;
 }
 .sheet #map-sheet { position: absolute; inset: 0; }

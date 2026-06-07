@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.20';
+  const APP_VERSION = '2.23';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -53,6 +53,7 @@
   // ─── Date / day resolution ────────────────────────────────────────────────
   const TODAY = new Date(); // real device clock
   function currentDay() {
+    if (!D.trip?.start || !D.days?.length) return 1;
     const start = new Date(D.trip.start + 'T00:00:00');
     const end   = new Date(D.trip.end   + 'T23:59:59');
     if (TODAY < start) return 1;
@@ -64,7 +65,7 @@
   // ─── State ────────────────────────────────────────────────────────────────
   const state = {
     tab: 'today',
-    todayDay: currentDay(),
+    todayDay: 1,
     region: null,             // 'JP' or 'KR' for Map tab — set later
     sheet: null,              // current activity id shown in sheet
     fullscreenMap: null,      // day number, or null
@@ -587,9 +588,17 @@
         if (cached) {
           try {
             tripData = JSON.parse(cached);
-            console.log('Loaded trip data from cache for:', tripData.trip?.title || 'Unknown');
+            if (!isValidTripData(tripData)) {
+              console.warn('Cached trip data is incomplete, refetching');
+              localStorage.removeItem(cacheKey);
+              tripData = null;
+            } else {
+              console.log('Loaded trip data from cache for:', tripData.trip?.title || 'Unknown');
+            }
           } catch (e) {
             console.warn('Failed to parse cached trip data');
+            localStorage.removeItem(cacheKey);
+            tripData = null;
           }
         } else {
           console.log('No cached data found');
@@ -669,9 +678,9 @@
       console.log('Setting window.DATA to:', tripData.trip?.title || 'Unknown');
       applyTripData(tripData);
       finalizeAppAfterTripLoad();
-      
-      if (!fromCache || tripData) {
-        toast('Trip data loaded!');
+
+      if (tripDataReady()) {
+        toast('Trip loaded');
       }
     } catch (err) {
       console.error('Failed to load trip data:', err);
@@ -920,7 +929,7 @@
             zIndex: '9999',
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
           }
-        }, `⚠️ Failed to load ${tripToLoad.name || 'trip'} data. Using default data. Try "Sync from Supertrip Doc" in Settings.`);
+        }, `⚠️ Failed to load ${tripToLoad.name || 'trip'} data. Using default data. Try "Sync from Superhuman Docs" in Settings.`);
         
         document.body.appendChild(banner);
         
@@ -1049,7 +1058,7 @@
         el('div', { class: 'oc-headline' }, 'Trips'),
         el('span', { class: 'oc-status' }, trips.length === 0 ? 'No trips' : `${trips.length} trip${trips.length > 1 ? 's' : ''}`)
       ),
-      el('div', { class: 'oc-desc' }, 'Manage your trip docs in Supertrip. Select a trip to view its itinerary.')
+      el('div', { class: 'oc-desc' }, 'Select a trip to view its itinerary.')
     );
 
     // List of existing trips as inline select controls
@@ -1660,7 +1669,7 @@
     
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('div', { class: 'oc-headline' }, 'Sync from Supertrip Doc'),
+        el('div', { class: 'oc-headline' }, 'Sync from Superhuman Docs'),
         el('span', { class: 'oc-status', id: 'sync-status' }, activeTrip ? 'Ready' : 'No trip')
       ),
       el('div', { class: 'oc-desc' }, desc),
@@ -1889,7 +1898,7 @@
       el('div', { class: 'act-emoji' }, catEmoji(a.cat)),
       el('div', { class: 'act-body', onclick: (e) => { e.stopPropagation(); openSheet(a); } },
         el('div', { class: 'act-name' }, a.name),
-        el('div', { class: 'act-meta' }, `${a.time} · ${a.cat}`)
+        el('div', { class: 'act-meta' }, a.cat)
       ),
       el('div', { class: 'checkbox', onclick: (e) => { e.stopPropagation(); toggleAct(id, row); } },
         svgCheck()
@@ -2026,6 +2035,76 @@
     }));
   }
   
+  function isFlightOrTransit(a){
+    const cat = (a.cat || '').trim().toLowerCase();
+    return /flight|transit/.test(cat);
+  }
+
+  function activitiesForDay(dayNum){
+    return D.dayActivities?.[dayNum] || (D.activities || []).filter(a => a.day === dayNum);
+  }
+
+  // A destination day has real stops — not just a departure/connection airport.
+  function isDestinationDay(day){
+    if (!day) return false;
+    return activitiesForDay(day.n).some(a =>
+      a.lat != null && a.lng != null && !isNaN(a.lat) && !isNaN(a.lng) && !isFlightOrTransit(a)
+    );
+  }
+
+  function shouldShowMapRegion(code){
+    if (Object.values(D.byDay || {}).some(d => (d.country || '').trim() === code && isDestinationDay(d))) {
+      return true;
+    }
+    return (D.activities || []).some(a => {
+      if (isFlightOrTransit(a)) return false;
+      if (a.lat == null || a.lng == null || isNaN(a.lat) || isNaN(a.lng)) return false;
+      return countryFromCoords(a.lat, a.lng) === code;
+    });
+  }
+
+  function countryFromCoords(lat, lng){
+    if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) return null;
+    if (lng > 128 && lng < 150 && lat > 24 && lat < 46) return 'JP';
+    if (lng > 124 && lng < 132 && lat > 33 && lat < 39) return 'KR';
+    if (lng > -125 && lng < -66 && lat > 24 && lat < 50) return 'US';
+    if (lng > -10 && lng < 3 && lat > 49 && lat < 61) return 'GB';
+    if (lng > -5 && lng < 10 && lat > 41 && lat < 52) return 'FR';
+    return null;
+  }
+
+  function getDestinationCountries(){
+    const countries = new Set();
+
+    Object.values(D.byDay || {}).forEach(day => {
+      const code = (day.country || '').trim();
+      if (code && isDestinationDay(day)) countries.add(code);
+    });
+
+    // Fallback when itinerary days have no country (dynamic Coda docs).
+    if (countries.size === 0) {
+      const counts = {};
+      const countPin = (lat, lng) => {
+        const code = countryFromCoords(lat, lng);
+        if (code) counts[code] = (counts[code] || 0) + 1;
+      };
+      (D.activities || []).forEach(a => {
+        if (isFlightOrTransit(a)) return;
+        if (a.lat == null || a.lng == null || isNaN(a.lat) || isNaN(a.lng)) return;
+        countPin(a.lat, a.lng);
+      });
+      (D.hotels || []).forEach(h => {
+        if (h.lat == null || h.lng == null || isNaN(h.lat) || isNaN(h.lng)) return;
+        countPin(h.lat, h.lng);
+      });
+      Object.entries(counts).forEach(([code, n]) => {
+        if (n >= 1) countries.add(code);
+      });
+    }
+
+    return Array.from(countries).filter(shouldShowMapRegion).sort();
+  }
+
   function buildRegionSelector(){
     const segmented = $('#segmented');
     if (!segmented) return;
@@ -2037,8 +2116,9 @@
       return;
     }
     
-    // Get unique countries from itinerary days
-    const countries = new Set();
+    let uniqueCountries = getDestinationCountries();
+    console.log('🗺️ Destination countries:', uniqueCountries);
+
     const countryFlags = {
       'JP': '🇯🇵', 'KR': '🇰🇷', 'US': '🇺🇸', 'GB': '🇬🇧', 'FR': '🇫🇷',
       'IT': '🇮🇹', 'ES': '🇪🇸', 'DE': '🇩🇪', 'CA': '🇨🇦', 'MX': '🇲🇽',
@@ -2061,31 +2141,6 @@
       'NO': 'Norway', 'DK': 'Denmark', 'FI': 'Finland', 'PL': 'Poland', 'CZ': 'Czech Republic',
       'GR': 'Greece', 'PT': 'Portugal', 'IE': 'Ireland', 'IS': 'Iceland', 'RU': 'Russia'
     };
-    
-    if (D.byDay) {
-      Object.values(D.byDay).forEach(day => {
-        // Only add non-empty country codes
-        if (day.country && day.country.trim()) {
-          countries.add(day.country);
-        }
-      });
-    }
-    
-    let uniqueCountries = Array.from(countries).sort();
-    console.log('🗺️ Detected countries from itinerary:', uniqueCountries);
-    
-    // If no countries detected, check if we have geographic data and infer countries
-    if (uniqueCountries.length === 0 && D.activities) {
-      const inferredCountries = [];
-      const hasJP = D.activities.some(a => a.lng > 128 && a.lng < 150 && a.lat > 24 && a.lat < 46);
-      const hasKR = D.activities.some(a => a.lng > 124 && a.lng < 132 && a.lat > 33 && a.lat < 39);
-      const hasUS = D.activities.some(a => a.lng > -125 && a.lng < -66 && a.lat > 24 && a.lat < 50);
-      if (hasJP) inferredCountries.push('JP');
-      if (hasKR) inferredCountries.push('KR');
-      if (hasUS) inferredCountries.push('US');
-      uniqueCountries = inferredCountries;
-      console.log('🗺️ Inferred countries from coordinates:', uniqueCountries);
-    }
     
     // If only one country or no countries, hide the selector
     if (uniqueCountries.length <= 1) {
@@ -2593,7 +2648,7 @@
   function buildUnscheduledDayHeader(){
     return el('div', { class: 'day-header day-header-unscheduled', style: { '--day-accent': 'var(--fg-mute)' } },
       el('span', { class: 'day-num' }, 'Unscheduled'),
-      el('span', { class: 'day-date' }, 'Not on itinerary yet')
+      el('span', { class: 'day-date' }, 'Update date to include')
     );
   }
 
@@ -2743,7 +2798,7 @@
   // ─── Add Activity Sheet ───────────────────────────────────────────────────
   function buildAddActivityButton(){
     const icon = el('span', { class: 'sheet-chev-icon', 'aria-hidden': 'true' });
-    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="6" x2="12" y2="18"/><line x1="6" y1="12" x2="18" y2="12"/></svg>';
+    icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="6" x2="12" y2="18"/><line x1="6" y1="12" x2="18" y2="12"/></svg>';
     return el('button', {
       type: 'button',
       class: 'sheet-chev sheet-chev-icon-only add-btn add-activity-trigger',
@@ -2788,7 +2843,7 @@
 
   function buildSheetCloseButton(onclick, ariaLabel = 'Close'){
     return el('button', {
-      class: 'close',
+      class: 'close icon-close',
       'aria-label': ariaLabel,
       onclick
     }, '\u2715');
@@ -3157,7 +3212,7 @@
 
   function buildSheetEditIcon(){
     const icon = el('span', { class: 'sheet-chev-icon', 'aria-hidden': 'true' });
-    icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
     return icon;
   }
 
@@ -3542,7 +3597,7 @@
         'aria-label': 'Edit activity',
         onclick: () => openEditActivitySheet(a)
       }, buildSheetEditIcon()),
-        el('button', { class: 'close', onclick: closeSheet }, '\u2715')
+        el('button', { class: 'close icon-close', onclick: closeSheet }, '\u2715')
       )
     ));
 
@@ -3801,6 +3856,7 @@
       } else {
         travelTabbar.style.display = 'grid';
         planTabbar.style.display = 'none';
+        $$('.plan-screen').forEach(s => s.classList.remove('active'));
       }
     }
   }
@@ -4034,9 +4090,12 @@
       }
       if (d.type === 'precache-done'){
         const fill = $('#dl-fill'); const lbl = $('#dl-label'); const btn = $('#dl-btn');
+        const status = $('#dl-status');
         if (fill) fill.style.width = '100%';
         if (lbl)  lbl.textContent  = `Saved ${d.done.toLocaleString()} map tiles for offline use ✓`;
         if (btn)  { btn.textContent = 'Re-download'; btn.disabled = false; }
+        if (status) status.textContent = `${d.done.toLocaleString()} tiles cached`;
+        refreshCacheStatus();
       }
       if (d.type === 'cache-status'){
         const s = $('#dl-status');
@@ -4134,9 +4193,19 @@
   }
 
   // ─── Onboarding ───────────────────────────────────────────────────────────
+  function hideAppShell(){
+    const app = $('#app');
+    if (app) app.style.display = 'none';
+  }
+
+  function showAppShell(){
+    const app = $('#app');
+    if (app) app.style.removeProperty('display'); // restore CSS flex layout
+  }
+
   function showOnboarding(){
     // Hide the main app
-    $('#app').style.display = 'none';
+    hideAppShell();
     
     // Create onboarding screen
     const onboarding = el('div', {
@@ -4161,7 +4230,7 @@
       el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get Started by adding a link to your trip Doc'),
       
       el('div', { style: { width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' } },
-        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Supertrip doc URL'),
+        el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Superhuman Doc URL'),
         el('input', {
           type: 'text',
           id: 'onboarding-url-input',
@@ -4215,7 +4284,8 @@
   function hideOnboarding(){
     const onboarding = $('#onboarding');
     if (onboarding) onboarding.remove();
-    $('#app').style.display = 'block';
+    showAppShell();
+    $$('.plan-screen').forEach(s => s.classList.remove('active'));
   }
 
   function extractDocId(input) {
@@ -4244,7 +4314,7 @@
     // Hide any existing onboarding or app content
     const existingOnboarding = $('#onboarding');
     if (existingOnboarding) existingOnboarding.style.display = 'none';
-    $('#app').style.display = 'none';
+    hideAppShell();
     
     // Show loading overlay with status text
     const statusText = el('div', { 
@@ -4569,7 +4639,7 @@
 
       // Load the trip data (this can take 20-60 seconds for first load)
       console.log('📦 Loading trip data...');
-      statusText.textContent = 'Loading itinerary and activities... (this may take up to a minute)';
+      statusText.textContent = 'This may take up to a minute';
       
       // Increase timeout to 90 seconds for auto-load
       const controller = new AbortController();
@@ -4676,7 +4746,7 @@
       // If trip was saved, continue with normal loading
       if (trips.length > 0) {
         console.log('Trip exists, loading what we have...');
-        $('#app').style.display = 'block';
+        showAppShell();
         switchTab('settings'); // Show settings so user can try sync
       } else {
         showOnboarding();
@@ -4893,8 +4963,12 @@
     document.body.appendChild(tokenScreen);
   }
   
+  function isValidTripData(data){
+    return !!(data?.days?.length && data?.trip);
+  }
+
   function tripDataReady(){
-    return !!(window.DATA?.days?.length && window.DATA?.byDay);
+    return isValidTripData(window.DATA) && !!window.DATA.byDay;
   }
 
   function clearTripLoadOverlays(){
@@ -4905,18 +4979,16 @@
   function finalizeAppAfterTripLoad(tab){
     clearTripLoadOverlays();
     hideOnboarding();
+    showAppShell();
+    $$('.plan-screen').forEach(s => s.classList.remove('active'));
     if (!tripDataReady()) {
       console.warn('finalizeAppAfterTripLoad: trip data not ready yet');
+      switchTab('settings');
       return;
     }
     const nextTab = tab || state.tab || 'today';
     state.tab = nextTab;
-    // Wait until the app shell is visible before rendering (avoids blank UI after load overlays).
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        switchTab(nextTab);
-      });
-    });
+    switchTab(nextTab);
   }
 
   function render(){
@@ -4973,7 +5045,8 @@
     registerSW();
     checkForUpdates();
     initTripData().then(() => {
-      if ($('#onboarding')) return;
+      const onboarding = $('#onboarding');
+      if (onboarding && onboarding.style.display !== 'none') return;
       if (getTrips().length > 0 && tripDataReady()) {
         const mode = getAppMode();
         if (mode === 'plan') {
