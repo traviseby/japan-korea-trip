@@ -157,6 +157,29 @@ input, textarea { font: inherit; color: inherit; }
 }
 .tabbar button.active { color: var(--fg); }
 .tabbar .tab-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.tab-icon svg { display: block; width: 22px; height: 22px; }
+.iti-chev,
+.sheet-chev,
+.sheet .close,
+.sheet .icon-close,
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  color: var(--fg);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.iti-chev:disabled,
+.sheet-chev:disabled { opacity: 0.35; cursor: default; }
 .tabbar .tab-label { font-size: 10px; letter-spacing: 0.04em; font-weight: 500; white-space: nowrap; }
 
 /* ───────────────────────── TODAY tab ───────────────────────── */
@@ -522,26 +545,9 @@ input, textarea { font: inherit; color: inherit; }
 }
 .sheet .close {
   position: absolute;
-  top: 16px;
-  right: 14px;
-  width: 24px;
-  height: 24px;
-  border-radius: 0;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 0;
-  box-shadow: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg);
+  top: 6px;
+  right: 2px;
   z-index: 800;
-  font-size: 22px;
-  font-weight: 400;
-  line-height: 1;
-  padding: 0;
-  cursor: pointer;
 }
 .sheet-form-header {
   position: relative;
@@ -876,25 +882,10 @@ input, textarea { font: inherit; color: inherit; }
 /* Itinerary bar chevrons (Today tab — sit beside the title) */
 .iti-chevrons {
   display: flex;
-  gap: 8px;
+  gap: 0;
   align-items: center;
+  margin: -6px -8px -6px 0;
 }
-.iti-chev {
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg);
-  background: transparent;
-  font-size: 26px;
-  font-weight: 400;
-  line-height: 1;
-  padding: 0;
-}
-.iti-chev:disabled { opacity: 0.35; }
 
 /* Day pills in the Itinerary bar — day accent when active. */
 .chip.day-pill { padding: 8px 13px; }
@@ -1341,45 +1332,18 @@ input, textarea { font: inherit; color: inherit; }
 .sheet-nav {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px 6px;
+  gap: 0;
+  padding: 4px 6px 0;
   position: relative;
   z-index: 10;
 }
-.sheet-chev {
-  width: 24px;
-  height: 24px;
-  border-radius: 0;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg);
-  border: 0;
-  box-shadow: none;
-  font-size: 26px;
-  font-weight: 400;
-  line-height: 1;
-  padding: 0;
-  cursor: pointer;
-}
-.sheet-chev:disabled { opacity: 0.35; cursor: default; }
-.sheet-chev.sheet-chev-icon-only { padding: 0; }
-.sheet-chev-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 0;
-}
-.sheet-chev-icon svg { display: block; width: 22px; height: 22px; }
 .sheet-nav-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   flex-shrink: 0;
   margin-left: auto;
+  margin-right: -6px;
 }
 .sheet .sheet-nav .close,
 .sheet .sheet-nav .icon-close {
@@ -1387,19 +1351,6 @@ input, textarea { font: inherit; color: inherit; }
   top: auto;
   right: auto;
   z-index: auto;
-  width: 24px;
-  height: 24px;
-  border-radius: 0;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 0;
-  box-shadow: none;
-  font-size: 22px;
-  font-weight: 400;
-  line-height: 1;
-  color: var(--fg);
-  flex-shrink: 0;
 }
 .sheet #map-sheet { position: absolute; inset: 0; }
 

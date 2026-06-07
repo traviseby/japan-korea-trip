@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.23';
+  const APP_VERSION = '2.24';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -274,8 +274,8 @@
     bar.style.setProperty('--day-accent', day.color);
     bar.appendChild(buildLargeTitle('Itinerary',
       el('div', { class: 'iti-chevrons' },
-        el('button', { class: 'iti-chev', disabled: day.n === 1 ? '' : null, 'aria-label': 'Previous day', onclick: () => navTo(day.n - 1) }, '\u2039'),
-        el('button', { class: 'iti-chev', disabled: day.n === D.days.length ? '' : null, 'aria-label': 'Next day', onclick: () => navTo(day.n + 1) }, '\u203a')
+        el('button', { class: 'iti-chev toolbar-btn', disabled: day.n === 1 ? '' : null, 'aria-label': 'Previous day', onclick: () => navTo(day.n - 1) }, tabIcon('chev-left')),
+        el('button', { class: 'iti-chev toolbar-btn', disabled: day.n === D.days.length ? '' : null, 'aria-label': 'Next day', onclick: () => navTo(day.n + 1) }, tabIcon('chev-right'))
       )
     ));
     bar.appendChild(buildItineraryPills(day, prevPillScroll));
@@ -2382,6 +2382,19 @@
     );
     return c;
   }
+  function tabIcon(name){
+    const icons = {
+      'chev-left': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
+      'chev-right': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+      'close': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      'plus': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+      'edit': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'
+    };
+    const wrap = el('span', { class: 'tab-icon', 'aria-hidden': 'true' });
+    wrap.innerHTML = icons[name] || '';
+    return wrap;
+  }
+
   function svgIcon(name){
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
@@ -2407,7 +2420,7 @@
     tray.innerHTML = '';
 
     tray.appendChild(el('div', { class: 'handle' }));
-    tray.appendChild(el('button', { class: 'close', onclick: closeFilterTray }, '\u2715'));
+    tray.appendChild(buildSheetCloseButton(closeFilterTray));
 
     let title, options, currentArray, onPick;
     if (kind === 'day'){
@@ -2516,7 +2529,7 @@
     tray.innerHTML = '';
 
     tray.appendChild(el('div', { class: 'handle' }));
-    tray.appendChild(el('button', { class: 'close', onclick: closeFilterTray }, '\u2715'));
+    tray.appendChild(buildSheetCloseButton(closeFilterTray));
     tray.appendChild(el('div', { class: 'tray-title' }, title));
 
     const list = el('div', { class: 'tray-list' });
@@ -2797,18 +2810,16 @@
 
   // ─── Add Activity Sheet ───────────────────────────────────────────────────
   function buildAddActivityButton(){
-    const icon = el('span', { class: 'sheet-chev-icon', 'aria-hidden': 'true' });
-    icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="6" x2="12" y2="18"/><line x1="6" y1="12" x2="18" y2="12"/></svg>';
     return el('button', {
       type: 'button',
-      class: 'sheet-chev sheet-chev-icon-only add-btn add-activity-trigger',
+      class: 'toolbar-btn add-btn add-activity-trigger',
       'aria-label': 'Add activity',
       onclick: (e) => {
         e.preventDefault();
         e.stopPropagation();
         showAddActivitySheet();
       }
-    }, icon);
+    }, tabIcon('plus'));
   }
 
   function buildClipboardPasteButton(inputId){
@@ -2843,10 +2854,10 @@
 
   function buildSheetCloseButton(onclick, ariaLabel = 'Close'){
     return el('button', {
-      class: 'close icon-close',
+      class: 'close icon-close toolbar-btn',
       'aria-label': ariaLabel,
       onclick
-    }, '\u2715');
+    }, tabIcon('close'));
   }
 
   function ensureAddActivitySheetDom(){
@@ -3209,12 +3220,6 @@
 
   // ─── Edit Activity Sheet ──────────────────────────────────────────────────
   let editActivityDraft = null;
-
-  function buildSheetEditIcon(){
-    const icon = el('span', { class: 'sheet-chev-icon', 'aria-hidden': 'true' });
-    icon.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
-    return icon;
-  }
 
   function activityToDraft(a){
     return {
@@ -3589,15 +3594,15 @@
     sheet.appendChild(el('div', { class: 'handle' }));
     // Sheet header chrome (chevrons + close), pinned above the map
     sheet.appendChild(el('div', { class: 'sheet-nav' },
-      el('button', { class: 'sheet-chev', disabled: prev ? null : '', 'aria-label': 'Previous activity', onclick: () => prev && openSheet(prev) }, '\u2039'),
-      el('button', { class: 'sheet-chev', disabled: next ? null : '', 'aria-label': 'Next activity', onclick: () => next && openSheet(next) }, '\u203a'),
+      el('button', { class: 'sheet-chev toolbar-btn', disabled: prev ? null : '', 'aria-label': 'Previous activity', onclick: () => prev && openSheet(prev) }, tabIcon('chev-left')),
+      el('button', { class: 'sheet-chev toolbar-btn', disabled: next ? null : '', 'aria-label': 'Next activity', onclick: () => next && openSheet(next) }, tabIcon('chev-right')),
       el('div', { class: 'sheet-nav-actions' },
       el('button', {
-        class: 'sheet-chev sheet-chev-icon-only',
+        class: 'toolbar-btn',
         'aria-label': 'Edit activity',
         onclick: () => openEditActivitySheet(a)
-      }, buildSheetEditIcon()),
-        el('button', { class: 'close icon-close', onclick: closeSheet }, '\u2715')
+      }, tabIcon('edit')),
+        buildSheetCloseButton(closeSheet)
       )
     ));
 
