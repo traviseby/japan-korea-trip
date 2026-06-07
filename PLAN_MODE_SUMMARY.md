@@ -129,7 +129,7 @@ Since I couldn't test in browser, please check:
 - `app.js`: Version bumps only (v1.80)
 - `plan/plan-app.js`: All Plan mode logic (~1,600 lines)
 - `plan/plan-styles.css`: All Plan mode styles (~400 lines)
-- `trip-app.html`: Plan mode tab structure (no changes needed)
+- `index.html`: Plan mode tab structure (no changes needed)
 
 ## Not Implemented
 - Actual AI generation (mockup only)

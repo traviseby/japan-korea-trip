@@ -4437,7 +4437,7 @@
       navigator.serviceWorker.ready.then(r => {
         (r.active || sw)?.postMessage({
           type: 'precache-shell',
-          urls: ['./', 'trip-app.html', 'styles.css', 'app.js', 'data.js']
+          urls: ['./', 'index.html', 'styles.css', 'app.js', 'data.js']
         });
         refreshCacheStatus();
       });
