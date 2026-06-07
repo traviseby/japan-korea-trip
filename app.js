@@ -572,6 +572,22 @@
     window.location.href = newUrl;
   }
 
+  function rebuildActivityIndexes(){
+    if (!window.DATA) return;
+    window.DATA.byId = {};
+    (window.DATA.activities || []).forEach(a => { window.DATA.byId[a.id] = a; });
+    window.DATA.dayActivities = {};
+    (window.DATA.activities || []).forEach(a => {
+      (window.DATA.dayActivities[a.day] = window.DATA.dayActivities[a.day] || []).push(a);
+    });
+  }
+
+  function removeActivityFromLocalData(rowId){
+    if (!window.DATA?.activities) return;
+    window.DATA.activities = window.DATA.activities.filter(a => a.id !== rowId);
+    rebuildActivityIndexes();
+  }
+
   function applyTripData(tripData){
     window.DATA = tripData;
 
@@ -580,10 +596,7 @@
     (window.DATA.activities || []).forEach(a => { window.DATA.byId[a.id] = a; });
     window.DATA.byDay = {};
     (window.DATA.days || []).forEach(d => { window.DATA.byDay[d.n] = d; });
-    window.DATA.dayActivities = {};
-    (window.DATA.activities || []).forEach(a => {
-      (window.DATA.dayActivities[a.day] = window.DATA.dayActivities[a.day] || []).push(a);
-    });
+    rebuildActivityIndexes();
 
     // Reset UI state for the new trip
     state.todayDay = currentDay();
@@ -1237,9 +1250,15 @@
 
       const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
       localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
-      const savedTab = state.tab;
-      await loadTripData(activeTrip.url, false, activeTrip.token || null);
-      state.tab = savedTab;
+      removeActivityFromLocalData(a.id);
+      try {
+        localStorage.setItem(
+          `${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`,
+          JSON.stringify(window.DATA)
+        );
+      } catch {}
+
+      if (state.sheet === a.id) closeSheet();
       if (state.tab === 'activities') renderActivitiesList();
       else syncFilters();
       toast(`Removed ${a.name}`);
@@ -2858,6 +2877,7 @@
     if (a.cat) badges.appendChild(el('span', { class: 'badge' }, catEmoji(a.cat) + ' ' + a.cat));
 
     const confirmDelete = async (e) => {
+      e.preventDefault();
       e.stopPropagation();
       if (confirm(`Remove "${a.name}"?`)) await removeActivity(a);
     };
@@ -3100,9 +3120,7 @@
       return;
     }
 
-    resultDiv.innerHTML = el('div', { 
-      style: { padding: '16px', textAlign: 'center', color: 'var(--fg-mid)' }
-    }, 'Parsing URL...').outerHTML;
+    resultDiv.innerHTML = '';
 
     const parsed = await parseActivityUrl(url);
     
@@ -3338,7 +3356,7 @@
 
     const parseBtn = $('#parse-url-btn');
     if (parseBtn) parseBtn.disabled = true;
-    toast('Adding activity to Coda...');
+    toast('Updating table in Doc');
 
     try {
       const name = (parsed.name || '').trim() || 'Untitled activity';
