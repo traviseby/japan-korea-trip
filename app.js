@@ -2047,7 +2047,7 @@
       el('input', {
         type: 'text',
         id: 'trip-url-input',
-        placeholder: 'Paste Supertrip doc URL',
+        placeholder: 'Paste Superhuman Doc URL',
         style: { 
           width: '100%', 
           padding: '10px', 
@@ -2473,8 +2473,11 @@
     // Wait two RAFs so the now-active tab pane has a final laid-out size
     // before Leaflet measures the container.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      buildFullMap();
-      if (leafletFull) leafletFull.invalidateSize({ animate: false, pan: false });
+      const refitAfterResize = buildFullMap();
+      if (leafletFull) {
+        leafletFull.invalidateSize({ animate: false, pan: false });
+        if (refitAfterResize) snapFullMapToPins();
+      }
       // One more frame lets tiles position with the corrected size before reveal.
       requestAnimationFrame(() => {
         const n = $('#map-full');
@@ -2556,6 +2559,16 @@
   }
   let fullMapMarkers = [];
   let lastMapRegion = null;
+
+  function snapFullMapToPins(){
+    if (!leafletFull) return false;
+    const pinMarkers = fullMapMarkers.filter(m => m._icon && m._icon.querySelector('.pin'));
+    if (!pinMarkers.length) return false;
+    const g = L.featureGroup(pinMarkers);
+    leafletFull.fitBounds(g.getBounds(), { padding: [60, 30], maxZoom: 13, animate: false });
+    return true;
+  }
+
   function buildFullMap(){
     const node = $('#map-full');
     if (!node) return;
@@ -2633,6 +2646,7 @@
           maxZoom: 18, subdomains: 'abcd',
           attribution: '© OpenStreetMap, © CARTO'
         }).addTo(leafletFull);
+        leafletFull.invalidateSize({ animate: false, pan: false });
       } catch (e) {
         console.error('🗺️ Error initializing map:', e);
         return;
@@ -2676,6 +2690,7 @@
 
     const regionChanged = lastMapRegion !== region;
     lastMapRegion = region;
+    let refitAfterResize = false;
 
     try {
       if (anyFilterActive() && inRegion.length){
@@ -2684,12 +2699,14 @@
         const g = L.featureGroup(fullMapMarkers.filter(m => m._icon && m._icon.querySelector('.pin')));
         if (g.getLayers().length){
           leafletFull.fitBounds(g.getBounds(), { padding: [60, 30], maxZoom: 13, animate: false });
+          refitAfterResize = true;
         }
       } else if (regionChanged){
-        // Region changed (e.g. user tapped JP↔KR) — snap to the new region.
-        // First-time construction already used defaultCenter/Zoom, so no
-        // setView is needed in that case.
-        leafletFull.setView(defaultCenter, defaultZoom, { animate: false });
+        // Region changed or first load — frame all pins in the region.
+        if (!snapFullMapToPins()) {
+          leafletFull.setView(defaultCenter, defaultZoom, { animate: false });
+        }
+        refitAfterResize = true;
       }
     } catch (e) {
       console.error('🗺️ Error adjusting map bounds:', e);
@@ -2697,6 +2714,7 @@
 
     // segmented active state
     $$('#segmented button').forEach(b => b.classList.toggle('active', b.dataset.region === region));
+    return refitAfterResize;
   }
 
   function renderFilterBar(tab){

@@ -1009,8 +1009,7 @@ html.ios-standalone .tabbar {
 #filter-bar-map {
   border-bottom: none;
 }
-#filter-bar-activities .lt-sticky,
-#filter-bar-map .lt-sticky {
+#filter-bar-activities .lt-sticky {
   border-bottom: none;
   box-shadow: none;
 }
