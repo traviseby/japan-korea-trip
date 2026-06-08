@@ -915,6 +915,7 @@
   }
 
   async function loadTripData(docUrl, fromCache = true, token = null, opts = {}){
+    const showLoader = !opts.preserveUi;
     try {
       // Normalize URL by removing fragments/query params for consistent cache keys
       const normalizedUrl = docUrl.split('#')[0].split('?')[0];
@@ -935,9 +936,9 @@
               tripData = null;
             } else {
               console.log('Loaded trip data from cache for:', tripData.trip?.title || 'Unknown');
-              if (activeTripLoadProgress) {
-                activeTripLoadProgress.markTripDataParsed(tripData);
-              }
+              applyTripData(tripData, opts);
+              finalizeAppAfterTripLoad(opts.preserveUi ? state.tab : undefined);
+              return;
             }
           } catch (e) {
             console.warn('Failed to parse cached trip data');
@@ -951,8 +952,8 @@
       
       // If not in cache or cache disabled, fetch from API
       if (!tripData) {
-        if (!activeTripLoadProgress) toast('Loading trip\u2026');
-        if (activeTripLoadProgress) {
+        if (showLoader) {
+          if (!activeTripLoadProgress) createSupertripLoader({ id: 'loader' });
           activeTripLoadProgress.setProgress(LOAD_PROGRESS.FETCH_START);
         }
         
@@ -1002,15 +1003,15 @@
       
       console.log('Setting window.DATA to:', tripData.trip?.title || 'Unknown');
       applyTripData(tripData, opts);
-      if (activeTripLoadProgress) {
+      if (activeTripLoadProgress && showLoader) {
         activeTripLoadProgress.setProgress(LOAD_PROGRESS.PREPARE_APP);
       }
       finalizeAppAfterTripLoad(opts.preserveUi ? state.tab : undefined);
-      if (activeTripLoadProgress && !opts.preserveUi) {
+      if (activeTripLoadProgress && showLoader) {
         await activeTripLoadProgress.complete();
       }
 
-      if (tripDataReady()) {
+      if (showLoader && tripDataReady()) {
         toast('Trip loaded');
       }
     } catch (err) {
@@ -1196,11 +1197,6 @@
         localStorage.removeItem('jk26.justSwitched');
       }
 
-      if (!activeTripLoadProgress) {
-        createSupertripLoader({ id: 'loader' });
-      }
-      activeTripLoadProgress.setProgress(LOAD_PROGRESS.INIT);
-      
       try {
         // Load the active trip's data (pass token if available)
         await loadTripData(tripToLoad.url, useCache, tripToLoad.token || null);
