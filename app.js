@@ -876,6 +876,19 @@
     return createSupertripLoader(opts);
   }
 
+  function getDemoTripData(){
+    const source = window.DEMO_TRIP_DATA;
+    if (!source) return null;
+    return JSON.parse(JSON.stringify(source));
+  }
+
+  function applyDemoTripData(opts = {}){
+    const demo = getDemoTripData();
+    if (!demo) return false;
+    applyTripData(demo, opts);
+    return true;
+  }
+
   function applyTripData(tripData, opts = {}){
     window.DATA = tripData;
 
@@ -960,13 +973,12 @@
           clearTimeout(timeoutId);
 
           if (streamed?.localDev) {
-            console.warn('API not available (local dev mode), using static data.js');
-            if (window.DATA) {
-              tripData = window.DATA;
-              toast('Demo data mode');
-            } else {
-              throw new Error('No data available. Deploy to Vercel to test dynamic data loading.');
+            console.warn('API not available (local dev mode), using demo trip data');
+            tripData = getDemoTripData();
+            if (!tripData) {
+              throw new Error('No demo data available.');
             }
+            toast('Demo data mode');
           } else {
             tripData = streamed;
             console.log('Fetched trip data:', tripData.trip?.title || 'Unknown', 'Days:', tripData.days?.length);
@@ -1198,7 +1210,10 @@
         // Remove loading overlay if it exists
         activeTripLoadProgress?.remove();
         
-        // Show error banner to user instead of silently falling back
+        if (applyDemoTripData()) {
+          finalizeAppAfterTripLoad('today');
+        }
+
         const banner = el('div', {
           style: {
             position: 'fixed',
@@ -1214,7 +1229,7 @@
             zIndex: '9999',
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
           }
-        }, `⚠️ Failed to load ${tripToLoad.name || 'trip'} data. Using default data. Try "Sync from Superhuman Docs" in Settings.`);
+        }, `Couldn\u2019t load ${tripToLoad.name || 'your trip'}. Showing sample data \u2014 try Sync in Settings.`);
         
         document.body.appendChild(banner);
         
@@ -4749,7 +4764,7 @@
       navigator.serviceWorker.ready.then(r => {
         (r.active || sw)?.postMessage({
           type: 'precache-shell',
-          urls: ['./', 'index.html', 'styles.css', 'app.js', 'data.js']
+          urls: ['./', 'index.html', 'styles.css', 'app.js', 'demo-data.js']
         });
         refreshCacheStatus();
       });
@@ -4766,7 +4781,7 @@
       if (d.type === 'update-available'){
         // Show a small banner once per update; ignore tile/image cache updates.
         const url = (d.url || '').toLowerCase();
-        if (url.endsWith('data.js') || url.endsWith('app.js') || url.endsWith('styles.css') || url.endsWith('.html')){
+        if (url.endsWith('demo-data.js') || url.endsWith('app.js') || url.endsWith('styles.css') || url.endsWith('.html')){
           showUpdateBanner();
         }
       }

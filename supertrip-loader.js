@@ -47,6 +47,16 @@
     ['Lining up your activities', 0.78, 0.96],
     ['Bon Voyage', 0.96, 1.0001],
   ];
+  const CAPTION_MIN_MS = 1400;
+  const CAPTION_FADE_MS = 350;
+
+  function progressCaptionIndex(p) {
+    let idx = 0;
+    for (let i = 0; i < CAPTIONS.length; i++) {
+      if (p + 0.001 >= CAPTIONS[i][1]) idx = i;
+    }
+    return idx;
+  }
 
   const roundRect = (x, y, w, h, r) => {
     const cx = x + w / 2;
@@ -57,7 +67,49 @@
 
   const STYLE_ID = 'stl-style';
   const CSS = `
-    supertrip-loader { position: fixed; inset: 0; display: block; background: #141517; z-index: 2147483000; overflow: hidden; }
+    supertrip-loader {
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: #141517;
+      z-index: 2147483000;
+      overflow: hidden;
+    }
+    supertrip-loader .stl-backdrop {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    supertrip-loader .stl-backdrop-base {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(165deg, #1b1c1e 0%, #232427 45%, #141517 100%);
+    }
+    supertrip-loader .stl-backdrop-glow {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(120% 50% at 50% -8%, rgba(255,230,200,0.06), rgba(0,0,0,0) 60%);
+    }
+    supertrip-loader .stl-backdrop-light {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      mix-blend-mode: screen;
+      background: linear-gradient(165deg, #8c8a86 0%, #a09d98 44%, #62615e 100%);
+    }
+    supertrip-loader .stl-backdrop-white,
+    supertrip-loader .stl-backdrop-black {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    supertrip-loader .stl-backdrop-white { background: #fff; }
+    supertrip-loader .stl-backdrop-black { background: #000; }
     supertrip-loader .stl-scaler { position: absolute; left: 50%; top: 50%; width: ${CW}px; height: ${CH}px; transform-origin: center; will-change: transform; }
     supertrip-loader .stl-abs { position: absolute; }
     supertrip-loader .stl-glass { overflow: hidden; }
@@ -92,6 +144,8 @@
       this._completed = false;
       this._ease = 0.08;
       this._creep = 0.35;
+      this._captionIndex = -1;
+      this._captionShownAt = 0;
     }
     static get observedAttributes() { return ['progress', 'ease', 'creep']; }
     attributeChangedCallback(n, _o, v) {
@@ -149,6 +203,32 @@
       }
     }
 
+    _updateCaption(now) {
+      const lastIdx = CAPTIONS.length - 1;
+      const desired = progressCaptionIndex(this._realMax);
+
+      if (this._captionIndex < 0) {
+        this._captionIndex = 0;
+        this._captionShownAt = now;
+        return;
+      }
+
+      if (this._realMax >= 0.999) {
+        if (this._captionIndex !== lastIdx) {
+          this._captionIndex = lastIdx;
+          this._captionShownAt = now;
+        }
+        return;
+      }
+
+      if (desired <= this._captionIndex) return;
+
+      if (now - this._captionShownAt >= CAPTION_MIN_MS) {
+        this._captionIndex = desired;
+        this._captionShownAt = now;
+      }
+    }
+
     connectedCallback() {
       if (!document.getElementById(STYLE_ID)) {
         const st = document.createElement('style'); st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st);
@@ -165,7 +245,8 @@
         const dt = Math.min(0.05, (now - this._lastFrame) / 1000);
         this._lastFrame = now;
         this._advanceProgress(dt, now);
-        this._render(this._shown, time);
+        this._updateCaption(now);
+        this._render(this._shown, time, now);
         if (this._shown >= 1 && !this._completed) { this._completed = true; this.dispatchEvent(new CustomEvent('complete', { bubbles: true })); }
         this._raf = requestAnimationFrame(loop);
       };
@@ -187,11 +268,14 @@
       this._stars = stars; this._clouds = clouds; this._fg = fg;
 
       this.innerHTML = `
+        <div class="stl-backdrop">
+          <div class="stl-backdrop-base"></div>
+          <div class="stl-backdrop-glow"></div>
+          <div class="stl-backdrop-light" data-backdrop-light></div>
+          <div class="stl-backdrop-white" data-backdrop-white></div>
+          <div class="stl-backdrop-black" data-backdrop-black></div>
+        </div>
         <div class="stl-scaler">
-          <div class="stl-abs" style="inset:0;background:linear-gradient(165deg,#1b1c1e 0%,#232427 45%,#141517 100%)"></div>
-          <div class="stl-abs" style="inset:0;background:radial-gradient(120% 50% at 50% -8%, rgba(255,230,200,0.06), rgba(0,0,0,0) 60%)"></div>
-          <div class="stl-abs" data-cabinlight style="inset:0;opacity:0;mix-blend-mode:screen;background:linear-gradient(165deg,#8c8a86 0%,#a09d98 44%,#62615e 100%)"></div>
-
           <div class="stl-abs" data-surra style="left:${PW.x - 16}px;top:${PW.y - 16}px;width:${PW.w + 32}px;height:${PW.h + 32}px;border-radius:${PW.r + 16}px;background:linear-gradient(150deg,#36363a,#1e1e21);box-shadow:0 30px 60px rgba(0,0,0,0.5), inset 0 2px 3px rgba(255,255,255,0.08)"></div>
           <div class="stl-abs" data-surrb style="left:${PW.x - 7}px;top:${PW.y - 7}px;width:${PW.w + 14}px;height:${PW.h + 14}px;border-radius:${PW.r + 7}px;background:linear-gradient(150deg,#54545a,#2f2f33)"></div>
 
@@ -234,7 +318,10 @@
       const q = (s) => this.querySelector(s);
       this._scaler = q('.stl-scaler');
       this._el = {
-        cabinLight: q('[data-cabinlight]'), surrA: q('[data-surra]'), surrB: q('[data-surrb]'),
+        backdropLight: q('[data-backdrop-light]'),
+        backdropWhite: q('[data-backdrop-white]'),
+        backdropBlack: q('[data-backdrop-black]'),
+        surrA: q('[data-surra]'), surrB: q('[data-surrb]'),
         sky: q('[data-sky]'), starwrap: q('[data-starwrap]'), starEls: [...this.querySelectorAll('[data-starwrap] > div')],
         warm: q('[data-warm]'), sun: q('[data-sun]'), sunGlow: q('[data-sunglow]'),
         cloudEls: [...this.querySelectorAll('[data-cloud]')], fgEls: [...this.querySelectorAll('[data-fg]')],
@@ -244,7 +331,7 @@
       this._lineLen = this._el.line.getTotalLength();
     }
 
-    _render(P, time) {
+    _render(P, time, now) {
       const e = this._el; if (!e) return;
       const dawn = smoother(P);
 
@@ -262,7 +349,8 @@
       e.sunGlow.style.opacity = smooth(inv(0.38, 0.7, dawn)) * 0.9;
       e.warm.style.opacity = wins(dawn, 0.45, 1.05, 0.25) * 0.5;
 
-      e.cabinLight.style.opacity = (smooth(inv(0.4, 1, dawn)) * 0.72).toFixed(3);
+      e.cabinLightOpacity = (smooth(inv(0.4, 1, dawn)) * 0.72).toFixed(3);
+      if (e.backdropLight) e.backdropLight.style.opacity = e.cabinLightOpacity;
       const fl = smooth(inv(0.35, 1, dawn));
       e.surrA.style.background = `linear-gradient(150deg, ${mix('#36363a', '#74747a', fl)}, ${mix('#1e1e21', '#4c4c51', fl)})`;
       e.surrB.style.background = `linear-gradient(150deg, ${mix('#54545a', '#9a9aa0', fl)}, ${mix('#2f2f33', '#666670', fl)})`;
@@ -282,11 +370,25 @@
       e.line.style.opacity = (lit * fadeIn).toFixed(3);
       e.tail.style.opacity = (lit * fadeIn).toFixed(3);
 
-      e.caps.forEach((el, i) => { const [, a, b] = CAPTIONS[i]; const o = wins(P, a, b, 0.08); el.style.opacity = o; el.style.transform = `translateY(${lerp(8, 0, o)}px)`; });
+      e.caps.forEach((el, i) => {
+        let o = 0;
+        let y = 8;
+        if (i === this._captionIndex) {
+          const age = now - this._captionShownAt;
+          o = smooth(Math.min(1, age / CAPTION_FADE_MS));
+          y = lerp(8, 0, o);
+        }
+        el.style.opacity = o;
+        el.style.transform = `translateY(${y}px)`;
+      });
       e.pct.textContent = this._displayPct + '%';
 
-      e.white.style.opacity = smooth(inv(0.96, 0.985, P)).toFixed(3);
-      e.black.style.opacity = smooth(inv(0.985, 1, P)).toFixed(3);
+      const whiteOpacity = smooth(inv(0.96, 0.985, P)).toFixed(3);
+      const blackOpacity = smooth(inv(0.985, 1, P)).toFixed(3);
+      e.white.style.opacity = whiteOpacity;
+      e.black.style.opacity = blackOpacity;
+      if (e.backdropWhite) e.backdropWhite.style.opacity = whiteOpacity;
+      if (e.backdropBlack) e.backdropBlack.style.opacity = blackOpacity;
     }
   }
 
