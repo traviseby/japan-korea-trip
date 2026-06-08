@@ -739,6 +739,7 @@
 
     let completeResolve;
     let onComplete;
+    let stagedParseTimer = 0;
     const completePromise = new Promise(resolve => { completeResolve = resolve; });
 
     onComplete = () => {
@@ -761,11 +762,28 @@
       },
 
       markTripDataParsed(tripData) {
-        api.setProgress(LOAD_PROGRESS.ITINERARY);
-        if (Array.isArray(tripData?.days)) api.setProgress(LOAD_PROGRESS.ITINERARY);
-        if (Array.isArray(tripData?.flights)) api.setProgress(LOAD_PROGRESS.FLIGHTS);
-        if (Array.isArray(tripData?.hotels)) api.setProgress(LOAD_PROGRESS.HOTELS);
-        if (Array.isArray(tripData?.activities)) api.setProgress(LOAD_PROGRESS.ACTIVITIES);
+        clearTimeout(stagedParseTimer);
+        const steps = [
+          [LOAD_PROGRESS.ITINERARY, Array.isArray(tripData?.days) && tripData.days.length > 0],
+          [LOAD_PROGRESS.FLIGHTS, Array.isArray(tripData?.flights) && tripData.flights.length > 0],
+          [LOAD_PROGRESS.HOTELS, Array.isArray(tripData?.hotels) && tripData.hotels.length > 0],
+          [LOAD_PROGRESS.ACTIVITIES, Array.isArray(tripData?.activities) && tripData.activities.length > 0],
+        ].filter(([, ok]) => ok);
+
+        if (!steps.length) {
+          api.setProgress(LOAD_PROGRESS.ITINERARY);
+          return;
+        }
+
+        let i = 0;
+        const tick = () => {
+          api.setProgress(steps[i][0]);
+          i += 1;
+          if (i < steps.length) {
+            stagedParseTimer = setTimeout(tick, 450);
+          }
+        };
+        tick();
       },
 
       async complete() {
@@ -774,6 +792,7 @@
       },
 
       remove() {
+        clearTimeout(stagedParseTimer);
         loaderEl.removeEventListener('complete', onComplete);
         loaderEl.remove();
         if (activeTripLoadProgress === api) activeTripLoadProgress = null;
@@ -782,6 +801,75 @@
 
     activeTripLoadProgress = api;
     return api;
+  }
+
+  async function fetchTripDataWithProgress(body, { signal, onProgress } = {}) {
+    const res = await fetch('/api/fetch-trip-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, stream: true }),
+      signal
+    });
+
+    if (res.status === 501) {
+      return { localDev: true };
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('ndjson')) {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || 'Failed to fetch trip data');
+      }
+      const tripData = await res.json();
+      onProgress?.(LOAD_PROGRESS.ACTIVITIES, 'complete');
+      return tripData;
+    }
+
+    if (!res.ok) {
+      let errMsg = `Failed to fetch trip data (${res.status})`;
+      try {
+        const reader = res.body?.getReader();
+        if (reader) {
+          const chunk = await reader.read();
+          const text = new TextDecoder().decode(chunk.value || new Uint8Array());
+          const line = text.split('\n').find(Boolean);
+          if (line) errMsg = JSON.parse(line).error || errMsg;
+        }
+      } catch {}
+      throw new Error(errMsg);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let tripData = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+        if (msg.type === 'progress' && typeof msg.value === 'number') {
+          onProgress?.(msg.value, msg.stage);
+        } else if (msg.type === 'done') {
+          tripData = msg.data;
+        } else if (msg.type === 'error') {
+          throw new Error(msg.error || 'Failed to fetch trip data');
+        }
+      }
+    }
+
+    if (!tripData) {
+      throw new Error('Trip data stream ended before completion');
+    }
+
+    return tripData;
   }
 
   function createTripLoadProgress(opts = {}) {
@@ -864,58 +952,34 @@
           body.token = token;
         }
         
-        let res;
         try {
-          res = await fetch('/api/fetch-trip-data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-            signal: controller.signal
+          const streamed = await fetchTripDataWithProgress(body, {
+            signal: controller.signal,
+            onProgress: (value) => activeTripLoadProgress?.setProgress(value)
           });
           clearTimeout(timeoutId);
+
+          if (streamed?.localDev) {
+            console.warn('API not available (local dev mode), using static data.js');
+            if (window.DATA) {
+              tripData = window.DATA;
+              toast('Demo data mode');
+            } else {
+              throw new Error('No data available. Deploy to Vercel to test dynamic data loading.');
+            }
+          } else {
+            tripData = streamed;
+            console.log('Fetched trip data:', tripData.trip?.title || 'Unknown', 'Days:', tripData.days?.length);
+            const cacheKey = `${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`;
+            localStorage.setItem(cacheKey, JSON.stringify(tripData));
+            console.log('Cached trip data with key:', cacheKey);
+          }
         } catch (fetchErr) {
           clearTimeout(timeoutId);
           if (fetchErr.name === 'AbortError') {
             throw new Error('Request timed out after 30 seconds. The server may be slow or experiencing issues.');
           }
           throw fetchErr;
-        }
-
-        // Check if we're in local dev (API returns 501)
-        if (res.status === 501) {
-          console.warn('API not available (local dev mode), using static data.js');
-          // Use the static data.js file for local development
-          if (window.DATA) {
-            tripData = window.DATA;
-            toast('Demo data mode');
-          } else {
-            throw new Error('No data available. Deploy to Vercel to test dynamic data loading.');
-          }
-        } else {
-          // Check if response is JSON
-          const contentType = res.headers.get('content-type');
-          if (!contentType || !contentType.includes('application/json')) {
-            const text = await res.text();
-            console.error('Non-JSON response:', text.substring(0, 200));
-            throw new Error('API endpoint not responding correctly. Please wait a minute for deployment to complete.');
-          }
-
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-            throw new Error(err.error || 'Failed to fetch trip data');
-          }
-
-          tripData = await res.json();
-          
-          console.log('Fetched trip data:', tripData.trip?.title || 'Unknown', 'Days:', tripData.days?.length);
-          
-          // Cache the data using normalized URL
-          const cacheKey = `${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`;
-          localStorage.setItem(cacheKey, JSON.stringify(tripData));
-          console.log('Cached trip data with key:', cacheKey);
-        }
-        if (activeTripLoadProgress) {
-          activeTripLoadProgress.markTripDataParsed(tripData);
         }
       }
       
@@ -5232,24 +5296,15 @@
       }
       
       try {
-        const res = await fetch('/api/fetch-trip-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(fetchBody),
-          signal: controller.signal
+        const tripData = await fetchTripDataWithProgress(fetchBody, {
+          signal: controller.signal,
+          onProgress: (value) => loader.setProgress(value)
         });
         clearTimeout(timeoutId);
-        
-        if (!res.ok) {
-          throw new Error(`API returned ${res.status}`);
+
+        if (tripData?.localDev) {
+          throw new Error('No data available. Deploy to Vercel to test dynamic data loading.');
         }
-        
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Server returned non-JSON response');
-        }
-        
-        const tripData = await res.json();
         
         // Save to cache
         const normalizedUrl = docUrl.split('#')[0].split('?')[0];
@@ -5258,7 +5313,6 @@
         
         applyTripData(tripData);
         console.log('✅ Trip data loaded');
-        loader.markTripDataParsed(tripData);
         loader.setProgress(LOAD_PROGRESS.PREPARE_APP);
       } catch (fetchErr) {
         clearTimeout(timeoutId);

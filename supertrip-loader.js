@@ -8,9 +8,10 @@
 //   el.addEventListener('complete', () => el.remove());  // fires once at 1.0
 //
 // Props / attributes:
-//   progress (number 0..1) — the ONLY input you bind to real loading.
-//   ease     (number, default 0.12) — how fast the shown value chases the
-//            target each frame (0 = frozen, 1 = instant). Smooths chunky updates.
+//   progress (number 0..1) — confirmed loading milestone (hard ceiling).
+//   ease     (number, default 0.08) — base chase rate for the displayed value.
+//   creep    (number, default 0.35) — fraction of the current caption band to
+//            drift through per second while waiting on the next real milestone.
 //
 // Renders into light DOM with tag-scoped CSS + `stl-` prefixed classes so it
 // won't collide with host styles. The dawn sky, sun-rise, frame-lighten,
@@ -63,17 +64,90 @@
     supertrip-loader .stl-cloud { position: absolute; left: 0; width: 196px; height: 76px; will-change: transform; }
     supertrip-loader .stl-cap { position: absolute; left: 0; right: 0; font: 600 20px/1 -apple-system, "SF Pro Display", system-ui, sans-serif; letter-spacing: -0.01em; color: rgba(255,248,238,0.95); text-shadow: 0 1px 16px rgba(0,0,0,0.55); opacity: 0; text-align: center; }`;
 
+  function captionBandEnd(p) {
+    for (const [, a, b] of CAPTIONS) {
+      if (p < b - 0.0001) return b;
+    }
+    return 1;
+  }
+
+  function captionBandStart(p) {
+    for (const [, a, b] of CAPTIONS) {
+      if (p < b - 0.0001) return a;
+    }
+    return CAPTIONS[CAPTIONS.length - 1][1];
+  }
+
   class SupertripLoader extends HTMLElement {
-    constructor() { super(); this._target = 0; this._shown = 0; this._raf = 0; this._t0 = 0; this._completed = false; this._ease = 0.12; }
-    static get observedAttributes() { return ['progress', 'ease']; }
+    constructor() {
+      super();
+      this._realMax = 0;
+      this._softTarget = 0;
+      this._shown = 0;
+      this._displayPct = 0;
+      this._raf = 0;
+      this._t0 = 0;
+      this._lastFrame = 0;
+      this._lastRealAt = 0;
+      this._completed = false;
+      this._ease = 0.08;
+      this._creep = 0.35;
+    }
+    static get observedAttributes() { return ['progress', 'ease', 'creep']; }
     attributeChangedCallback(n, _o, v) {
       if (n === 'progress') this.progress = parseFloat(v);
       if (n === 'ease') this.ease = parseFloat(v);
+      if (n === 'creep') this.creep = parseFloat(v);
     }
-    get progress() { return this._target; }
-    set progress(v) { this._target = clamp(Number(v) || 0); }
+    get progress() { return this._realMax; }
+    set progress(v) {
+      const next = clamp(Number(v) || 0);
+      if (next <= this._realMax) return;
+      this._realMax = next;
+      this._softTarget = Math.max(this._softTarget, next);
+      this._lastRealAt = performance.now();
+    }
     get ease() { return this._ease; }
-    set ease(v) { this._ease = clamp(Number(v) || 0.12, 0.01, 1); }
+    set ease(v) { this._ease = clamp(Number(v) || 0.08, 0.01, 1); }
+    get creep() { return this._creep; }
+    set creep(v) { this._creep = clamp(Number(v) || 0.35, 0, 1); }
+
+    _advanceProgress(dt, now) {
+      if (this._realMax < 0.999) {
+        const bandStart = captionBandStart(this._realMax);
+        const bandEnd = captionBandEnd(this._realMax);
+        const bandWidth = Math.max(0.02, bandEnd - bandStart);
+        const creepCeiling = Math.min(bandEnd - 0.012, this._realMax + bandWidth * 0.82);
+        const idleMs = now - this._lastRealAt;
+
+        if (idleMs > 350 && this._softTarget < creepCeiling - 0.0005) {
+          this._softTarget = Math.min(
+            creepCeiling,
+            this._softTarget + bandWidth * this._creep * dt
+          );
+        }
+      }
+
+      this._softTarget = Math.max(this._softTarget, this._realMax);
+
+      const dist = this._softTarget - this._shown;
+      let ease = this._ease;
+      const abs = Math.abs(dist);
+      if (abs > 0.22) ease = Math.min(ease, 0.045);
+      else if (abs > 0.08) ease = Math.min(ease, 0.065);
+      else if (abs < 0.012) ease = Math.max(ease, 0.11);
+
+      this._shown += dist * ease;
+      if (this._realMax >= 0.999 && this._shown > 0.9985) this._shown = 1;
+
+      const targetPct = Math.min(100, Math.round(this._shown * 100));
+      if (this._displayPct < targetPct) {
+        const step = abs > 0.12 ? 2 : 1;
+        this._displayPct = Math.min(targetPct, this._displayPct + step);
+      } else {
+        this._displayPct = targetPct;
+      }
+    }
 
     connectedCallback() {
       if (!document.getElementById(STYLE_ID)) {
@@ -84,10 +158,13 @@
       this._ro = new ResizeObserver(() => this._fit()); this._ro.observe(this);
       window.addEventListener('resize', this._fitBound = () => this._fit());
       this._t0 = performance.now();
+      this._lastFrame = this._t0;
+      this._lastRealAt = this._t0;
       const loop = (now) => {
         const time = (now - this._t0) / 1000;
-        this._shown += (this._target - this._shown) * this._ease;
-        if (this._target >= 0.999 && this._shown > 0.9985) this._shown = 1;
+        const dt = Math.min(0.05, (now - this._lastFrame) / 1000);
+        this._lastFrame = now;
+        this._advanceProgress(dt, now);
         this._render(this._shown, time);
         if (this._shown >= 1 && !this._completed) { this._completed = true; this.dispatchEvent(new CustomEvent('complete', { bubbles: true })); }
         this._raf = requestAnimationFrame(loop);
@@ -206,7 +283,7 @@
       e.tail.style.opacity = (lit * fadeIn).toFixed(3);
 
       e.caps.forEach((el, i) => { const [, a, b] = CAPTIONS[i]; const o = wins(P, a, b, 0.08); el.style.opacity = o; el.style.transform = `translateY(${lerp(8, 0, o)}px)`; });
-      e.pct.textContent = Math.round(P * 100) + '%';
+      e.pct.textContent = this._displayPct + '%';
 
       e.white.style.opacity = smooth(inv(0.96, 0.985, P)).toFixed(3);
       e.black.style.opacity = smooth(inv(0.985, 1, P)).toFixed(3);

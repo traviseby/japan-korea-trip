@@ -38,7 +38,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid Coda doc URL' });
   }
 
+  const stream = !!req.body?.stream;
+
   try {
+    const writeLine = stream
+      ? (obj) => { if (!res.writableEnded) res.write(`${JSON.stringify(obj)}\n`); }
+      : () => {};
+    const report = (stage, value) => writeLine({ type: 'progress', stage, value });
+
+    if (stream) {
+      res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+    }
+
     // Fetch tables
     const tablesResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/tables`, {
       headers: {
@@ -69,6 +81,8 @@ export default async function handler(req, res) {
       }
       tables[key] = table.id;
     }
+
+    report('tables', 0.26);
 
     // Helper to fetch columns for a table
     async function fetchColumns(tableId) {
@@ -203,6 +217,8 @@ export default async function handler(req, res) {
     const FL_MAP = buildColumnMap(flCols);
     const HTL_MAP = buildColumnMap(htlCols);
 
+    report('columns', 0.30);
+
     // Helper to fetch rows with pagination
     async function fetchAllRows(tableId, valueFormat = 'simple') {
       let allRows = [];
@@ -230,14 +246,26 @@ export default async function handler(req, res) {
       return allRows;
     }
 
-    // Fetch all rows
-    const [itnRows, actRows, todoRows, flRows, htlRows] = await Promise.all([
-      fetchAllRows(tables.itinerary),
-      fetchAllRows(tables.activities, 'rich'),
-      fetchAllRows(tables.todos),
-      fetchAllRows(tables.flights),
-      fetchAllRows(tables.hotels)
-    ]);
+    // Fetch all rows — report progress as each table finishes.
+    const rowBuckets = {};
+    await Promise.all([
+      ['itinerary', tables.itinerary, 'simple', 0.36],
+      ['flights', tables.flights, 'simple', 0.58],
+      ['hotels', tables.hotels, 'simple', 0.78],
+      ['activities', tables.activities, 'rich', 0.92],
+      ['todos', tables.todos, 'simple', null],
+    ].map(async ([key, tableId, valueFormat, progressValue]) => {
+      rowBuckets[key] = await fetchAllRows(tableId, valueFormat);
+      if (progressValue != null) report(key, progressValue);
+    }));
+
+    const itnRows = rowBuckets.itinerary;
+    const actRows = rowBuckets.activities;
+    const todoRows = rowBuckets.todos;
+    const flRows = rowBuckets.flights;
+    const htlRows = rowBuckets.hotels;
+
+    report('parsing', 0.94);
 
     // Helper to strip markdown code fences
     function stripFence(str) {
@@ -451,11 +479,20 @@ export default async function handler(req, res) {
       };
     }
 
+    if (stream) {
+      writeLine({ type: 'done', data: payload });
+      return res.end();
+    }
+
     return res.status(200).json(payload);
 
   } catch (error) {
     console.error('Error fetching trip data:', error);
     console.error('Error stack:', error.stack);
+    if (stream && !res.writableEnded) {
+      res.write(`${JSON.stringify({ type: 'error', error: error.message || 'Failed to fetch trip data' })}\n`);
+      return res.end();
+    }
     return res.status(500).json({ 
       error: 'Failed to fetch trip data',
       details: error.message,
