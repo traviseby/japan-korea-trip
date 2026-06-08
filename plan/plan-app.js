@@ -103,7 +103,7 @@
   
   function validateDates(checkIn, checkOut, fieldName = 'dates') {
     if (!checkIn || !checkOut) {
-      showToast(`Please select both ${fieldName}`);
+      showToast(`Select ${fieldName}`);
       return false;
     }
     
@@ -810,7 +810,7 @@
           };
           
           if (!newHotel.name) {
-            showToast('Please enter a hotel name');
+            showToast('Enter hotel name');
             $('#hotel-name').focus();
             return;
           }
@@ -819,7 +819,7 @@
           }
           
           saveHotel(newHotel);
-          showToast(`Hotel ${isEdit ? 'updated' : 'added'} successfully`);
+          showToast(isEdit ? 'Hotel updated' : 'Hotel added');
           setTimeout(() => renderHotelsTab(), 500);
         }
       }, isEdit ? 'Save Changes' : 'Add Hotel')
@@ -1138,17 +1138,17 @@
           };
           
           if (!newFlight.airline) {
-            showToast('Please enter an airline');
+            showToast('Enter airline');
             $('#flight-airline').focus();
             return;
           }
           if (!newFlight.departureAirport) {
-            showToast('Please enter departure airport');
+            showToast('Enter departure airport');
             $('#flight-dep-airport').focus();
             return;
           }
           if (!newFlight.arrivalAirport) {
-            showToast('Please enter arrival airport');
+            showToast('Enter arrival airport');
             $('#flight-arr-airport').focus();
             return;
           }
@@ -1157,7 +1157,7 @@
           }
           
           saveFlight(newFlight);
-          showToast(`Flight ${isEdit ? 'updated' : 'added'} successfully`);
+          showToast(isEdit ? 'Flight updated' : 'Flight added');
           setTimeout(() => renderFlightsTab(), 500);
         }
       }, isEdit ? 'Save Changes' : 'Add Flight')
@@ -1438,18 +1438,18 @@
           };
           
           if (!newActivity.name) {
-            showToast('Please enter an activity name');
+            showToast('Enter activity name');
             $('#activity-name').focus();
             return;
           }
           if (!newActivity.date) {
-            showToast('Please select a date');
+            showToast('Select a date');
             $('#activity-date').focus();
             return;
           }
           
           saveActivity(newActivity);
-          showToast(`Activity ${isEdit ? 'updated' : 'added'} successfully`);
+          showToast(isEdit ? 'Activity updated' : 'Activity added');
           setTimeout(() => renderActivitiesTab(), 500);
         }
       }, isEdit ? 'Save Changes' : 'Add Activity')

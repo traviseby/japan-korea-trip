@@ -711,6 +711,83 @@
     return state.tab;
   }
 
+  let activeTripLoadProgress = null;
+
+  // Milestones align with supertrip-loader caption bands (weights sum to 1.0).
+  const LOAD_PROGRESS = {
+    INIT: 0.04,
+    DOC_INFO_START: 0.08,
+    DOC_CONNECTED: 0.16,
+    TRIP_SAVED: 0.20,
+    FETCH_START: 0.22,
+    ITINERARY: 0.36,
+    FLIGHTS: 0.58,
+    HOTELS: 0.78,
+    ACTIVITIES: 0.92,
+    PREPARE_APP: 0.96,
+    DONE: 1.0,
+  };
+
+  function createSupertripLoader({ id = 'loader' } = {}) {
+    clearTripLoadOverlays();
+    document.getElementById(id)?.remove();
+
+    const loaderEl = document.createElement('supertrip-loader');
+    loaderEl.id = id;
+    document.body.appendChild(loaderEl);
+    loaderEl.progress = LOAD_PROGRESS.INIT;
+
+    let completeResolve;
+    let onComplete;
+    const completePromise = new Promise(resolve => { completeResolve = resolve; });
+
+    onComplete = () => {
+      loaderEl.style.transition = 'opacity .6s';
+      loaderEl.style.opacity = '0';
+      setTimeout(() => {
+        loaderEl.remove();
+        if (activeTripLoadProgress === api) activeTripLoadProgress = null;
+        completeResolve();
+      }, 700);
+    };
+    loaderEl.addEventListener('complete', onComplete, { once: true });
+
+    const api = {
+      el: loaderEl,
+
+      setProgress(value) {
+        const p = value > 1 ? value / 100 : value;
+        loaderEl.progress = Math.max(loaderEl.progress || 0, Math.min(1, p));
+      },
+
+      markTripDataParsed(tripData) {
+        api.setProgress(LOAD_PROGRESS.ITINERARY);
+        if (Array.isArray(tripData?.days)) api.setProgress(LOAD_PROGRESS.ITINERARY);
+        if (Array.isArray(tripData?.flights)) api.setProgress(LOAD_PROGRESS.FLIGHTS);
+        if (Array.isArray(tripData?.hotels)) api.setProgress(LOAD_PROGRESS.HOTELS);
+        if (Array.isArray(tripData?.activities)) api.setProgress(LOAD_PROGRESS.ACTIVITIES);
+      },
+
+      async complete() {
+        api.setProgress(LOAD_PROGRESS.DONE);
+        await completePromise;
+      },
+
+      remove() {
+        loaderEl.removeEventListener('complete', onComplete);
+        loaderEl.remove();
+        if (activeTripLoadProgress === api) activeTripLoadProgress = null;
+      },
+    };
+
+    activeTripLoadProgress = api;
+    return api;
+  }
+
+  function createTripLoadProgress(opts = {}) {
+    return createSupertripLoader(opts);
+  }
+
   function applyTripData(tripData, opts = {}){
     window.DATA = tripData;
 
@@ -757,6 +834,9 @@
               tripData = null;
             } else {
               console.log('Loaded trip data from cache for:', tripData.trip?.title || 'Unknown');
+              if (activeTripLoadProgress) {
+                activeTripLoadProgress.markTripDataParsed(tripData);
+              }
             }
           } catch (e) {
             console.warn('Failed to parse cached trip data');
@@ -770,7 +850,10 @@
       
       // If not in cache or cache disabled, fetch from API
       if (!tripData) {
-        toast('Loading trip data...');
+        if (!activeTripLoadProgress) toast('Loading trip\u2026');
+        if (activeTripLoadProgress) {
+          activeTripLoadProgress.setProgress(LOAD_PROGRESS.FETCH_START);
+        }
         
         // Add timeout to fetch (30 seconds max)
         const controller = new AbortController();
@@ -804,7 +887,7 @@
           // Use the static data.js file for local development
           if (window.DATA) {
             tripData = window.DATA;
-            toast('⚠️ Local dev mode: Showing static data only. Test on Vercel for dynamic trips.');
+            toast('Demo data mode');
           } else {
             throw new Error('No data available. Deploy to Vercel to test dynamic data loading.');
           }
@@ -831,6 +914,9 @@
           localStorage.setItem(cacheKey, JSON.stringify(tripData));
           console.log('Cached trip data with key:', cacheKey);
         }
+        if (activeTripLoadProgress) {
+          activeTripLoadProgress.markTripDataParsed(tripData);
+        }
       }
       
       if (!tripData) {
@@ -840,22 +926,29 @@
       
       console.log('Setting window.DATA to:', tripData.trip?.title || 'Unknown');
       applyTripData(tripData, opts);
+      if (activeTripLoadProgress) {
+        activeTripLoadProgress.setProgress(LOAD_PROGRESS.PREPARE_APP);
+      }
       finalizeAppAfterTripLoad(opts.preserveUi ? state.tab : undefined);
+      if (activeTripLoadProgress && !opts.preserveUi) {
+        await activeTripLoadProgress.complete();
+      }
 
       if (tripDataReady()) {
         toast('Trip loaded');
       }
     } catch (err) {
       console.error('Failed to load trip data:', err);
+      activeTripLoadProgress?.remove();
       
       // Show user-friendly error message
-      let errorMsg = 'Failed to load trip data';
+      let errorMsg = 'Trip couldn\u2019t load';
       if (err.message.includes('deployment')) {
-        errorMsg = 'Still deploying... Try again in a minute';
+        errorMsg = 'Waiting for API\u2026';
       } else if (err.message.includes('CODA_TOKEN')) {
-        errorMsg = 'Server configuration issue';
+        errorMsg = 'Docs token needed';
       } else if (err.message.includes('not found')) {
-        errorMsg = 'Trip document not found';
+        errorMsg = 'Trip not found';
       }
       
       toast(errorMsg);
@@ -1025,46 +1118,12 @@
       if (justSwitched) {
         console.log('Just switched trips - forcing fresh fetch');
         localStorage.removeItem('jk26.justSwitched');
-        
-        // Show loading overlay for fresh fetches
-        const loadingOverlay = el('div', {
-          id: 'trip-loading',
-          style: {
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            background: 'var(--bg)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: '9998',
-            gap: '20px'
-          }
-        },
-          el('div', { style: { fontSize: '48px' } }, '✈️'),
-          el('div', { 
-            id: 'trip-loading-text',
-            style: { 
-              fontSize: '16px', 
-              color: 'var(--fg-mid)',
-              textAlign: 'center',
-              padding: '0 20px'
-            } 
-          }, `Loading ${tripToLoad.name || 'trip'} data...`),
-          el('div', { 
-            style: { 
-              fontSize: '13px', 
-              color: 'var(--fg-dim)',
-              marginTop: '8px'
-            } 
-          }, 'This may take up to 30 seconds')
-        );
-        
-        document.body.appendChild(loadingOverlay);
       }
+
+      if (!activeTripLoadProgress) {
+        createSupertripLoader({ id: 'loader' });
+      }
+      activeTripLoadProgress.setProgress(LOAD_PROGRESS.INIT);
       
       try {
         // Load the active trip's data (pass token if available)
@@ -1073,8 +1132,7 @@
         console.error('Failed to load trip data on init:', err);
         
         // Remove loading overlay if it exists
-        const overlay = $('#trip-loading');
-        if (overlay) overlay.remove();
+        activeTripLoadProgress?.remove();
         
         // Show error banner to user instead of silently falling back
         const banner = el('div', {
@@ -1201,7 +1259,7 @@
         await loadTripData(trips[0].url, false, trips[0].token || null);
       } catch (err) {
         console.error('Failed to load next trip after removal:', err);
-        toast('Failed to load next trip. Try syncing from Settings.');
+        toast('No trips available');
       }
     } else {
       saveTrips(trips);
@@ -1420,7 +1478,7 @@
     const trips = getTrips();
     const activeTrip = trips.find(t => t.active);
     if (!activeTrip) {
-      toast('No active trip selected');
+      toast('Select a trip to continue');
       return;
     }
 
@@ -1454,7 +1512,7 @@
       toast(`Removed ${a.name}`);
     } catch (err) {
       console.error('Error deleting activity:', err);
-      toast('Failed to remove activity');
+      toast('Couldn\u2019t delete activity');
     }
   }
 
@@ -1485,7 +1543,7 @@
             e.stopPropagation();
             if (confirm(`Remove "${trip.name}"?`)) {
               await removeTrip(trip.url);
-              toast(`Removed ${trip.name}`);
+              toast('Trip removed');
             }
           }
         }, 'Delete');
@@ -1498,7 +1556,7 @@
             e.stopPropagation();
             if (confirm(`Remove "${trip.name}"?`)) {
               await removeTrip(trip.url);
-              toast(`Removed ${trip.name}`);
+              toast('Trip removed');
             }
           }
         }, '×');
@@ -1846,7 +1904,7 @@
                   const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParam);
                   window.history.replaceState({}, '', newUrl);
                   
-                  toast('Trip added! Copy the URL to share.');
+                  toast('New trip added');
                 }
                 
                 submitBtn.textContent = 'Add Trip';
@@ -1855,7 +1913,7 @@
                 console.error('Failed with token:', err);
                 submitBtn.textContent = 'Add Trip';
                 submitBtn.disabled = false;
-                toast('Failed: ' + err.message);
+                toast('Error: ' + err.message);
               }
             };
             
@@ -1893,13 +1951,13 @@
             const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParam);
             window.history.replaceState({}, '', newUrl);
             
-            toast('Trip added! Copy the URL to share.');
+            toast('New trip added');
           }
         } catch (err) {
           console.error('Failed to add trip:', err);
           submitBtn.textContent = 'Add Trip';
           submitBtn.disabled = false;
-          toast('Failed to add trip: ' + err.message);
+          toast('Trip not found');
         }
       }
     }, 'Add Trip');
@@ -1976,7 +2034,7 @@
     
     const activeTrip = getActiveTrip();
     if (!activeTrip) {
-      toast('Please add a trip first in Settings');
+      toast('No trips available');
       return;
     }
     const docUrl = activeTrip.url;
@@ -1993,7 +2051,7 @@
       await loadTripData(docUrl, false, activeTrip.token || null, { preserveUi: true });
 
       status.textContent = 'Synced!';
-      toast(`${activeTrip.name} data updated! Refreshing...`);
+      toast('Syncing\u2026');
       
       // Reload the app to display fresh data
       setTimeout(() => location.reload(), 500);
@@ -2002,7 +2060,7 @@
       status.textContent = 'Error';
       btn.textContent = 'Sync now';
       btn.disabled = false;
-      toast('Sync failed: ' + err.message);
+      toast('Error: ' + err.message);
     }
   }
 
@@ -2048,7 +2106,7 @@
     // Show onboarding screen
     showOnboarding();
     
-    toast('App reset complete');
+    toast('App reset');
     // Re-render whichever tab is visible so the UI reflects the reset.
     if (state.tab === 'today') renderToday();
     if (state.tab === 'activities') renderActivitiesTab();
@@ -3105,7 +3163,7 @@
       input.focus();
 
       if (!clipboardRead) {
-        toast('Could not paste from clipboard');
+        toast('Couldn\u2019t paste');
         return;
       }
 
@@ -3115,7 +3173,7 @@
         })
         .catch(() => {
           input.focus();
-          toast('Could not paste from clipboard');
+          toast('Couldn\u2019t paste');
         })
         .finally(() => {
           clipboardRead = null;
@@ -3146,9 +3204,9 @@
 
       navigator.clipboard?.readText?.()
         .then((text) => {
-          if (!applyText(input, text)) toast('Clipboard is empty');
+          if (!applyText(input, text)) toast('Clipboard empty');
         })
-        .catch(() => toast('Could not paste from clipboard'));
+        .catch(() => toast('Couldn\u2019t paste'));
     });
 
     return btn;
@@ -3281,7 +3339,7 @@
       
       if (parsed.error) {
         setParseUrlBtnBusy(false);
-        toast('Couldn\u2019t parse URL');
+        toast('Invalid URL');
         openEditActivitySheetForUnparsedUrl(url, parsed);
         return;
       }
@@ -3443,13 +3501,13 @@
     const activeTrip = trips.find(t => t.active);
     
     if (!activeTrip) {
-      toast('No active trip selected');
+      toast('Select a trip to continue');
       setParseUrlBtnBusy(false);
       return;
     }
 
     setParseUrlBtnBusy(true);
-    toast('Updating table in Doc');
+    toast('Updating Doc');
 
     try {
       const name = (parsed.name || '').trim() || 'Untitled activity';
@@ -3500,7 +3558,7 @@
 
     } catch (err) {
       console.error('Error adding activity:', err);
-      toast(err.message || 'Failed to add activity');
+      toast('Couldn\u2019t add activity');
     } finally {
       setParseUrlBtnBusy(false);
     }
@@ -3757,13 +3815,13 @@
     const trips = getTrips();
     const activeTrip = trips.find(t => t.active);
     if (!activeTrip) {
-      toast('No active trip selected');
+      toast('Select a trip to continue');
       return;
     }
 
     const name = draft.name.trim();
     if (!name) {
-      toast('Please enter an activity name');
+      toast('Enter activity name');
       return;
     }
 
@@ -3772,7 +3830,7 @@
     const lat = latStr === '' ? null : parseFloat(latStr);
     const lng = lngStr === '' ? null : parseFloat(lngStr);
     if ((latStr && isNaN(lat)) || (lngStr && isNaN(lng))) {
-      toast('Latitude and longitude must be numbers');
+      toast('Lat & long must be numbers');
       return;
     }
 
@@ -3788,7 +3846,7 @@
 
     try {
       if (!rowId) {
-        toast('Updating table in Doc');
+        toast('Updating Doc');
         const addBody = {
           docUrl: activeTrip.url,
           activity: {
@@ -3853,7 +3911,7 @@
       toast(isNew ? 'Activity added' : 'Activity updated');
     } catch (err) {
       console.error('Error updating activity:', err);
-      toast(isNew ? 'Failed to add activity' : 'Failed to update activity');
+      toast(isNew ? 'Couldn\u2019t add activity' : 'Couldn\u2019t update activity');
       if (btn) {
         btn.disabled = false;
         btn.textContent = isNew ? 'Add' : 'Update';
@@ -4443,7 +4501,7 @@
     if (btn) btn.classList.add('loading');
     if (!('geolocation' in navigator)){
       if (btn) btn.classList.remove('loading');
-      toast('Location not available — showing all activities');
+      toast('Current location unavailable');
       // Re-fit to visible pins so the user gets a useful default.
       if (state.tab === 'map'){ buildFullMap(); setTimeout(fitMapToVisibleActivities, 100); }
       return;
@@ -4471,11 +4529,11 @@
       err => {
         if (btn) btn.classList.remove('loading');
         const msgs = {
-          1: 'Location permission denied — showing all activities',
-          2: 'Couldn\u2019t get your location — showing all activities',
-          3: 'Location request timed out — showing all activities'
+          1: 'Location not shared',
+          2: 'Couldn\u2019t get location',
+          3: 'Location timed out'
         };
-        toast(msgs[err.code] || 'Location unavailable — showing all activities');
+        toast(msgs[err.code] || 'Location unavailable');
         if (state.tab === 'map'){ buildFullMap(); setTimeout(fitMapToVisibleActivities, 100); }
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
@@ -4864,6 +4922,211 @@
     return null;
   }
 
+  function showAutoLoadTokenScreen(docUrl) {
+    return new Promise((resolve, reject) => {
+      $('#autoload-token-overlay')?.remove();
+
+      const overlay = el('div', {
+        id: 'autoload-token-overlay',
+        style: {
+          position: 'fixed',
+          inset: '0',
+          zIndex: '2147483647',
+          background: 'var(--bg)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'auto',
+        },
+      },
+        el('div', {
+          style: {
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            background: 'var(--bg)',
+          },
+        },
+          el('button', {
+            id: 'autoload-back-btn',
+            style: {
+              background: 'none',
+              border: 'none',
+              fontSize: '24px',
+              cursor: 'pointer',
+              padding: '0',
+              color: 'var(--primary)',
+              lineHeight: '1',
+            },
+          }, '\u2190'),
+          el('div', {
+            style: { fontSize: '18px', fontWeight: '600', color: 'var(--fg)' },
+          }, 'Back')
+        ),
+        el('div', {
+          style: {
+            flex: '1',
+            padding: '24px 20px',
+            maxWidth: '600px',
+            margin: '0 auto',
+            width: '100%',
+          },
+        },
+          el('div', {
+            style: {
+              fontSize: '24px',
+              fontWeight: '600',
+              color: 'var(--fg)',
+              marginBottom: '16px',
+            },
+          }, 'API Token Required'),
+          el('div', {
+            style: {
+              fontSize: '15px',
+              color: 'var(--fg)',
+              marginBottom: '20px',
+              lineHeight: '1.5',
+            },
+          }, 'This Coda doc is private. To access it, you need to generate an API token:'),
+          el('ol', {
+            style: {
+              fontSize: '14px',
+              marginBottom: '20px',
+              paddingLeft: '24px',
+              color: 'var(--fg)',
+              lineHeight: '1.8',
+            },
+          },
+            el('li', { style: { marginBottom: '12px' } }, 'Go to ', (() => {
+              const link = el('a', {
+                href: 'https://coda.io/account',
+                target: '_blank',
+                style: { color: '#60A5FA', textDecoration: 'none' },
+              }, 'coda.io/account');
+              link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
+              link.onmouseleave = () => { link.style.textDecoration = 'none'; };
+              return link;
+            })()),
+            el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
+            el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
+            el('li', { style: { marginBottom: '12px' } },
+              el('strong', null, 'Click "Add a restriction"'),
+              ' and paste this doc URL:',
+              el('div', {
+                style: {
+                  marginTop: '8px',
+                  marginLeft: '-24px',
+                  padding: '10px',
+                  background: 'var(--surface-2)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                },
+              },
+                el('div', {
+                  style: {
+                    flex: '1',
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    wordBreak: 'break-all',
+                    color: 'var(--fg)',
+                  },
+                }, docUrl),
+                (() => {
+                  const btn = el('button', {
+                    onclick: () => {
+                      navigator.clipboard.writeText(docUrl);
+                      const copyBtn = event.target.closest('button');
+                      const originalContent = copyBtn.innerHTML;
+                      copyBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+                      setTimeout(() => { copyBtn.innerHTML = originalContent; }, 1500);
+                    },
+                    style: {
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      fontSize: '16px',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      flexShrink: '0',
+                    },
+                  });
+                  btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+                  return btn;
+                })()
+              )
+            ),
+            el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
+            el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
+          ),
+          el('div', {
+            style: {
+              marginBottom: '12px',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: 'var(--fg)',
+            },
+          }, 'Paste your API token:'),
+          el('input', {
+            type: 'text',
+            id: 'autoload-token-input',
+            placeholder: 'Paste your Coda API token here',
+            style: {
+              width: '100%',
+              padding: '14px',
+              background: 'var(--bg)',
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              borderColor: 'white',
+              borderImage: 'none',
+              borderRadius: '8px',
+              color: 'var(--fg)',
+              fontFamily: 'monospace',
+              boxSizing: 'border-box',
+            },
+          }),
+          el('button', {
+            id: 'autoload-submit-btn',
+            style: {
+              width: '100%',
+              marginTop: '20px',
+              padding: '16px',
+              background: 'white',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              color: 'black',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+            },
+          }, 'Continue')
+        )
+      );
+
+      document.body.appendChild(overlay);
+
+      $('#autoload-submit-btn').onclick = () => {
+        const token = $('#autoload-token-input').value.trim();
+        if (!token) {
+          alert('Please paste your API token');
+          return;
+        }
+        overlay.remove();
+        resolve(token);
+      };
+
+      $('#autoload-back-btn').onclick = () => {
+        overlay.remove();
+        reject(new Error('User cancelled authentication'));
+      };
+    });
+  }
+
   async function autoLoadFromUrl(docParam) {
     console.log('🚀 Starting auto-load for:', docParam);
     
@@ -4881,37 +5144,13 @@
     if (existingOnboarding) existingOnboarding.style.display = 'none';
     hideAppShell();
     
-    // Show loading overlay with status text
-    const statusText = el('div', { 
-      id: 'auto-load-status',
-      style: { fontSize: '14px', color: 'var(--fg-mid)', marginTop: '8px' } 
-    }, 'Preparing...');
-    
-    const loading = el('div', {
-      id: 'auto-load-overlay',
-      style: {
-        position: 'fixed',
-        inset: '0',
-        background: 'var(--bg)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: '10000',
-        padding: 'var(--pad)'
-      }
-    },
-      el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '✈️'),
-      el('div', { style: { fontSize: '18px', fontWeight: '500', marginBottom: '8px' } }, 'Loading your trip...'),
-      statusText
-    );
-    document.body.appendChild(loading);
+    const loader = createSupertripLoader({ id: 'loader' });
     console.log('✅ Loading overlay added');
 
     try {
       // Fetch doc info to get the name and icon
       console.log('📡 Fetching doc info...');
-      statusText.textContent = 'Fetching trip info...';
+      loader.setProgress(LOAD_PROGRESS.DOC_INFO_START);
       let docInfo = await fetchDocInfo(docUrl);
       console.log('📄 Doc info received:', docInfo);
       
@@ -4933,236 +5172,10 @@
           saveTrips(existingTrips);
         }
         
-        // Transform loading overlay into full-screen token request
-        loading.innerHTML = '';
-        loading.style.maxWidth = 'none';
-        loading.style.margin = '0';
-        loading.style.padding = '0';
-        loading.style.flexDirection = 'column';
-        loading.style.alignItems = 'stretch';
-        loading.style.justifyContent = 'flex-start';
-        
-        const tokenScreen = el('div', {
-          style: {
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            overflow: 'auto'
-          }
-        },
-          // Header with back button
-          el('div', {
-            style: {
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              background: 'var(--bg)'
-            }
-          },
-            el('button', {
-              id: 'autoload-back-btn',
-              style: {
-                background: 'none',
-                border: 'none',
-                fontSize: '24px',
-                cursor: 'pointer',
-                padding: '0',
-                color: 'var(--primary)',
-                lineHeight: '1'
-              }
-            }, '←'),
-            el('div', {
-              style: {
-                fontSize: '18px',
-                fontWeight: '600',
-                color: 'var(--fg)'
-              }
-            }, 'Back')
-          ),
-          // Content
-          el('div', {
-            style: {
-              flex: '1',
-              padding: '24px 20px',
-              maxWidth: '600px',
-              margin: '0 auto',
-              width: '100%'
-            }
-          },
-            el('div', {
-              style: {
-                fontSize: '24px',
-                fontWeight: '600',
-                color: 'var(--fg)',
-                marginBottom: '16px'
-              }
-            }, 'API Token Required'),
-            el('div', {
-              style: {
-                fontSize: '15px',
-                color: 'var(--fg)',
-                marginBottom: '20px',
-                lineHeight: '1.5'
-              }
-            }, 'This Coda doc is private. To access it, you need to generate an API token:'),
-            el('ol', {
-              style: {
-                fontSize: '14px',
-                marginBottom: '20px',
-                paddingLeft: '24px',
-                color: 'var(--fg)',
-                lineHeight: '1.8'
-              }
-            },
-              el('li', { style: { marginBottom: '12px' } }, 'Go to ', (() => {
-                const link = el('a', {
-                  href: 'https://coda.io/account',
-                  target: '_blank',
-                  style: { color: '#60A5FA', textDecoration: 'none' }
-                }, 'coda.io/account');
-                link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
-                link.onmouseleave = () => { link.style.textDecoration = 'none'; };
-                return link;
-              })()),
-              el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
-              el('li', { style: { marginBottom: '12px' } }, 'Name it (e.g., "Trip App")'),
-              el('li', { style: { marginBottom: '12px' } },
-                el('strong', null, 'Click "Add a restriction"'),
-                ' and paste this doc URL:',
-                el('div', {
-                  style: {
-                    marginTop: '8px',
-                    marginLeft: '-24px',
-                    padding: '10px',
-                    background: 'var(--surface-2)',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }
-                },
-                  el('div', {
-                    style: {
-                      flex: '1',
-                      fontSize: '12px',
-                      fontFamily: 'monospace',
-                      wordBreak: 'break-all',
-                      color: 'var(--fg)'
-                    }
-                  }, docUrl),
-                  (() => {
-                    const btn = el('button', {
-                      onclick: () => {
-                        navigator.clipboard.writeText(docUrl);
-                        const btn = event.target.closest('button');
-                        const originalContent = btn.innerHTML;
-                        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-                        setTimeout(() => { btn.innerHTML = originalContent; }, 1500);
-                      },
-                      style: {
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        fontSize: '16px',
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        flexShrink: '0'
-                      }
-                    });
-                    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-                    return btn;
-                  })()
-                )
-              ),
-              el('li', { style: { marginBottom: '12px' } }, 'Click "Generate API token"'),
-              el('li', { style: { marginBottom: '12px' } }, 'Copy the token and paste it below')
-            ),
-            el('div', {
-              style: {
-                marginBottom: '12px',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: 'var(--fg)'
-              }
-            }, 'Paste your API token:'),
-            el('input', {
-              type: 'text',
-              id: 'autoload-token-input',
-              placeholder: 'Paste your Coda API token here',
-              style: {
-                width: '100%',
-                padding: '14px',
-                background: 'var(--bg)',
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: 'white',
-                borderImage: 'none',
-                borderRadius: '8px',
-                color: 'var(--fg)',
-                fontFamily: 'monospace',
-                boxSizing: 'border-box'
-              }
-            }),
-            el('button', {
-              id: 'autoload-submit-btn',
-              style: {
-                width: '100%',
-                marginTop: '20px',
-                padding: '16px',
-                background: 'white',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                color: 'black',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }
-            }, 'Continue')
-          )
-        );
-        
-        loading.appendChild(tokenScreen);
-        
-        // Wait for user to provide token
-        const userToken = await new Promise((resolve, reject) => {
-          $('#autoload-submit-btn').onclick = () => {
-            const token = $('#autoload-token-input').value.trim();
-            if (!token) {
-              alert('Please paste your API token');
-              return;
-            }
-            resolve(token);
-          };
-          
-          $('#autoload-back-btn').onclick = () => {
-            reject(new Error('User cancelled authentication'));
-          };
-        });
+        const userToken = await showAutoLoadTokenScreen(docUrl);
         
         console.log('🔑 User provided token, retrying...');
-        
-        // Reset loading UI to show progress
-        loading.innerHTML = '';
-        loading.style.padding = 'var(--pad)';
-        loading.style.flexDirection = 'column';
-        loading.style.alignItems = 'center';
-        loading.style.justifyContent = 'center';
-        
-        const newStatusText = el('div', {
-          id: 'auto-load-status',
-          style: { fontSize: '14px', color: 'var(--fg-mid)', marginTop: '8px' }
-        }, 'Authenticating...');
-        
-        loading.appendChild(el('div', { style: { fontSize: '48px', marginBottom: '16px' } }, '✈️'));
-        loading.appendChild(el('div', { style: { fontSize: '18px', fontWeight: '500', marginBottom: '8px' } }, 'Loading your trip...'));
-        loading.appendChild(newStatusText);
-        
-        statusText = newStatusText;
+        loader.setProgress(LOAD_PROGRESS.DOC_INFO_START);
         
         // Retry with user token
         docInfo = await fetchDocInfo(docUrl, userToken);
@@ -5173,6 +5186,9 @@
         
         // Store the token with the trip (will be added below)
         window.__autoLoadToken = userToken;
+        loader.setProgress(LOAD_PROGRESS.DOC_CONNECTED);
+      } else {
+        loader.setProgress(LOAD_PROGRESS.DOC_CONNECTED);
       }
 
       const tripName = docInfo.name || 'My Trip';
@@ -5194,6 +5210,7 @@
         delete window.__autoLoadToken; // Clean up
       }
 
+      loader.setProgress(LOAD_PROGRESS.TRIP_SAVED);
       const trips = getTrips();
       // Set all existing trips to inactive
       trips.forEach(t => t.active = false);
@@ -5203,7 +5220,7 @@
 
       // Load the trip data (this can take 20-60 seconds for first load)
       console.log('📦 Loading trip data...');
-      statusText.textContent = 'This may take up to a minute';
+      loader.setProgress(LOAD_PROGRESS.FETCH_START);
       
       // Increase timeout to 90 seconds for auto-load
       const controller = new AbortController();
@@ -5241,6 +5258,8 @@
         
         applyTripData(tripData);
         console.log('✅ Trip data loaded');
+        loader.markTripDataParsed(tripData);
+        loader.setProgress(LOAD_PROGRESS.PREPARE_APP);
       } catch (fetchErr) {
         clearTimeout(timeoutId);
         if (fetchErr.name === 'AbortError') {
@@ -5249,16 +5268,13 @@
         throw fetchErr;
       }
 
-      // Remove loading overlay and show the app
-      loading.remove();
-      toast(`Welcome to ${tripName}!`);
       finalizeAppAfterTripLoad('today');
+      await loader.complete();
+      toast('Trip loaded');
       console.log('🎉 Auto-load complete!');
     } catch (error) {
       console.error('❌ Auto-load failed:', error);
-      if (loading && loading.parentNode) {
-        loading.remove();
-      }
+      loader?.remove();
 
       // Show error with more helpful message
       const errorMsg = error.message || 'Could not load trip data';
@@ -5535,12 +5551,14 @@
   }
 
   function clearTripLoadOverlays(){
+    activeTripLoadProgress?.remove();
+    $('#loader')?.remove();
     $('#trip-loading')?.remove();
     $('#auto-load-overlay')?.remove();
+    $('#autoload-token-overlay')?.remove();
   }
 
   function finalizeAppAfterTripLoad(tab){
-    clearTripLoadOverlays();
     hideOnboarding();
     showAppShell();
     $$('.plan-screen').forEach(s => s.classList.remove('active'));

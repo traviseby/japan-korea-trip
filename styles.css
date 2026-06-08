@@ -675,6 +675,7 @@ html.ios-standalone .tabbar {
   background: var(--fg-mid);
   transition: width .25s ease;
 }
+
 .offline-card .oc-label {
   font-size: 11px; color: var(--fg-mute);
   letter-spacing: 0.02em;
