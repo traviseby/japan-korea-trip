@@ -68,6 +68,7 @@
     todayDay: 1,
     region: null,             // map city key for Map tab — set later
     sheet: null,              // current activity id shown in sheet
+    hotelSheet: null,         // hotel object shown in sheet, or null
     fullscreenMap: null,      // day number, or null
     location: null,           // {lat,lng} from geolocation, or null
     searching: false,         // filter-bar search mode on Map + Activities
@@ -356,7 +357,7 @@
         )
       );
       root.appendChild(section);
-      root.appendChild(buildHotelCard(hotel));
+      root.appendChild(buildHotelCard(hotel, day));
     }
 
     // Mini map
@@ -906,6 +907,7 @@
     state.tab = 'today';
     state.region = null;
     state.sheet = null;
+    state.hotelSheet = null;
     state.fullscreenMap = null;
     state.searching = false;
     state.filterTray = null;
@@ -2281,25 +2283,79 @@
     );
   }
 
-  function buildHotelCard(h){
+  function buildHotelCard(h, day){
     const nightsText = h.nights === 1 ? '1 night' : `${h.nights} nights`;
-    return el('div', { class: 'hotel-card' },
+    const card = el('div', {
+      class: 'hotel-card',
+      role: 'button',
+      tabindex: '0',
+      'aria-label': `${h.name}, ${h.city}, ${nightsText}`
+    },
       el('div', { class: 'hc-header' },
         el('div', { class: 'hc-emoji' }, '🏨'),
         el('div', { class: 'hc-info' },
           el('div', { class: 'hc-name' }, h.name),
           el('div', { class: 'hc-meta' }, `${h.city} · ${nightsText}`)
         )
-      ),
-      h.roomType ? el('div', { class: 'hc-room' }, h.roomType) : null,
-      h.address ? el('div', { class: 'hc-address' }, h.address) : null,
-      (h.lat && h.lng) ? el('div', { class: 'hc-map-link', onclick: () => openMapLink(h.lat, h.lng, h.name) }, '📍 View on map') : null
+      )
     );
+    attachScrollSafeTap(card, () => openHotelSheet(h, day));
+    return card;
   }
 
-  function openMapLink(lat, lng, name){
-    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-    window.open(url, '_blank');
+  function isHotelInKorea(h, day){
+    if (day?.country === 'KR') return true;
+    if (day?.country === 'JP') return false;
+    const lat = normalizeCoord(h.lat);
+    const lng = normalizeCoord(h.lng);
+    if (lat == null || lng == null) return false;
+    return lat >= 33 && lat <= 39.6 && lng >= 124.5 && lng <= 132.1;
+  }
+
+  function buildDirectionsUrlForPoint({ lat, lng, name, inKorea }){
+    if (lat == null || lng == null) return '#';
+    if (inKorea) {
+      const label = encodeURIComponent((name || 'Destination').trim());
+      return `https://map.naver.com/v5/directions/-/${lng},${lat},${label}/walking`;
+    }
+    return `https://maps.google.com/?saddr=My+Location&daddr=${lat},${lng}`;
+  }
+
+  function buildHotelDirectionsUrl(h, day){
+    const lat = normalizeCoord(h.lat);
+    const lng = normalizeCoord(h.lng);
+    if (lat != null && lng != null) {
+      return buildDirectionsUrlForPoint({
+        lat, lng, name: h.name, inKorea: isHotelInKorea(h, day)
+      });
+    }
+    if (h.address) {
+      return `https://maps.google.com/?q=${encodeURIComponent(h.address.trim())}`;
+    }
+    return null;
+  }
+
+  function isActivityInKorea(a){
+    if (!a) return false;
+    if (!isUnscheduledDay(a.day)) {
+      const country = D.byDay[a.day]?.country;
+      if (country === 'KR') return true;
+      if (country === 'JP') return false;
+    }
+    const lat = normalizeCoord(a.lat);
+    const lng = normalizeCoord(a.lng);
+    if (lat == null || lng == null) return false;
+    // South Korea approximate bounding box (fallback for unscheduled / missing country)
+    return lat >= 33 && lat <= 39.6 && lng >= 124.5 && lng <= 132.1;
+  }
+
+  function buildDirectionsUrl(a){
+    return buildDirectionsUrlForPoint({
+      lat: normalizeCoord(a.lat),
+      lng: normalizeCoord(a.lng),
+      name: a.name,
+      inKorea: isActivityInKorea(a)
+    });
   }
 
   function buildActivityRow(a, day){
@@ -4077,6 +4133,7 @@
   }
 
   function openSheet(a){
+    state.hotelSheet = null;
     state.sheet = a.id;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
@@ -4135,7 +4192,7 @@
     const actions = el('div', { class: 'sheet-actions' + (infoUrl ? '' : ' single') },
       el('a', {
         class: 'btn',
-        href: `https://maps.google.com/?saddr=My+Location&daddr=${a.lat},${a.lng}`,
+        href: buildDirectionsUrl(a),
         target: '_blank', rel: 'noopener'
       }, 'Get Directions')
     );
@@ -4175,6 +4232,110 @@
       }
     }, 380);
   }
+
+  function openHotelSheet(h, day){
+    state.sheet = null;
+    state.hotelSheet = h;
+    const backdrop = $('#sheet-backdrop');
+    const sheet = $('#sheet');
+    sheet.innerHTML = '';
+
+    const accent = day?.color || dayAccent(day?.n) || '#1e6a9a';
+    const nightsText = h.nights === 1 ? '1 night' : `${h.nights} nights`;
+    const lat = normalizeCoord(h.lat);
+    const lng = normalizeCoord(h.lng);
+    const hasCoords = lat != null && lng != null;
+    const directionsUrl = buildHotelDirectionsUrl(h, day);
+
+    sheet.appendChild(el('div', { class: 'handle' }));
+    sheet.appendChild(el('div', { class: 'sheet-nav' },
+      el('div', { class: 'sheet-nav-spacer' }),
+      el('div', { class: 'sheet-nav-actions' },
+        buildSheetCloseButton(closeSheet)
+      )
+    ));
+
+    if (hasCoords){
+      const mapWrap = el('div', { class: 'map-wrap' }, el('div', { id: 'map-sheet' }));
+      sheet.appendChild(mapWrap);
+
+      const distRow = el('div', { class: 'distance' });
+      if (state.location){
+        const km = haversine(state.location, { lat, lng });
+        const walkMin = Math.round(km / 5 * 60);
+        const transitMin = Math.round(km / 25 * 60);
+        distRow.appendChild(el('div', { class: 'dist-pill' }, '🚶 ', el('span', { class: 'v' }, walkMin + ' min')));
+        distRow.appendChild(el('div', { class: 'dist-pill' }, '🚇 ', el('span', { class: 'v' }, transitMin + ' min')));
+        distRow.appendChild(el('div', { class: 'dist-pill' }, '↔ ', el('span', { class: 'v' }, km.toFixed(1) + ' km')));
+      } else {
+        distRow.appendChild(el('div', { class: 'dist-pill', style: { color: 'var(--fg-mute)' } }, 'Enable location for travel times'));
+      }
+      sheet.appendChild(distRow);
+    }
+
+    const body = el('div', { class: 'sheet-body' });
+    body.appendChild(el('h2', { class: 'sheet-title' }, h.name));
+    body.appendChild(el('div', { class: 'sheet-badges' },
+      h.city ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, h.city) : null,
+      el('span', { class: 'b' }, '🏨 Hotel'),
+      el('span', { class: 'b' }, nightsText)
+    ));
+
+    const details = el('div', { class: 'sheet-desc' });
+    if (h.startDate && h.endDate) {
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Check-in ${fmtDate(h.startDate)} · Check-out ${fmtDate(h.endDate)}`));
+    } else if (h.startDate) {
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Check-in ${fmtDate(h.startDate)}`));
+    }
+    if (h.roomType) details.appendChild(el('p', { class: 'sheet-detail-line' }, h.roomType));
+    if (h.address) details.appendChild(el('p', { class: 'sheet-detail-line' }, h.address));
+    body.appendChild(details);
+    sheet.appendChild(body);
+
+    if (directionsUrl){
+      sheet.appendChild(el('div', { class: 'sheet-actions single' },
+        el('a', {
+          class: 'btn',
+          href: directionsUrl,
+          target: '_blank', rel: 'noopener'
+        }, 'Get Directions')
+      ));
+    }
+    sheet.appendChild(el('div', { class: 'bottom-pad' }));
+
+    backdrop.classList.add('open');
+    requestAnimationFrame(() => sheet.classList.add('open'));
+
+    if (hasCoords){
+      setTimeout(() => {
+        if (leafletSheet) { leafletSheet.remove(); leafletSheet = null; }
+        const node = $('#map-sheet');
+        if (!node) return;
+        leafletSheet = L.map(node, {
+          center: [lat, lng], zoom: 14,
+          zoomControl: false, attributionControl: false,
+          dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+          touchZoom: false, boxZoom: false, keyboard: false, tap: false
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          subdomains: 'abcd'
+        }).addTo(leafletSheet);
+        L.marker([lat, lng], { icon: pinIcon('Hotel', accent) }).addTo(leafletSheet);
+        const kmFromUser = state.location
+          ? haversine(state.location, { lat, lng })
+          : null;
+        const showUserOnSheetMap = kmFromUser != null && kmFromUser <= 100 * 1.60934;
+        if (showUserOnSheetMap){
+          L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletSheet);
+          const dashed = L.polyline([[state.location.lat, state.location.lng], [lat, lng]], {
+            color: '#bfb', weight: 1.5, dashArray: '4 4', opacity: 0.6
+          }).addTo(leafletSheet);
+          leafletSheet.fitBounds(dashed.getBounds(), { padding: [30,30] });
+        }
+      }, 380);
+    }
+  }
+
   function closeSheet(){
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
@@ -4182,6 +4343,7 @@
     sheet.classList.remove('open');
     backdrop.classList.remove('open');
     state.sheet = null;
+    state.hotelSheet = null;
     if (leafletSheet){ setTimeout(() => { try { leafletSheet.remove(); } catch{} leafletSheet = null; }, 350); }
   }
 

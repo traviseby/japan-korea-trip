@@ -1804,8 +1804,8 @@ window.DATA = {
       "nights": 5,
       "roomType": "Executive Casual Double Room",
       "address": "",
-      "lat": null,
-      "lng": null
+      "lat": 35.6965754,
+      "lng": 139.7056852
     },
     {
       "name": "Shinjuku Granbell Hotel",
@@ -1815,8 +1815,8 @@ window.DATA = {
       "nights": 5,
       "roomType": "Superior Hollywood Twin Room",
       "address": "",
-      "lat": null,
-      "lng": null
+      "lat": 35.6965754,
+      "lng": 139.7056852
     },
     {
       "name": "The Royal Park Canvas - Sapporo Odori Park",
@@ -1826,8 +1826,8 @@ window.DATA = {
       "nights": 3,
       "roomType": "Superior Twin Room",
       "address": "",
-      "lat": null,
-      "lng": null
+      "lat": 43.060483,
+      "lng": 141.356035
     },
     {
       "name": "The Royal Park Canvas - Sapporo Odori Park",
@@ -1837,8 +1837,8 @@ window.DATA = {
       "nights": 3,
       "roomType": "Moderate Double Room",
       "address": "",
-      "lat": null,
-      "lng": null
+      "lat": 43.060483,
+      "lng": 141.356035
     },
     {
       "name": "Amanti Hotel Seoul",
@@ -1848,8 +1848,8 @@ window.DATA = {
       "nights": 5,
       "roomType": "Standard Twin",
       "address": "",
-      "lat": null,
-      "lng": null
+      "lat": 37.557062,
+      "lng": 126.918553
     },
     {
       "name": "Amanti Hotel Seoul",
@@ -1859,8 +1859,8 @@ window.DATA = {
       "nights": 5,
       "roomType": "Deluxe Double",
       "address": "",
-      "lat": null,
-      "lng": null
+      "lat": 37.557062,
+      "lng": 126.918553
     }
   ],
   "categories": {

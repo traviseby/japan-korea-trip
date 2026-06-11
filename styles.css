@@ -374,7 +374,12 @@ html.ios-standalone .tabbar {
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
+}
+.hotel-card:active {
+  background: var(--surface-hover, rgba(0, 0, 0, 0.03));
 }
 .hotel-card .hc-header {
   display: flex;
@@ -403,27 +408,14 @@ html.ios-standalone .tabbar {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.hotel-card .hc-room {
-  font-size: 13px;
-  color: var(--fg-mid);
-  padding-left: 40px;
+.sheet-nav .sheet-nav-spacer {
+  flex: 1;
 }
-.hotel-card .hc-address {
-  font-size: 12px;
-  color: var(--fg-mute);
-  padding-left: 40px;
-  line-height: 1.4;
+.sheet-desc .sheet-detail-line {
+  margin: 0 0 10px;
 }
-.hotel-card .hc-map-link {
-  font-size: 13px;
-  color: var(--accent);
-  padding-left: 40px;
-  cursor: pointer;
-  display: inline-block;
-  margin-top: 4px;
-}
-.hotel-card .hc-map-link:active {
-  opacity: 0.7;
+.sheet-desc .sheet-detail-line:last-child {
+  margin-bottom: 0;
 }
 
 /* Mini map */

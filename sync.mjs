@@ -214,8 +214,11 @@ function cellToDate(cell){
   if (typeof cell === 'object' && typeof cell.epoch === 'number'){
     return new Date(cell.epoch * 1000).toISOString().slice(0, 10);
   }
-  const s = typeof cell === 'string' ? cell : cell?.value;
+  let s = typeof cell === 'string' ? cell : cell?.value;
   if (typeof s === 'string'){
+    s = stripFence(s);
+    const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) return isoMatch[1];
     const d = new Date(s);
     if (isFinite(d)) return d.toISOString().slice(0, 10);
   }
