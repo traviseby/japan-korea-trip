@@ -1797,6 +1797,7 @@ window.DATA = {
   ],
   "hotels": [
     {
+      "id": "i-WlH6g7jC27",
       "name": "Shinjuku Granbell Hotel",
       "city": "Tokyo",
       "startDate": "2026-07-23",
@@ -1808,6 +1809,7 @@ window.DATA = {
       "lng": 139.7056852
     },
     {
+      "id": "i-MsiwPbI3dv",
       "name": "Shinjuku Granbell Hotel",
       "city": "Tokyo",
       "startDate": "2026-07-23",
@@ -1819,6 +1821,7 @@ window.DATA = {
       "lng": 139.7056852
     },
     {
+      "id": "i-9LQ8SW_TaV",
       "name": "The Royal Park Canvas - Sapporo Odori Park",
       "city": "Sapporo",
       "startDate": "2026-07-28",
@@ -1830,6 +1833,7 @@ window.DATA = {
       "lng": 141.356035
     },
     {
+      "id": "i-kF9itCJ3Gk",
       "name": "The Royal Park Canvas - Sapporo Odori Park",
       "city": "Sapporo",
       "startDate": "2026-07-28",
@@ -1841,6 +1845,7 @@ window.DATA = {
       "lng": 141.356035
     },
     {
+      "id": "i-HzWKkp1Hx_",
       "name": "Amanti Hotel Seoul",
       "city": "Seoul",
       "startDate": "2026-07-31",
@@ -1852,6 +1857,7 @@ window.DATA = {
       "lng": 126.918553
     },
     {
+      "id": "i-1MyJNneOii",
       "name": "Amanti Hotel Seoul",
       "city": "Seoul",
       "startDate": "2026-07-31",

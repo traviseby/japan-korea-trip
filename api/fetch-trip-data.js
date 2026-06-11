@@ -414,6 +414,7 @@ export default async function handler(req, res) {
     const hotels = htlRows.map(row => {
       const v = row.values;
       return {
+        id: row.id,
         name: v[HTL_MAP['Hotel Name']]?.name || String(v[HTL_MAP['Hotel Name']] || ''),
         city: v[HTL_MAP['City']]?.name || String(v[HTL_MAP['City']] || ''),
         startDate: cellToDate(v[HTL_MAP['Start Date']]) || '',

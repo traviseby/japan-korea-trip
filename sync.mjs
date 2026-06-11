@@ -440,6 +440,7 @@ const flights = flightRows.map(r => {
 const hotels = hotelRows.map(r => {
   const v = r.values;
   return {
+    id:        r.id,
     name:      v[HTL.name]?.name || v[HTL.name] || '',
     city:      v[HTL.city]?.name || v[HTL.city] || '',
     startDate: cellToDate(v[HTL.startDate]) || '',

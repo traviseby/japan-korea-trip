@@ -4068,6 +4068,292 @@
     }
   }
 
+  // ─── Edit Hotel Sheet ─────────────────────────────────────────────────────
+  let editHotelDraft = null;
+  let editHotelDay = null;
+
+  function hotelToDraft(h){
+    return {
+      rowId: h.id || null,
+      name: h.name || '',
+      city: h.city || '',
+      startDate: h.startDate || '',
+      endDate: h.endDate || '',
+      roomType: h.roomType || '',
+      lat: h.lat != null && !isNaN(h.lat) ? String(h.lat) : '',
+      lng: h.lng != null && !isNaN(h.lng) ? String(h.lng) : ''
+    };
+  }
+
+  function uniqueHotelValues(field){
+    return [...new Set((D.hotels || []).map(h => h[field]).filter(Boolean))];
+  }
+
+  function hotelDateLabel(date){ return date ? fmtDate(date) : 'None'; }
+
+  function hotelNightsBetween(startDate, endDate){
+    if (!startDate || !endDate) return 0;
+    const ms = new Date(endDate + 'T12:00:00') - new Date(startDate + 'T12:00:00');
+    return Math.max(0, Math.round(ms / 86400000));
+  }
+
+  function hotelDatePickerOptions(minDate){
+    return (D.days || [])
+      .filter(d => !minDate || d.date >= minDate)
+      .map(d => ({
+        value: d.date,
+        label: fmtDate(d.date),
+        sub: `Day ${d.n} · ${d.loc}`,
+        color: d.color
+      }));
+  }
+
+  function ensureEditHotelSheetDom(){
+    const root = $('#app') || $('.phone-fullscreen') || document.body;
+    let backdrop = $('#edit-hotel-backdrop');
+    let sheet = $('#edit-hotel-sheet');
+    if (!backdrop) {
+      backdrop = el('div', { id: 'edit-hotel-backdrop', class: 'sheet-backdrop sheet-stack-2' });
+      root.appendChild(backdrop);
+    }
+    if (!sheet) {
+      sheet = el('div', { id: 'edit-hotel-sheet', class: 'sheet sheet-stack-2' });
+      root.appendChild(sheet);
+    }
+    return { sheet, backdrop };
+  }
+
+  function hideEditHotelSheet(){
+    const sheet = $('#edit-hotel-sheet');
+    const backdrop = $('#edit-hotel-backdrop');
+    if (!sheet || !backdrop) return;
+    clearSheetDragStyles(sheet);
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
+    backdrop.onclick = null;
+    editHotelDraft = null;
+    editHotelDay = null;
+  }
+
+  function openEditHotelNamePicker(){
+    if (!editHotelDraft) return;
+    openPickTray({
+      title: 'Hotel',
+      value: editHotelDraft.name,
+      options: uniqueHotelValues('name').map(name => ({ value: name, label: name, sub: '', emoji: '🏨' })),
+      onPick: (value) => {
+        editHotelDraft.name = value;
+        updateEditPickerLabel('edit-hotel-name-label', value || 'None');
+      }
+    });
+  }
+
+  function openEditHotelCityPicker(){
+    if (!editHotelDraft) return;
+    openPickTray({
+      title: 'City',
+      value: editHotelDraft.city,
+      options: uniqueHotelValues('city').map(city => ({ value: city, label: city, sub: '' })),
+      onPick: (value) => {
+        editHotelDraft.city = value;
+        updateEditPickerLabel('edit-hotel-city-label', value || 'None');
+      }
+    });
+  }
+
+  function openEditHotelStartPicker(){
+    if (!editHotelDraft) return;
+    openPickTray({
+      title: 'Check-in',
+      value: editHotelDraft.startDate,
+      options: hotelDatePickerOptions(),
+      onPick: (value) => {
+        editHotelDraft.startDate = value;
+        if (editHotelDraft.endDate && editHotelDraft.endDate < value) {
+          editHotelDraft.endDate = value;
+          updateEditPickerLabel('edit-hotel-end-label', hotelDateLabel(value));
+        }
+        updateEditPickerLabel('edit-hotel-start-label', hotelDateLabel(value));
+      }
+    });
+  }
+
+  function openEditHotelEndPicker(){
+    if (!editHotelDraft) return;
+    openPickTray({
+      title: 'Check-out',
+      value: editHotelDraft.endDate,
+      options: hotelDatePickerOptions(editHotelDraft.startDate),
+      onPick: (value) => {
+        editHotelDraft.endDate = value;
+        updateEditPickerLabel('edit-hotel-end-label', hotelDateLabel(value));
+      }
+    });
+  }
+
+  function openEditHotelSheet(h, day){
+    if (!h?.id) {
+      toast('Hotel can\u2019t be edited');
+      return;
+    }
+    editHotelDay = day || null;
+    editHotelDraft = hotelToDraft(h);
+    const { sheet, backdrop } = ensureEditHotelSheetDom();
+    const draft = editHotelDraft;
+    sheet.innerHTML = '';
+
+    sheet.appendChild(buildSheetCloseButton(hideEditHotelSheet));
+    sheet.appendChild(el('div', { class: 'sheet-form-header' },
+      el('h2', { class: 'sheet-form-title' }, 'Edit Hotel')
+    ));
+
+    const form = el('div', { class: 'edit-activity-container' },
+      buildEditPickerField('Hotel', 'edit-hotel-name-label', draft.name || 'None', openEditHotelNamePicker, '🏨'),
+      buildEditPickerField('City', 'edit-hotel-city-label', draft.city || 'None', openEditHotelCityPicker),
+      buildEditPickerField('Check-in', 'edit-hotel-start-label', hotelDateLabel(draft.startDate), openEditHotelStartPicker),
+      buildEditPickerField('Check-out', 'edit-hotel-end-label', hotelDateLabel(draft.endDate), openEditHotelEndPicker),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-hotel-room' }, 'Room type'),
+        el('input', {
+          type: 'text',
+          id: 'edit-hotel-room',
+          class: 'edit-input',
+          value: draft.roomType,
+          oninput: (e) => { draft.roomType = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-hotel-lat' }, 'Latitude'),
+        el('input', {
+          type: 'text',
+          id: 'edit-hotel-lat',
+          class: 'edit-input',
+          value: draft.lat,
+          placeholder: '35.6896',
+          oninput: (e) => { draft.lat = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-hotel-lng' }, 'Longitude'),
+        el('input', {
+          type: 'text',
+          id: 'edit-hotel-lng',
+          class: 'edit-input',
+          value: draft.lng,
+          placeholder: '139.6917',
+          oninput: (e) => { draft.lng = e.target.value; }
+        })
+      ),
+      el('button', {
+        id: 'edit-hotel-submit',
+        class: 'oc-btn',
+        style: { marginTop: '8px', marginBottom: '24px' },
+        onclick: submitUpdateHotel
+      }, 'Update')
+    );
+    sheet.appendChild(form);
+
+    backdrop.classList.add('open');
+    backdrop.onclick = hideEditHotelSheet;
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  }
+
+  async function submitUpdateHotel(){
+    const draft = editHotelDraft;
+    if (!draft) return;
+
+    const trips = getTrips();
+    const activeTrip = trips.find(t => t.active);
+    if (!activeTrip) {
+      toast('Select a trip to continue');
+      return;
+    }
+
+    if (!draft.rowId) {
+      toast('Hotel can\u2019t be edited');
+      return;
+    }
+
+    const name = draft.name.trim();
+    if (!name) {
+      toast('Select a hotel');
+      return;
+    }
+
+    const latStr = draft.lat.trim();
+    const lngStr = draft.lng.trim();
+    const lat = latStr === '' ? null : parseFloat(latStr);
+    const lng = lngStr === '' ? null : parseFloat(lngStr);
+    if ((latStr && isNaN(lat)) || (lngStr && isNaN(lng))) {
+      toast('Lat & long must be numbers');
+      return;
+    }
+
+    const btn = $('#edit-hotel-submit');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+    }
+
+    const nights = hotelNightsBetween(draft.startDate, draft.endDate);
+    const savedDay = editHotelDay;
+    const rowId = draft.rowId;
+
+    try {
+      toast('Updating Doc');
+      const body = {
+        docUrl: activeTrip.url,
+        rowId,
+        hotel: {
+          name,
+          city: draft.city || '',
+          startDate: draft.startDate || '',
+          endDate: draft.endDate || '',
+          nights,
+          roomType: draft.roomType.trim(),
+          lat,
+          lng
+        }
+      };
+      if (activeTrip.token) body.token = activeTrip.token;
+
+      const res = await fetch('/api/update-hotel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || 'Failed to update hotel');
+
+      const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+      const savedTab = state.tab;
+      hideEditHotelSheet();
+      try {
+        await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
+        switchTab(savedTab);
+        const refreshed = (D.hotels || []).find(x => x.id === rowId);
+        if (refreshed) {
+          const day = savedDay || D.days?.find(d => d.date === refreshed.startDate) || null;
+          openHotelSheet(refreshed, day);
+        } else {
+          closeSheet();
+        }
+      } catch (reloadErr) {
+        console.warn('Updated in Coda but failed to refresh trip data:', reloadErr);
+        closeSheet();
+      }
+      toast('Hotel updated');
+    } catch (err) {
+      console.error('Error updating hotel:', err);
+      toast('Couldn\u2019t update hotel');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Update';
+      }
+    }
+  }
+
   // Emoji prefixes for To-Do types — uses Activity-category emoji where the
   // type maps cleanly; new categories get their own glyph.
   const TODO_TYPE_EMOJI = {
@@ -4251,6 +4537,11 @@
     sheet.appendChild(el('div', { class: 'sheet-nav' },
       el('div', { class: 'sheet-nav-spacer' }),
       el('div', { class: 'sheet-nav-actions' },
+        el('button', {
+          class: 'toolbar-btn',
+          'aria-label': 'Edit hotel',
+          onclick: () => openEditHotelSheet(h, day)
+        }, tabIcon('edit')),
         buildSheetCloseButton(closeSheet)
       )
     ));
@@ -4468,6 +4759,7 @@
     attachBottomSheetDismiss('#filter-tray', closeFilterTray);
     attachBottomSheetDismiss('#add-activity-sheet', hideAddActivitySheet);
     attachBottomSheetDismiss('#edit-activity-sheet', hideEditActivitySheet);
+    attachBottomSheetDismiss('#edit-hotel-sheet', hideEditHotelSheet);
   }
 
   // Block pinch-zoom on fixed UI (Safari ignores touch-action for pinch).
