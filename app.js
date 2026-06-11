@@ -4072,6 +4072,36 @@
   let editHotelDraft = null;
   let editHotelDay = null;
 
+  function resolveHotelRecord(h){
+    if (!h) return null;
+    if (h.id) return h;
+    return (D.hotels || []).find(x =>
+      x.id &&
+      x.name === h.name &&
+      x.startDate === h.startDate &&
+      x.roomType === h.roomType
+    ) || h;
+  }
+
+  async function ensureHotelRecord(h){
+    let hotel = resolveHotelRecord(h);
+    if (hotel?.id) return hotel;
+
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) return hotel;
+
+    const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+    localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+    toast('Refreshing trip\u2026');
+    try {
+      await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
+      hotel = resolveHotelRecord(h);
+    } catch (err) {
+      console.warn('Failed to refresh trip for hotel edit:', err);
+    }
+    return hotel;
+  }
+
   function hotelToDraft(h){
     return {
       rowId: h.id || null,
@@ -4191,13 +4221,14 @@
     });
   }
 
-  function openEditHotelSheet(h, day){
-    if (!h?.id) {
-      toast('Hotel can\u2019t be edited');
+  async function openEditHotelSheet(h, day){
+    const hotel = await ensureHotelRecord(h);
+    if (!hotel?.id) {
+      toast('Couldn\u2019t load hotel for editing');
       return;
     }
     editHotelDay = day || null;
-    editHotelDraft = hotelToDraft(h);
+    editHotelDraft = hotelToDraft(hotel);
     const { sheet, backdrop } = ensureEditHotelSheetDom();
     const draft = editHotelDraft;
     sheet.innerHTML = '';
@@ -4521,6 +4552,7 @@
 
   function openHotelSheet(h, day){
     state.sheet = null;
+    h = resolveHotelRecord(h);
     state.hotelSheet = h;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
@@ -6080,7 +6112,10 @@
   }
   
   function isValidTripData(data){
-    return !!(data?.days?.length && data?.trip);
+    if (!data?.days?.length || !data?.trip) return false;
+    const hotels = data.hotels || [];
+    if (hotels.length && hotels.some(h => !h.id)) return false;
+    return true;
   }
 
   function tripDataReady(){
