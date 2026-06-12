@@ -2875,8 +2875,11 @@
   }
 
   function carRentalCardMeta(cr){
-    const route = carRentalRoute(cr);
-    return route || 'Car rental';
+    const parts = [];
+    if (cr.pickupDate) parts.push(fmtDate(cr.pickupDate));
+    if (cr.pickupTime) parts.push(cr.pickupTime);
+    if (cr.provider) parts.push(cr.provider);
+    return parts.join(' · ') || 'Car rental';
   }
 
   function buildCarRentalCard(cr, day){
