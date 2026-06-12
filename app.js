@@ -3952,19 +3952,19 @@
     }, svgIcon('search')));
 
     chips.appendChild(summaryChip(
+      bookingsFilterState.day.length === 0 ? 'All Days' : 
+        bookingsFilterState.day.length === 1 ? dayFilterLabel(bookingsFilterState.day[0]) :
+        `${bookingsFilterState.day.length} Days`,
+      bookingsFilterState.day.length > 0,
+      () => openBookingsFilterTray('day')
+    ));
+    chips.appendChild(summaryChip(
       bookingsFilterState.type.length === 0 ? 'All Types' : 
         bookingsFilterState.type.length === 1 ? bookingsFilterState.type[0] :
         `${bookingsFilterState.type.length} Types`,
       bookingsFilterState.type.length > 0,
       () => openBookingsFilterTray('type'),
       bookingsFilterState.type.length === 1 ? bookingTypeEmoji(bookingsFilterState.type[0]) : null
-    ));
-    chips.appendChild(summaryChip(
-      bookingsFilterState.day.length === 0 ? 'All Days' : 
-        bookingsFilterState.day.length === 1 ? dayFilterLabel(bookingsFilterState.day[0]) :
-        `${bookingsFilterState.day.length} Days`,
-      bookingsFilterState.day.length > 0,
-      () => openBookingsFilterTray('day')
     ));
 
     wrap.appendChild(chips);
