@@ -77,9 +77,9 @@ export default async function handler(req, res) {
     }
 
     const tablesData = await tablesResp.json();
-    const eventsTable = tablesData.items.find(t => t.name === 'All Events');
+    const eventsTable = tablesData.items.find(t => t.name === 'All Tickets' || t.name === 'All Events');
     if (!eventsTable) {
-      throw new Error('Events table "All Events" not found in doc');
+      throw new Error('Tickets table "All Tickets" not found in doc');
     }
 
     const colsResp = await fetch(`https://coda.io/apis/v1/docs/${docId}/tables/${eventsTable.id}/columns`, {
@@ -107,20 +107,26 @@ export default async function handler(req, res) {
     const providerCol = colId(columns, 'Provider');
     if (providerCol) cells.push({ column: providerCol, value: event.provider || '' });
 
-    const bookingCol = colId(columns, 'Booking Reference');
+    const bookingCol = colId(columns, 'Booking Code', 'Booking Reference');
     if (bookingCol) cells.push({ column: bookingCol, value: event.bookingRef || '' });
 
     const dateCol = colId(columns, 'Date');
     if (dateCol) cells.push({ column: dateCol, value: event.date || '' });
 
-    const timeCol = colId(columns, 'Time');
+    const timeCol = colId(columns, 'Start Time', 'Time', 'Start time');
     if (timeCol) cells.push({ column: timeCol, value: parseClockTimeToCoda(event.time) });
 
-    const endTimeCol = colId(columns, 'End time');
+    const endTimeCol = colId(columns, 'End Time', 'End time');
     if (endTimeCol) cells.push({ column: endTimeCol, value: parseClockTimeToCoda(event.endTime) });
 
-    const meetupCol = colId(columns, 'Meet-up Address');
+    const meetupCol = colId(columns, 'Address', 'Meet-up Address');
     if (meetupCol) cells.push({ column: meetupCol, value: event.meetupAddress || '' });
+
+    const latCol = colId(columns, 'Latitude');
+    if (latCol) cells.push({ column: latCol, value: event.lat != null ? event.lat : '' });
+
+    const lngCol = colId(columns, 'Longitude');
+    if (lngCol) cells.push({ column: lngCol, value: event.lng != null ? event.lng : '' });
 
     const notesCol = colId(columns, 'Notes');
     if (notesCol) cells.push({ column: notesCol, value: event.notes || '' });

@@ -63,8 +63,8 @@ export default async function handler(req, res) {
     });
     if (!tablesResp.ok) throw new Error(`Failed to fetch tables: ${tablesResp.status}`);
 
-    const flightsTable = (await tablesResp.json()).items.find(t => t.name === 'All flights');
-    if (!flightsTable) throw new Error('Flights table "All flights" not found in doc');
+    const flightsTable = (await tablesResp.json()).items.find(t => t.name === 'All Flights' || t.name === 'All flights');
+    if (!flightsTable) throw new Error('Flights table "All Flights" not found in doc');
 
     const colsResp = await fetch(
       `https://coda.io/apis/v1/docs/${docId}/tables/${flightsTable.id}/columns`,

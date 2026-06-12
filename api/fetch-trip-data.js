@@ -67,18 +67,34 @@ export default async function handler(req, res) {
     const tables = {};
     
     const TABLE_NAMES = {
-      itinerary: 'Itinerary',
-      activities: 'All activities',
-      todos: 'To do list',
-      flights: 'All flights',
-      hotels: 'All Hotels',
-      events: 'All Events'
+      itinerary: ['Itinerary'],
+      activities: ['All activities'],
+      todos: ['To do list'],
+      flights: ['All Flights', 'All flights'],
+      hotels: ['All Hotels'],
+      events: ['All Tickets', 'All Events']
     };
 
-    for (const [key, name] of Object.entries(TABLE_NAMES)) {
-      const table = tablesData.items.find(t => t.name === name);
+    function findTable(items, names) {
+      const candidates = Array.isArray(names) ? names : [names];
+      for (const name of candidates) {
+        const table = items.find(t => t.name === name);
+        if (table) return table;
+      }
+      for (const name of candidates) {
+        const lower = name.toLowerCase();
+        const table = items.find(t => t.name.toLowerCase() === lower);
+        if (table) return table;
+      }
+      return null;
+    }
+
+    for (const [key, names] of Object.entries(TABLE_NAMES)) {
+      const table = findTable(tablesData.items, names);
       if (!table) {
-        throw new Error(`Table '${name}' not found in doc`);
+        const tried = (Array.isArray(names) ? names : [names]).join(', ');
+        const available = tablesData.items.map(t => t.name).join(', ');
+        throw new Error(`Table not found (tried: ${tried}). Available: ${available}`);
       }
       tables[key] = table.id;
     }
@@ -133,6 +149,43 @@ export default async function handler(req, res) {
         return node.children.map(extractSlateText).join('');
       }
       return '';
+    }
+
+    function cellNumber(v) {
+      if (v == null) return null;
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+      if (typeof v === 'object' && typeof v.scalar === 'number') return v.scalar;
+      const n = parseInt(cellText(v), 10);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function cellCoord(v) {
+      const n = cellNumber(v);
+      return n == null ? null : n;
+    }
+
+    function warnMissingColumns(tableName, colMap, requiredNames) {
+      const missing = requiredNames.filter(name => !colMap[name]);
+      if (missing.length) {
+        console.warn(`[${tableName}] Missing expected columns: ${missing.join(', ')}`);
+      }
+      return missing;
+    }
+
+    function todoDayLabel(v, todoMap, activities, days) {
+      const activityCell = v[todoMap['Activity']];
+      const activityId = activityCell?.identifier
+        || (typeof activityCell === 'string' ? activityCell : null);
+      if (activityId) {
+        const act = activities.find(a => a.id === activityId);
+        if (act?.day) return `Day ${act.day}`;
+      }
+      const ideal = cellText(v[todoMap['Ideal Reservation Time']]);
+      if (ideal) return ideal;
+      const why = cellText(v[todoMap['Why It Matters'] ?? todoMap['Why']]);
+      const dayMatch = why.match(/\bDay\s+(\d+)\b/i);
+      if (dayMatch) return `Day ${dayMatch[1]}`;
+      return cellText(v[todoMap['When to Book / Do'] ?? todoMap['When to Book']]) || '';
     }
 
     function cellText(v) {
@@ -250,7 +303,7 @@ export default async function handler(req, res) {
       date: 'c-K7xOu63CvF',
       timeOfDay: 'c-NhewZvUbdQ',
       activity: 'c-WNA7XAkEYm',
-      description: 'c-6VLWareh3p',
+      description: 'c-hFjRSpkKWQ',
       moreInfo: 'c-OOu-mpFiAD',
       category: 'c-vAMQo8XJAc',
       latitude: 'c-1oOmaseFGM',
@@ -309,6 +362,16 @@ export default async function handler(req, res) {
     const FL_MAP = buildColumnMap(flCols);
     const HTL_MAP = buildColumnMap(htlCols);
     const EVT_MAP = buildColumnMap(evtCols);
+
+    warnMissingColumns('Itinerary', ITN_MAP, ['Date', 'Title', 'Day', 'Overview', 'Location', 'Notes', 'Image URL', 'Description']);
+    warnMissingColumns('All activities', ACT_MAP, ['Date', 'Time of Day', 'Description', 'Category', 'More Info']);
+    if (!ACT_MAP['Name'] && !ACT_MAP['Activity']) {
+      console.warn('[All activities] Missing expected columns: Name');
+    }
+    warnMissingColumns('To do list', TODO_MAP, ['Priority', 'Item', 'Type', 'When to Book / Do', 'Reservation Link', 'Why It Matters', 'My Recommendation']);
+    warnMissingColumns('All Flights', FL_MAP, ['Airline', 'Flight #', 'Depart Date', 'Depart City', 'Arrive City', 'Departure Code', 'Arrival Code', 'Receipt']);
+    warnMissingColumns('All Hotels', HTL_MAP, ['Name', 'City', 'Start Date', 'End Date', 'Address', 'Latitude', 'Longitude']);
+    warnMissingColumns('All Tickets', EVT_MAP, ['Name', 'Provider', 'Date', 'Start Time', 'Address', 'Receipt']);
 
     report('columns', 0.30);
 
@@ -429,9 +492,11 @@ export default async function handler(req, res) {
     // Build days array
     const days = itnRows.map((row, index) => {
       const v = row.values;
-      const overview = stripFence(v[ITN_MAP['Overview']] || '');
-      const dayNum = parseInt(overview.match(/Day (\d+)/)?.[1] ?? (index + 1), 10);
-      const title = overview.replace(/^Day \d+:\s*/, '');
+      const overviewText = cellText(v[ITN_MAP['Overview']]);
+      const title = cellText(v[ITN_MAP['Title']]) || overviewText.replace(/^Day \d+:\s*/, '');
+      const dayNum = cellNumber(v[ITN_MAP['Day']])
+        ?? parseInt(overviewText.match(/Day (\d+)/)?.[1] ?? (index + 1), 10);
+      const overview = overviewText || (dayNum && title ? `Day ${dayNum}: ${title}` : '');
       const locRaw = v[ITN_MAP['Location']]?.name || v[ITN_MAP['Location']] || '';
       const loc = String(locRaw).replace(/^[^\w]+\s*/, '').trim();
       
@@ -476,8 +541,8 @@ export default async function handler(req, res) {
         desc: cellText(v[ACT.description]),
         url: moreInfoFromCell(v[ACT.moreInfo]),
         cat: cellText(v[ACT.category]?.name || v[ACT.category]),
-        lat: v[ACT.latitude] ?? null,
-        lng: v[ACT.longitude] ?? null
+        lat: cellCoord(v[ACT.latitude]),
+        lng: cellCoord(v[ACT.longitude])
       };
       if (!actDate) return { ...activity, day: UNSCHEDULED_DAY };
       const day = days.find(d => d.date === actDate)?.n;
@@ -496,11 +561,11 @@ export default async function handler(req, res) {
         priority: priority,
         item: String(v[TODO_MAP['Item']] || ''),
         type: String(v[TODO_MAP['Type']]?.name || v[TODO_MAP['Type']] || ''),
-        day: String(v[TODO_MAP['Day']] || ''),
-        whenToBook: String(v[TODO_MAP['When to Book']] || ''),
-        link: String(v[TODO_MAP['Link']]?.url || v[TODO_MAP['Link']] || ''),
-        why: String(v[TODO_MAP['Why']] || ''),
-        rec: String(v[TODO_MAP['Rec']] || '')
+        day: todoDayLabel(v, TODO_MAP, activities, days),
+        whenToBook: String(v[TODO_MAP['When to Book / Do'] ?? TODO_MAP['When to Book']] || ''),
+        link: String(v[TODO_MAP['Reservation Link'] ?? TODO_MAP['Link']]?.url || v[TODO_MAP['Reservation Link'] ?? TODO_MAP['Link']] || ''),
+        why: String(v[TODO_MAP['Why It Matters'] ?? TODO_MAP['Why']] || ''),
+        rec: String(v[TODO_MAP['My Recommendation'] ?? TODO_MAP['Recommendation'] ?? TODO_MAP['Rec']] || '')
       };
     });
 
@@ -548,15 +613,15 @@ export default async function handler(req, res) {
       const v = row.values;
       return {
         id: row.id,
-        name: v[HTL_MAP['Hotel Name']]?.name || String(v[HTL_MAP['Hotel Name']] || ''),
+        name: cellText(v[HTL_MAP['Name'] ?? HTL_MAP['Hotel Name']]),
         city: v[HTL_MAP['City']]?.name || String(v[HTL_MAP['City']] || ''),
         startDate: cellToDate(v[HTL_MAP['Start Date']]) || '',
         endDate: cellToDate(v[HTL_MAP['End Date']]) || '',
-        nights: v[HTL_MAP['Nights']] || 0,
+        nights: cellNumber(v[HTL_MAP['Nights']]) ?? 0,
         roomType: String(v[HTL_MAP['Room Type']] || ''),
         address: String(v[HTL_MAP['Address']] || ''),
-        lat: v[HTL_MAP['Latitude']] ?? v[HTL_MAP['Lat']] ?? null,
-        lng: v[HTL_MAP['Longitude']] ?? v[HTL_MAP['Lng']] ?? null
+        lat: cellCoord(v[HTL_MAP['Latitude']] ?? v[HTL_MAP['Lat']]),
+        lng: cellCoord(v[HTL_MAP['Longitude']] ?? v[HTL_MAP['Lng']])
       };
     });
 
@@ -564,19 +629,22 @@ export default async function handler(req, res) {
       const v = row.values;
       const date = cellToDate(v[EVT_MAP['Date']]) || '';
       const dayNum = days.find(d => d.date === date)?.n || null;
-      const timeCol = mapCol(EVT_MAP, 'Time') || EVT_TEMPLATE_IDS.time;
-      const endTimeCol = mapCol(EVT_MAP, 'End time', 'End Time') || EVT_TEMPLATE_IDS.endTime;
+      const timeCol = mapCol(EVT_MAP, 'Start Time', 'Time', 'Start time') || EVT_TEMPLATE_IDS.time;
+      const endTimeCol = mapCol(EVT_MAP, 'End Time', 'End time') || EVT_TEMPLATE_IDS.endTime;
+      const addressCol = mapCol(EVT_MAP, 'Address', 'Meet-up Address');
       const receipt = cellReceipt(v[EVT_MAP['Receipt']]);
       return {
         id: row.id,
         name: cellText(v[EVT_MAP['Name']]),
         provider: cellText(v[EVT_MAP['Provider']]?.name || v[EVT_MAP['Provider']]),
-        bookingRef: cellText(v[EVT_MAP['Booking Reference']]),
+        bookingRef: cellText(v[EVT_MAP['Booking Code'] ?? EVT_MAP['Booking Reference']]),
         date,
         day: dayNum,
         time: cellTimeDisplay(v[timeCol]),
         endTime: cellTimeDisplay(v[endTimeCol]),
-        meetupAddress: cellText(v[EVT_MAP['Meet-up Address']]),
+        meetupAddress: cellText(v[addressCol]),
+        lat: cellCoord(v[EVT_MAP['Latitude']]),
+        lng: cellCoord(v[EVT_MAP['Longitude']]),
         notes: cellText(v[EVT_MAP['Notes']]),
         cost: cellCost(v[EVT_MAP['Cost']]),
         receipt: receipt.name,

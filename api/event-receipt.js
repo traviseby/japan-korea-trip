@@ -54,9 +54,9 @@ export default async function handler(req, res) {
       throw new Error(`Failed to fetch tables: ${tablesResp.status}`);
     }
 
-    const eventsTable = (await tablesResp.json()).items.find(t => t.name === 'All Events');
+    const eventsTable = (await tablesResp.json()).items.find(t => t.name === 'All Tickets' || t.name === 'All Events');
     if (!eventsTable) {
-      throw new Error('Events table "All Events" not found in doc');
+      throw new Error('Tickets table "All Tickets" not found in doc');
     }
 
     const colsResp = await fetch(

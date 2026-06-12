@@ -43,13 +43,27 @@ console.log(`Using Coda doc: ${DOC}`);
 
 // Table names we're looking for
 const TABLE_NAMES = {
-  itinerary:  'Itinerary',
-  activities: 'All activities',
-  todos:      'To do list',
-  flights:    'All flights',
-  hotels:     'All Hotels',
-  events:     'All Events'
+  itinerary:  ['Itinerary'],
+  activities: ['All activities'],
+  todos:      ['To do list'],
+  flights:    ['All Flights', 'All flights'],
+  hotels:     ['All Hotels'],
+  events:     ['All Tickets', 'All Events']
 };
+
+function findTable(items, names) {
+  const candidates = Array.isArray(names) ? names : [names];
+  for (const name of candidates) {
+    const table = items.find(t => t.name === name);
+    if (table) return table;
+  }
+  for (const name of candidates) {
+    const lower = name.toLowerCase();
+    const table = items.find(t => t.name.toLowerCase() === lower);
+    if (table) return table;
+  }
+  return null;
+}
 
 // Will be populated dynamically
 const TABLES = {};
@@ -57,6 +71,8 @@ const TABLES = {};
 // Itinerary column IDs (Coda)
 const ITN = {
   date:        'c-z0sjOYlzr_',
+  title:       'c-Ebj2pm2HX4',
+  day:         'c-npV692QpTq',
   overview:    'c-82EtXiid8b',
   location:    'c-Rau3re8Ruw',
   morning:     'c-5_TVnWBUEA',
@@ -72,7 +88,7 @@ const ACT = {
   date:        'c-K7xOu63CvF',
   timeOfDay:   'c-NhewZvUbdQ',
   activity:    'c-WNA7XAkEYm',
-  description: 'c-6VLWareh3p',
+  description: 'c-hFjRSpkKWQ',
   moreInfo:    'c-OOu-mpFiAD',
   category:    'c-vAMQo8XJAc',
   latitude:    'c-1oOmaseFGM',
@@ -84,11 +100,13 @@ const TODO = {
   priority:   'c-XUp6LeK3pt',
   item:       'c-OVygmzidPW',
   type:       'c-0molH_AJeV',
-  day:        'c-Le4nrdcWKt',
   whenToBook: 'c-W3ISCaYuFs',
   link:       'c--yP_qNkDJ8',
   why:        'c-oWeEbh0W2Z',
-  rec:        'c-zqX1gmo2AX'
+  rec:        'c-zqX1gmo2AX',
+  activity:   'c-fKTdOgx0VF',
+  idealTime:  'c-fGv6Dih3P8',
+  done:       'c-56dJ7xyp0T'
 };
 
 // Flight column IDs (template fallbacks when columns are renamed in Coda)
@@ -117,9 +135,9 @@ const HTL = {
   nights:     'c-p3K68bZodo',
   name:       'c-kfe-fQQW2t',
   roomType:   'c-74-Y0AFSNV',
-  address:    'c-fKbKsEvGlB',
-  latitude:   'c-pPbVkoFlDY',
-  longitude:  'c-FWE3R1vEpp'
+  address:    'c-ly0cgzSx8F',
+  latitude:   'c-u-FBqV6NuK',
+  longitude:  'c-8OjXlM0iKN'
 };
 
 // Events column IDs
@@ -130,6 +148,8 @@ const EVT = {
   date:          'c-WiwlYbb4h1',
   time:          'c-ZVDsJccngI',
   meetupAddress: 'c-Hi8adBIoSJ',
+  latitude:      'c-HIL10v15I_',
+  longitude:     'c-y6YMQt_1Kw',
   notes:         'c-_piSqa4hWt',
   cost:          'c-C6NG8dUgfy',
   receipt:       'c-PTOUgEz_Wi',
@@ -297,6 +317,43 @@ function stripFence(v){
   return v.replace(/```/g, '').trim();
 }
 
+function cellNumber(v) {
+  if (v == null) return null;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'object' && typeof v.scalar === 'number') return v.scalar;
+  const n = parseInt(cellText(v), 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function cellCoord(v) {
+  const n = cellNumber(v);
+  return n == null ? null : n;
+}
+
+function warnMissingColumns(tableName, colMap, requiredNames) {
+  const missing = requiredNames.filter(name => !colMap[name]);
+  if (missing.length) {
+    console.warn(`[${tableName}] Missing expected columns: ${missing.join(', ')}`);
+  }
+  return missing;
+}
+
+function todoDayLabel(v, todoCols, activities, days) {
+  const activityCell = v[todoCols.activity];
+  const activityId = activityCell?.identifier
+    || (typeof activityCell === 'string' ? activityCell : null);
+  if (activityId) {
+    const act = activities.find(a => a.id === activityId);
+    if (act?.day) return `Day ${act.day}`;
+  }
+  const ideal = cellText(v[todoCols.idealTime]);
+  if (ideal) return ideal;
+  const why = cellText(v[todoCols.why]);
+  const dayMatch = why.match(/\bDay\s+(\d+)\b/i);
+  if (dayMatch) return `Day ${dayMatch[1]}`;
+  return cellText(v[todoCols.whenToBook]) || '';
+}
+
 function cellText(v) {
   if (v == null) return '';
   if (typeof v === 'string') return stripFence(v);
@@ -360,14 +417,15 @@ function buildColumnMap(columns) {
 console.log('Fetching tables from Coda...');
 const allTables = await fetchTables();
 
-for (const [key, name] of Object.entries(TABLE_NAMES)) {
-  const table = allTables.find(t => t.name === name);
+for (const [key, names] of Object.entries(TABLE_NAMES)) {
+  const table = findTable(allTables, names);
   if (!table) {
-    console.error(`Table "${name}" not found in doc. Available tables:`, allTables.map(t => t.name));
+    const tried = (Array.isArray(names) ? names : [names]).join(', ');
+    console.error(`Table not found (tried: ${tried}). Available tables:`, allTables.map(t => t.name));
     process.exit(1);
   }
   TABLES[key] = table.id;
-  console.log(`Found table "${name}" → ${table.id}`);
+  console.log(`Found table "${table.name}" → ${table.id}`);
 }
 
 // Fetch columns for each table
@@ -391,6 +449,8 @@ const EVT_MAP = buildColumnMap(evtCols);
 // Update hardcoded column ID objects with dynamic lookups
 // Itinerary
 ITN.date = ITN_MAP['Date'] || ITN.date;
+ITN.title = ITN_MAP['Title'] || ITN.title;
+ITN.day = ITN_MAP['Day'] || ITN.day;
 ITN.overview = ITN_MAP['Overview'] || ITN.overview;
 ITN.location = ITN_MAP['Location'] || ITN.location;
 ITN.morning = ITN_MAP['Morning'] || ITN.morning;
@@ -403,20 +463,24 @@ ITN.description = ITN_MAP['Description'] || ITN.description;
 // Activities
 ACT.date = ACT_MAP['Date'] || ACT.date;
 ACT.timeOfDay = ACT_MAP['Time of Day'] || ACT.timeOfDay;
-ACT.activity = ACT_MAP['Activity'] || ACT.activity;
+ACT.activity = ACT_MAP['Name'] || ACT_MAP['Activity'] || ACT.activity;
 ACT.description = ACT_MAP['Description'] || ACT.description;
 ACT.moreInfo = ACT_MAP['More Info'] || ACT.moreInfo;
 ACT.category = ACT_MAP['Category'] || ACT.category;
+ACT.latitude = ACT_MAP['Latitude'] || ACT_MAP['Lat'] || ACT.latitude;
+ACT.longitude = ACT_MAP['Longitude'] || ACT_MAP['Lng'] || ACT.longitude;
 
 // To-do
 TODO.priority = TODO_MAP['Priority'] || TODO.priority;
 TODO.item = TODO_MAP['Item'] || TODO.item;
 TODO.type = TODO_MAP['Type'] || TODO.type;
-TODO.day = TODO_MAP['Day'] || TODO.day;
-TODO.whenToBook = TODO_MAP['When to Book'] || TODO.whenToBook;
-TODO.link = TODO_MAP['Link'] || TODO.link;
-TODO.why = TODO_MAP['Why'] || TODO.why;
-TODO.rec = TODO_MAP['Recommendation'] || TODO.rec;
+TODO.whenToBook = TODO_MAP['When to Book / Do'] || TODO_MAP['When to Book'] || TODO.whenToBook;
+TODO.link = TODO_MAP['Reservation Link'] || TODO_MAP['Link'] || TODO.link;
+TODO.why = TODO_MAP['Why It Matters'] || TODO_MAP['Why'] || TODO.why;
+TODO.rec = TODO_MAP['My Recommendation'] || TODO_MAP['Recommendation'] || TODO.rec;
+TODO.activity = TODO_MAP['Activity'] || TODO.activity;
+TODO.idealTime = TODO_MAP['Ideal Reservation Time'] || TODO.idealTime;
+TODO.done = TODO_MAP['Done'] || TODO.done;
 
 // Flights
 FL.name = FL_MAP['Name'] || FL_MAP['Trip'] || FL.name;
@@ -446,7 +510,7 @@ HTL.startDate = HTL_MAP['Start Date'] || HTL.startDate;
 HTL.endDate = HTL_MAP['End Date'] || HTL.endDate;
 HTL.city = HTL_MAP['City'] || HTL.city;
 HTL.nights = HTL_MAP['Nights'] || HTL.nights;
-HTL.name = HTL_MAP['Hotel Name'] || HTL.name;
+HTL.name = HTL_MAP['Name'] || HTL_MAP['Hotel Name'] || HTL.name;
 HTL.roomType = HTL_MAP['Room Type'] || HTL.roomType;
 HTL.address = HTL_MAP['Address'] || HTL.address;
 HTL.latitude = HTL_MAP['Latitude'] || HTL_MAP['Lat'] || HTL.latitude;
@@ -455,15 +519,27 @@ HTL.longitude = HTL_MAP['Longitude'] || HTL_MAP['Lng'] || HTL.longitude;
 // Events
 EVT.name = EVT_MAP['Name'] || EVT.name;
 EVT.provider = EVT_MAP['Provider'] || EVT.provider;
-EVT.bookingRef = EVT_MAP['Booking Reference'] || EVT.bookingRef;
+EVT.bookingRef = EVT_MAP['Booking Code'] || EVT_MAP['Booking Reference'] || EVT.bookingRef;
 EVT.date = EVT_MAP['Date'] || EVT.date;
-EVT.time = EVT_MAP['Time'] || EVT.time;
-EVT.meetupAddress = EVT_MAP['Meet-up Address'] || EVT.meetupAddress;
+EVT.time = EVT_MAP['Start Time'] || EVT_MAP['Time'] || EVT_MAP['Start time'] || EVT.time;
+EVT.meetupAddress = EVT_MAP['Address'] || EVT_MAP['Meet-up Address'] || EVT.meetupAddress;
+EVT.latitude = EVT_MAP['Latitude'] || EVT.latitude;
+EVT.longitude = EVT_MAP['Longitude'] || EVT.longitude;
 EVT.notes = EVT_MAP['Notes'] || EVT.notes;
 EVT.cost = EVT_MAP['Cost'] || EVT.cost;
 EVT.receipt = EVT_MAP['Receipt'] || EVT.receipt;
 EVT.moreInfo = EVT_MAP['More Info'] || EVT.moreInfo;
-EVT.endTime = EVT_MAP['End time'] || EVT.endTime;
+EVT.endTime = EVT_MAP['End Time'] || EVT_MAP['End time'] || EVT.endTime;
+
+warnMissingColumns('Itinerary', ITN_MAP, ['Date', 'Title', 'Day', 'Overview', 'Location', 'Notes', 'Image URL', 'Description']);
+warnMissingColumns('All activities', ACT_MAP, ['Date', 'Time of Day', 'Description', 'Category', 'More Info']);
+if (!ACT_MAP['Name'] && !ACT_MAP['Activity']) {
+  console.warn('[All activities] Missing expected columns: Name');
+}
+warnMissingColumns('To do list', TODO_MAP, ['Priority', 'Item', 'Type', 'When to Book / Do', 'Reservation Link', 'Why It Matters', 'My Recommendation']);
+warnMissingColumns('All Flights', FL_MAP, ['Airline', 'Flight #', 'Depart Date', 'Depart City', 'Arrive City', 'Departure Code', 'Arrival Code', 'Receipt']);
+warnMissingColumns('All Hotels', HTL_MAP, ['Name', 'City', 'Start Date', 'End Date', 'Address', 'Latitude', 'Longitude']);
+warnMissingColumns('All Tickets', EVT_MAP, ['Name', 'Provider', 'Date', 'Start Time', 'Address', 'Receipt']);
 
 console.log('Column mappings complete.');
 
@@ -484,20 +560,23 @@ const days = itnRows
     const v = r.values;
     const iso = cellToDate(v[ITN.date]);
     if (!iso) return null;
-    const dayNum = parseInt(v[ITN.overview].match(/Day (\d+)/)?.[1] ?? '0', 10);
+    const overviewText = stripFence(v[ITN.overview] || '');
+    const title = stripFence(v[ITN.title] || '') || overviewText.replace(/^Day \d+:\s*/, '');
+    const dayNum = cellNumber(v[ITN.day])
+      ?? parseInt(overviewText.match(/Day (\d+)/)?.[1] ?? '0', 10);
     const meta = DAY_META[dayNum] || {};
     const locName = (v[ITN.location]?.name || v[ITN.location] || '').replace(/^[^\w]+\s*/, '').trim();
     return {
       n: dayNum,
       date: iso,
-      title: stripFence(v[ITN.overview]).replace(/^Day \d+:\s*/, ''),
+      title,
       loc: meta.locOverride || locName,
       country: meta.country,
       flag: meta.flag,
       lat: meta.lat,
       lng: meta.lng,
       color: meta.color,
-      overview: stripFence(v[ITN.overview]),
+      overview: overviewText || (dayNum && title ? `Day ${dayNum}: ${title}` : ''),
       notes: stripFence(v[ITN.notes] || ''),
       hero: stripFence(v[ITN.imageUrl] || ''),
       desc: stripFence(v[ITN.description] || '')
@@ -512,8 +591,8 @@ const activities = actRows.map(r => {
   const v = r.values;
   const id = r.id;
   const dayDate = cellToDate(v[ACT.date]);
-  const lat = v[ACT.latitude] || null;
-  const lng = v[ACT.longitude] || null;
+  const lat = cellCoord(v[ACT.latitude]);
+  const lng = cellCoord(v[ACT.longitude]);
   const activity = {
     id,
     time: v[ACT.timeOfDay]?.name || v[ACT.timeOfDay] || '',
@@ -537,7 +616,7 @@ const todos = todoRows.map(r => {
     priority: (v[TODO.priority]?.name || v[TODO.priority] || '').replace(/^[^\w]+\s*/, '').trim(),
     item: v[TODO.item],
     type: v[TODO.type]?.name || v[TODO.type] || '',
-    day: v[TODO.day] || '',
+    day: todoDayLabel(v, TODO, activities, days),
     whenToBook: v[TODO.whenToBook] || '',
     link: v[TODO.link]?.url || v[TODO.link] || '',
     why: v[TODO.why] || '',
@@ -584,11 +663,11 @@ const hotels = hotelRows.map(r => {
     city:      v[HTL.city]?.name || v[HTL.city] || '',
     startDate: cellToDate(v[HTL.startDate]) || '',
     endDate:   cellToDate(v[HTL.endDate]) || '',
-    nights:    v[HTL.nights] || 0,
+    nights:    cellNumber(v[HTL.nights]) ?? 0,
     roomType:  v[HTL.roomType] || '',
     address:   v[HTL.address] || '',
-    lat:       v[HTL.latitude] ?? null,
-    lng:       v[HTL.longitude] ?? null
+    lat:       cellCoord(v[HTL.latitude]),
+    lng:       cellCoord(v[HTL.longitude])
   };
 });
 
@@ -607,6 +686,8 @@ const events = eventRows.map(r => {
     time:           cellTimeDisplay(v[EVT.time]),
     endTime:        cellTimeDisplay(v[EVT.endTime]),
     meetupAddress:  v[EVT.meetupAddress] || '',
+    lat:            cellCoord(v[EVT.latitude]),
+    lng:            cellCoord(v[EVT.longitude]),
     notes:          v[EVT.notes] || '',
     cost:           cellCost(v[EVT.cost]),
     receipt:        receipt.name,

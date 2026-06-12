@@ -82,7 +82,7 @@ export default async function handler(req, res) {
 
     const cells = [];
 
-    const nameCol = colId(columns, 'Hotel Name');
+    const nameCol = colId(columns, 'Name', 'Hotel Name');
     if (nameCol) cells.push({ column: nameCol, value: hotelName });
 
     const cityCol = colId(columns, 'City');
@@ -101,6 +101,9 @@ export default async function handler(req, res) {
 
     const roomCol = colId(columns, 'Room Type');
     if (roomCol) cells.push({ column: roomCol, value: hotel.roomType || '' });
+
+    const addressCol = colId(columns, 'Address');
+    if (addressCol) cells.push({ column: addressCol, value: hotel.address || '' });
 
     const latCol = colId(columns, 'Latitude');
     if (latCol) cells.push({ column: latCol, value: hotel.lat != null ? hotel.lat : '' });

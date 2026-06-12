@@ -93,7 +93,7 @@ export default async function handler(req, res) {
 
     const activityCol = colId(columns, 'Activity', 'Name');
     if (!activityCol) {
-      throw new Error('Activities table is missing an Activity column');
+      throw new Error('Activities table is missing a Name (or Activity) column');
     }
 
     // Build row data - only include columns that exist

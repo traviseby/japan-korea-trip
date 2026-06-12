@@ -377,7 +377,7 @@
     if (dayEvents.length){
       const section = el('div', { class: 'section tight' },
         el('div', { class: 'section-head' },
-          el('h3', null, dayEvents.length === 1 ? 'Today\u2019s Event' : 'Today\u2019s Events')
+          el('h3', null, dayEvents.length === 1 ? 'Today\u2019s Ticket' : 'Today\u2019s Tickets')
         )
       );
       root.appendChild(section);
@@ -2794,7 +2794,7 @@
     const timeRange = formatEventTimeRange(ev);
     if (timeRange) parts.push(timeRange);
     if (ev.provider) parts.push(ev.provider);
-    return parts.join(' · ') || 'Event';
+    return parts.join(' · ') || 'Ticket';
   }
 
   function buildEventCard(ev, day){
@@ -2826,6 +2826,13 @@
   }
 
   function buildEventDirectionsUrl(ev, day){
+    const lat = normalizeCoord(ev.lat);
+    const lng = normalizeCoord(ev.lng);
+    if (lat != null && lng != null) {
+      return buildDirectionsUrlForPoint({
+        lat, lng, name: ev.name, inKorea: isEventInKorea(ev, day)
+      });
+    }
     const addr = (ev.meetupAddress || '').trim();
     if (!addr) return null;
     if (isEventInKorea(ev, day)) {
@@ -5624,7 +5631,7 @@
       el('div', { class: 'sheet-nav-actions' },
         el('button', {
           class: 'toolbar-btn',
-          'aria-label': 'Edit event',
+          'aria-label': 'Edit ticket',
           onclick: () => openEditEventSheet(ev, day)
         }, tabIcon('edit')),
         buildSheetCloseButton(closeSheet)
@@ -5635,7 +5642,7 @@
     body.appendChild(el('h2', { class: 'sheet-title' }, ev.name));
     body.appendChild(el('div', { class: 'sheet-badges' },
       ev.provider ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, ev.provider) : null,
-      iconBadge('b', '🎟️', 'Event')
+      iconBadge('b', '🎟️', 'Ticket')
     ));
 
     const details = el('div', { class: 'sheet-desc' });
@@ -5796,7 +5803,7 @@
 
     sheet.appendChild(buildSheetCloseButton(hideEditEventSheet));
     sheet.appendChild(el('div', { class: 'sheet-form-header' },
-      el('h2', { class: 'sheet-form-title' }, 'Edit Event')
+      el('h2', { class: 'sheet-form-title' }, 'Edit Ticket')
     ));
 
     const form = el('div', { class: 'edit-activity-container' },
@@ -5845,7 +5852,7 @@
         })
       ),
       el('div', { class: 'edit-field' },
-        el('label', { class: 'edit-label', for: 'edit-event-meetup' }, 'Meet-up address'),
+        el('label', { class: 'edit-label', for: 'edit-event-meetup' }, 'Address'),
         el('input', {
           type: 'text',
           id: 'edit-event-meetup',
