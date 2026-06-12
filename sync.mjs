@@ -91,9 +91,9 @@ const TODO = {
   rec:        'c-zqX1gmo2AX'
 };
 
-// Flight column IDs
+// Flight column IDs (template fallbacks when columns are renamed in Coda)
 const FL = {
-  trip:        'c-FFSCDOxN4M',
+  name:        'c-FFSCDOxN4M',
   airline:     'c-0zYwnaPiLh',
   fromCode:    'c-cAehzbeRgZ',
   toCode:      'c-XaRMQUIlCB',
@@ -103,8 +103,10 @@ const FL = {
   departTime:  'c-QDdLu0WGdF',
   toCity:      'c-gwntR7jmva',
   arriveTime:  'c-FZuDLcOtcn',
+  arriveDate:  'c-7VGJFVjGCi',
   receipt:     'c-O8VedL3PU4',
-  cost:        'c-tuKKd6A0D8'
+  cost:        'c-tuKKd6A0D8',
+  bookingCode: 'c-FXStD-KBA2'
 };
 
 // Hotel column IDs
@@ -417,18 +419,27 @@ TODO.why = TODO_MAP['Why'] || TODO.why;
 TODO.rec = TODO_MAP['Recommendation'] || TODO.rec;
 
 // Flights
-FL.trip = FL_MAP['Trip'] || FL.trip;
+FL.name = FL_MAP['Name'] || FL_MAP['Trip'] || FL.name;
 FL.airline = FL_MAP['Airline'] || FL.airline;
-FL.fromCode = FL_MAP['Code'] || FL_MAP['From Code'] || FL_MAP['From (code)'] || FL.fromCode;
-FL.toCode = FL_MAP['Dest code'] || FL_MAP['To Code'] || FL_MAP['To (code)'] || FL.toCode;
+FL.fromCode = FL_MAP['Departure Code'] || FL_MAP['Code'] || FL_MAP['From Code'] || FL_MAP['From (code)'] || FL.fromCode;
+FL.toCode = FL_MAP['Arrival Code'] || FL_MAP['Dest code'] || FL_MAP['To Code'] || FL_MAP['To (code)'] || FL.toCode;
 FL.number = FL_MAP['Flight #'] || FL_MAP['Flight Number'] || FL.number;
-FL.date = FL_MAP['Date'] || FL.date;
+FL.date = FL_MAP['Depart Date'] || FL_MAP['Date'] || FL.date;
+FL.arriveDate = FL_MAP['Arrival Date'] || FL.arriveDate;
 FL.fromCity = FL_MAP['Depart City'] || FL_MAP['From'] || FL.fromCity;
 FL.departTime = FL_MAP['Depart Time'] || FL_MAP['Departure'] || FL.departTime;
 FL.toCity = FL_MAP['Arrive City'] || FL_MAP['To'] || FL.toCity;
 FL.arriveTime = FL_MAP['Arrive Time'] || FL_MAP['Arrival'] || FL.arriveTime;
+FL.bookingCode = FL_MAP['Booking Code'] || FL.bookingCode;
 FL.receipt = FL_MAP['Receipt'] || FL.receipt;
 FL.cost = FL_MAP['Cost'] || FL.cost;
+
+function flightTripLabel(fromCity, toCity) {
+  const from = String(fromCity || '').trim();
+  const to = String(toCity || '').trim();
+  if (from && to) return `${from} → ${to}`;
+  return from || to || '';
+}
 
 // Hotels
 HTL.startDate = HTL_MAP['Start Date'] || HTL.startDate;
@@ -545,7 +556,7 @@ const flights = flightRows.map(r => {
   const receipt = cellReceipt(v[FL.receipt]);
   return {
     id:       r.id,
-    trip:     cellText(v[FL.trip]),
+    trip:     flightTripLabel(fromCity, toCity),
     airline,
     flightNum,
     number:   `${airline ? airline.split(' ')[0] : ''} ${flightNum}`.trim(),
@@ -554,9 +565,11 @@ const flights = flightRows.map(r => {
     fromCity,
     toCity,
     date:     flightDate,
+    arriveDate: cellToDate(v[FL.arriveDate]) || '',
     day:      dayNum,
     depart:   cellTimeDisplay(v[FL.departTime]),
     arrive:   cellTimeDisplay(v[FL.arriveTime]),
+    bookingCode: cellText(v[FL.bookingCode]),
     cost:     cellCost(v[FL.cost]),
     receipt:  receipt.name,
     receiptUrl: receipt.url

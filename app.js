@@ -919,18 +919,26 @@
     return String(s).replace(/```/g, '').trim();
   }
 
+  function flightTripLabel(fromCity, toCity) {
+    const from = String(fromCity || '').trim();
+    const to = String(toCity || '').trim();
+    if (from && to) return `${from} → ${to}`;
+    return from || to || '';
+  }
+
   function enrichTripData(data){
     if (!Array.isArray(data.events)) data.events = [];
     (data.flights || []).forEach(f => {
       if (!f.day && f.date) {
         f.day = data.days?.find(d => d.date === f.date)?.n ?? null;
       }
-      for (const key of ['airline', 'flightNum', 'trip', 'from', 'to', 'fromCity', 'toCity']) {
+      for (const key of ['airline', 'flightNum', 'from', 'to', 'fromCity', 'toCity', 'bookingCode']) {
         if (typeof f[key] === 'string') f[key] = stripCodaFence(f[key]);
       }
       if (f.airline || f.flightNum) {
         f.number = `${f.airline ? f.airline.split(' ')[0] : ''} ${f.flightNum || ''}`.trim();
       }
+      f.trip = flightTripLabel(f.fromCity, f.toCity) || stripCodaFence(f.trip);
     });
   }
 
@@ -960,6 +968,7 @@
         record.number = `${record.airline ? record.airline.split(' ')[0] : ''} ${record.flightNum || ''}`.trim();
       }
       if (record.date) record.day = window.DATA.days?.find(d => d.date === record.date)?.n ?? null;
+      record.trip = flightTripLabel(record.fromCity, record.toCity);
     }
     if (collection === 'events' && record.date) {
       record.day = window.DATA.days?.find(d => d.date === record.date)?.n ?? null;
@@ -5198,7 +5207,6 @@
   function flightToDraft(f){
     return {
       rowId: f.id || null,
-      trip: f.trip || '',
       airline: f.airline || '',
       flightNum: f.flightNum || '',
       from: f.from || '',
@@ -5206,8 +5214,10 @@
       fromCity: f.fromCity || '',
       toCity: f.toCity || '',
       date: f.date || '',
+      arriveDate: f.arriveDate || '',
       depart: f.depart || '',
       arrive: f.arrive || '',
+      bookingCode: f.bookingCode || '',
       cost: f.cost != null && f.cost !== '' ? String(f.cost) : ''
     };
   }
@@ -5271,16 +5281,6 @@
 
     const form = el('div', { class: 'edit-activity-container' },
       el('div', { class: 'edit-field' },
-        el('label', { class: 'edit-label', for: 'edit-flight-trip' }, 'Trip'),
-        el('input', {
-          type: 'text',
-          id: 'edit-flight-trip',
-          class: 'edit-input',
-          value: draft.trip,
-          oninput: (e) => { draft.trip = e.target.value; }
-        })
-      ),
-      el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-flight-airline' }, 'Airline'),
         el('input', {
           type: 'text',
@@ -5300,9 +5300,9 @@
           oninput: (e) => { draft.flightNum = e.target.value; }
         })
       ),
-      buildEditPickerField('Date', 'edit-flight-date-label', hotelDateLabel(draft.date), openEditFlightDatePicker),
+      buildEditPickerField('Depart date', 'edit-flight-date-label', hotelDateLabel(draft.date), openEditFlightDatePicker),
       el('div', { class: 'edit-field' },
-        el('label', { class: 'edit-label', for: 'edit-flight-from-code' }, 'From code'),
+        el('label', { class: 'edit-label', for: 'edit-flight-from-code' }, 'Departure code'),
         el('input', {
           type: 'text',
           id: 'edit-flight-from-code',
@@ -5333,7 +5333,7 @@
         })
       ),
       el('div', { class: 'edit-field' },
-        el('label', { class: 'edit-label', for: 'edit-flight-to-code' }, 'To code'),
+        el('label', { class: 'edit-label', for: 'edit-flight-to-code' }, 'Arrival code'),
         el('input', {
           type: 'text',
           id: 'edit-flight-to-code',
@@ -5420,7 +5420,6 @@
     const savedDay = editFlightDay;
     const rowId = draft.rowId;
     const flightPatch = {
-      trip: draft.trip.trim(),
       airline: draft.airline.trim(),
       flightNum: draft.flightNum.trim(),
       from: draft.from.trim(),
@@ -5428,8 +5427,10 @@
       fromCity: draft.fromCity.trim(),
       toCity: draft.toCity.trim(),
       date: draft.date || '',
+      arriveDate: draft.arriveDate || '',
       depart: draft.depart.trim(),
       arrive: draft.arrive.trim(),
+      bookingCode: draft.bookingCode.trim(),
       cost
     };
 
@@ -7440,6 +7441,7 @@
     const flights = data.flights || [];
     if (flights.length && flights.some(f => !f.id)) return true;
     if (flights.length && flights.some(f => f.date && !f.depart && !f.arrive)) return true;
+    if (flights.length && flights.some(f => (f.fromCity || f.date) && !f.from && !f.to && !f.trip)) return true;
     const hotels = data.hotels || [];
     if (hotels.length && hotels.some(h => !h.id)) return true;
     const events = data.events || [];

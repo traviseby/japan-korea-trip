@@ -83,19 +83,17 @@ export default async function handler(req, res) {
     }
 
     const cells = [];
-    const tripCol = colId(columns, 'Trip');
-    if (tripCol) cells.push({ column: tripCol, value: flight.trip || '' });
 
     const airlineCol = colId(columns, 'Airline');
     if (airlineCol) cells.push({ column: airlineCol, value: flight.airline || '' });
 
-    const codeCol = colId(columns, 'Code');
-    if (codeCol) cells.push({ column: codeCol, value: flight.from || '' });
+    const fromCodeCol = colId(columns, 'Departure Code', 'Code', 'From Code', 'From (code)');
+    if (fromCodeCol) cells.push({ column: fromCodeCol, value: flight.from || '' });
 
-    const flightNumCol = colId(columns, 'Flight #');
+    const flightNumCol = colId(columns, 'Flight #', 'Flight Number');
     if (flightNumCol) cells.push({ column: flightNumCol, value: flight.flightNum || '' });
 
-    const dateCol = colId(columns, 'Date');
+    const dateCol = colId(columns, 'Depart Date', 'Date');
     if (dateCol) cells.push({ column: dateCol, value: flight.date || '' });
 
     const fromCityCol = colId(columns, 'Depart City', 'From');
@@ -110,8 +108,18 @@ export default async function handler(req, res) {
     const arriveCol = colId(columns, 'Arrive Time', 'Arrival');
     if (arriveCol) cells.push({ column: arriveCol, value: parseClockTimeToCoda(flight.arrive) });
 
-    const destCol = colId(columns, 'Dest code', 'To (code)', 'To Code');
-    if (destCol) cells.push({ column: destCol, value: flight.to || '' });
+    const toCodeCol = colId(columns, 'Arrival Code', 'Dest code', 'To (code)', 'To Code');
+    if (toCodeCol) cells.push({ column: toCodeCol, value: flight.to || '' });
+
+    const arriveDateCol = colId(columns, 'Arrival Date');
+    if (arriveDateCol && flight.arriveDate) {
+      cells.push({ column: arriveDateCol, value: flight.arriveDate });
+    }
+
+    const bookingCodeCol = colId(columns, 'Booking Code');
+    if (bookingCodeCol && flight.bookingCode != null) {
+      cells.push({ column: bookingCodeCol, value: flight.bookingCode || '' });
+    }
 
     const costCol = colId(columns, 'Cost');
     if (costCol) {

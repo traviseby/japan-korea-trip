@@ -386,13 +386,35 @@ export default async function handler(req, res) {
     }
 
     const FL_TEMPLATE_IDS = {
+      airline: 'c-0zYwnaPiLh',
+      fromCode: 'c-cAehzbeRgZ',
+      toCode: 'c-XaRMQUIlCB',
+      number: 'c-4j5mHMi2lp',
+      date: 'c-zi1_WL4Z5_',
+      fromCity: 'c-0PM_8S1PJ1',
       departTime: 'c-QDdLu0WGdF',
-      arriveTime: 'c-FZuDLcOtcn'
+      toCity: 'c-gwntR7jmva',
+      arriveTime: 'c-FZuDLcOtcn',
+      arriveDate: 'c-7VGJFVjGCi',
+      receipt: 'c-O8VedL3PU4',
+      cost: 'c-tuKKd6A0D8',
+      bookingCode: 'c-FXStD-KBA2'
     };
     const EVT_TEMPLATE_IDS = {
       time: 'c-ZVDsJccngI',
       endTime: 'c-xiG4Fcu5H3'
     };
+
+    function resolveFlCol(map, templateKey, ...names) {
+      return mapCol(map, ...names) || FL_TEMPLATE_IDS[templateKey] || null;
+    }
+
+    function flightTripLabel(fromCity, toCity) {
+      const from = String(fromCity || '').trim();
+      const to = String(toCity || '').trim();
+      if (from && to) return `${from} → ${to}`;
+      return from || to || '';
+    }
 
     // Helper to extract airport code from city name
     function deriveAirportCode(city) {
@@ -485,23 +507,24 @@ export default async function handler(req, res) {
     // Build flights array
     const flights = flRows.map(row => {
       const v = row.values;
-      const airline = cellText(v[FL_MAP['Airline']]);
-      const flightNum = cellText(v[FL_MAP['Flight #']]);
-      const departCityCol = mapCol(FL_MAP, 'Depart City', 'From');
-      const arriveCityCol = mapCol(FL_MAP, 'Arrive City', 'To');
-      const fromCodeCol = mapCol(FL_MAP, 'Code', 'From (code)', 'From Code');
-      const toCodeCol = mapCol(FL_MAP, 'Dest code', 'To (code)', 'To Code');
+      const airline = cellText(v[resolveFlCol(FL_MAP, 'airline', 'Airline')]);
+      const flightNum = cellText(v[resolveFlCol(FL_MAP, 'number', 'Flight #', 'Flight Number')]);
+      const departCityCol = resolveFlCol(FL_MAP, 'fromCity', 'Depart City', 'From');
+      const arriveCityCol = resolveFlCol(FL_MAP, 'toCity', 'Arrive City', 'To');
+      const fromCodeCol = resolveFlCol(FL_MAP, 'fromCode', 'Departure Code', 'Code', 'From (code)', 'From Code');
+      const toCodeCol = resolveFlCol(FL_MAP, 'toCode', 'Arrival Code', 'Dest code', 'To (code)', 'To Code');
       const fromCity = cellText(v[departCityCol]);
       const toCity = cellText(v[arriveCityCol]);
-      const flightDate = cellToDate(v[FL_MAP['Date']]) || '';
+      const dateCol = resolveFlCol(FL_MAP, 'date', 'Depart Date', 'Date');
+      const flightDate = cellToDate(v[dateCol]) || '';
       const dayNum = days.find(d => d.date === flightDate)?.n || null;
-      const receipt = cellReceipt(v[FL_MAP['Receipt']]);
-      const departTimeCol = mapCol(FL_MAP, 'Depart Time', 'Departure') || FL_TEMPLATE_IDS.departTime;
-      const arriveTimeCol = mapCol(FL_MAP, 'Arrive Time', 'Arrival') || FL_TEMPLATE_IDS.arriveTime;
+      const receipt = cellReceipt(v[resolveFlCol(FL_MAP, 'receipt', 'Receipt')]);
+      const departTimeCol = resolveFlCol(FL_MAP, 'departTime', 'Depart Time', 'Departure');
+      const arriveTimeCol = resolveFlCol(FL_MAP, 'arriveTime', 'Arrive Time', 'Arrival');
 
       return {
         id: row.id,
-        trip: cellText(v[FL_MAP['Trip']]),
+        trip: flightTripLabel(fromCity, toCity),
         airline: airline,
         flightNum: flightNum,
         number: `${airline ? airline.split(' ')[0] : ''} ${flightNum}`.trim(),
@@ -510,10 +533,12 @@ export default async function handler(req, res) {
         fromCity: fromCity,
         toCity: toCity,
         date: flightDate,
+        arriveDate: cellToDate(v[resolveFlCol(FL_MAP, 'arriveDate', 'Arrival Date')]) || '',
         day: dayNum,
         depart: cellTimeDisplay(v[departTimeCol]),
         arrive: cellTimeDisplay(v[arriveTimeCol]),
-        cost: cellCost(v[FL_MAP['Cost']]),
+        bookingCode: cellText(v[resolveFlCol(FL_MAP, 'bookingCode', 'Booking Code')]),
+        cost: cellCost(v[resolveFlCol(FL_MAP, 'cost', 'Cost')]),
         receipt: receipt.name,
         receiptUrl: receipt.url
       };
