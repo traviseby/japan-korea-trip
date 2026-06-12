@@ -37,7 +37,7 @@ function parseDocId(input) {
   return null;
 }
 
-const DOC_INPUT = process.env.CODA_DOC_URL || process.env.CODA_DOC_ID || 'JMxdg1mRFk';
+const DOC_INPUT = process.env.CODA_DOC_URL || process.env.CODA_DOC_ID || 'xcK3zPlhp7';
 const DOC = parseDocId(DOC_INPUT) || DOC_INPUT;
 console.log(`Using Coda doc: ${DOC}`);
 
@@ -48,7 +48,8 @@ const TABLE_NAMES = {
   todos:      ['To do list'],
   flights:    ['All Flights', 'All flights'],
   hotels:     ['All Hotels'],
-  events:     ['All Tickets', 'All Events']
+  events:     ['All Tickets', 'All Events'],
+  carRentals: ['All Car Rentals']
 };
 
 function findTable(items, names) {
@@ -155,6 +156,24 @@ const EVT = {
   receipt:       'c-PTOUgEz_Wi',
   moreInfo:      'c-zGATbJ6tpW',
   endTime:       'c-xiG4Fcu5H3'
+};
+
+// Car rental column IDs
+const CAR = {
+  provider:      'c-PS-TKGxgsQ',
+  bookingCode:   'c-lrtyYT4qXg',
+  pickupDate:    'c-orqKRPUA30',
+  pickupTime:    'c-c52yNMQgbK',
+  returnDate:    'c-dFfzC0AzGn',
+  returnTime:    'c--Lw3065zU4',
+  address:       'c-tHw5yKk5VZ',
+  returnAddress: 'c-wlAzyfxacy',
+  carType:       'c-pMZjbHr5Dz',
+  cost:          'c-3qSW1C1Fpy',
+  notes:         'c-x0lUlyXl3F',
+  receipt:       'c-meN57e8B_8',
+  latitude:      'c-ISU8SvVMeQ',
+  longitude:     'c-EJvsYxIQMw'
 };
 
 // Convert "Tokyo (Narita)" → "NRT". Fallback: first 3 letters of city, upper.
@@ -430,13 +449,14 @@ for (const [key, names] of Object.entries(TABLE_NAMES)) {
 
 // Fetch columns for each table
 console.log('Fetching columns...');
-const [itnCols, actCols, todoCols, flCols, htlCols, evtCols] = await Promise.all([
+const [itnCols, actCols, todoCols, flCols, htlCols, evtCols, carCols] = await Promise.all([
   fetchColumns(TABLES.itinerary),
   fetchColumns(TABLES.activities),
   fetchColumns(TABLES.todos),
   fetchColumns(TABLES.flights),
   fetchColumns(TABLES.hotels),
-  fetchColumns(TABLES.events)
+  fetchColumns(TABLES.events),
+  fetchColumns(TABLES.carRentals)
 ]);
 
 const ITN_MAP = buildColumnMap(itnCols);
@@ -445,6 +465,7 @@ const TODO_MAP = buildColumnMap(todoCols);
 const FL_MAP = buildColumnMap(flCols);
 const HTL_MAP = buildColumnMap(htlCols);
 const EVT_MAP = buildColumnMap(evtCols);
+const CAR_MAP = buildColumnMap(carCols);
 
 // Update hardcoded column ID objects with dynamic lookups
 // Itinerary
@@ -531,6 +552,22 @@ EVT.receipt = EVT_MAP['Receipt'] || EVT.receipt;
 EVT.moreInfo = EVT_MAP['More Info'] || EVT.moreInfo;
 EVT.endTime = EVT_MAP['End Time'] || EVT_MAP['End time'] || EVT.endTime;
 
+// Car rentals
+CAR.provider = CAR_MAP['Provider'] || CAR.provider;
+CAR.bookingCode = CAR_MAP['Booking Code'] || CAR.bookingCode;
+CAR.pickupDate = CAR_MAP['Pick-up Date'] || CAR_MAP['Pickup Date'] || CAR.pickupDate;
+CAR.pickupTime = CAR_MAP['Pick-up Time'] || CAR_MAP['Pickup Time'] || CAR.pickupTime;
+CAR.returnDate = CAR_MAP['Return Date'] || CAR.returnDate;
+CAR.returnTime = CAR_MAP['Return Time'] || CAR.returnTime;
+CAR.address = CAR_MAP['Address'] || CAR_MAP['Pick-up Address'] || CAR.address;
+CAR.returnAddress = CAR_MAP['Return Address'] || CAR.returnAddress;
+CAR.carType = CAR_MAP['Car Type'] || CAR.carType;
+CAR.cost = CAR_MAP['Cost'] || CAR.cost;
+CAR.notes = CAR_MAP['Notes'] || CAR.notes;
+CAR.receipt = CAR_MAP['Receipt'] || CAR.receipt;
+CAR.latitude = CAR_MAP['Latitude'] || CAR_MAP['Lat'] || CAR.latitude;
+CAR.longitude = CAR_MAP['Longitude'] || CAR_MAP['Lng'] || CAR.longitude;
+
 warnMissingColumns('Itinerary', ITN_MAP, ['Date', 'Title', 'Day', 'Overview', 'Location', 'Notes', 'Image URL', 'Description']);
 warnMissingColumns('All activities', ACT_MAP, ['Date', 'Time of Day', 'Description', 'Category', 'More Info']);
 if (!ACT_MAP['Name'] && !ACT_MAP['Activity']) {
@@ -540,18 +577,20 @@ warnMissingColumns('To do list', TODO_MAP, ['Priority', 'Item', 'Type', 'When to
 warnMissingColumns('All Flights', FL_MAP, ['Airline', 'Flight #', 'Depart Date', 'Depart City', 'Arrive City', 'Departure Code', 'Arrival Code', 'Receipt']);
 warnMissingColumns('All Hotels', HTL_MAP, ['Name', 'City', 'Start Date', 'End Date', 'Address', 'Latitude', 'Longitude']);
 warnMissingColumns('All Tickets', EVT_MAP, ['Name', 'Provider', 'Date', 'Start Time', 'Address', 'Receipt']);
+warnMissingColumns('All Car Rentals', CAR_MAP, ['Provider', 'Pick-up Date', 'Pick-up Time', 'Return Date', 'Address', 'Car Type']);
 
 console.log('Column mappings complete.');
 
 // ── Main ───────────────────────────────────────────────────────────────────
 console.log('Fetching table data...');
-const [itnRows, actRows, todoRows, flightRows, hotelRows, eventRows] = await Promise.all([
+const [itnRows, actRows, todoRows, flightRows, hotelRows, eventRows, carRentalRows] = await Promise.all([
   fetchAllRows(TABLES.itinerary),
   fetchAllRows(TABLES.activities),
   fetchAllRows(TABLES.todos),
   fetchAllRows(TABLES.flights, 'rich'),
   fetchAllRows(TABLES.hotels),
-  fetchAllRows(TABLES.events, 'rich')
+  fetchAllRows(TABLES.events, 'rich'),
+  fetchAllRows(TABLES.carRentals, 'rich')
 ]);
 
 // — Itinerary days, sorted by date
@@ -696,6 +735,32 @@ const events = eventRows.map(r => {
   };
 });
 
+const carRentals = carRentalRows.map(r => {
+  const v = r.values;
+  const pickupDate = cellToDate(v[CAR.pickupDate]) || '';
+  const dayNum = days.find(d => d.date === pickupDate)?.n || null;
+  const receipt = cellReceipt(v[CAR.receipt]);
+  return {
+    id:            r.id,
+    provider:      v[CAR.provider]?.name || v[CAR.provider] || '',
+    bookingCode:   cellText(v[CAR.bookingCode]),
+    pickupDate,
+    pickupTime:    cellTimeDisplay(v[CAR.pickupTime]),
+    returnDate:    cellToDate(v[CAR.returnDate]) || '',
+    returnTime:    cellTimeDisplay(v[CAR.returnTime]),
+    address:       v[CAR.address] || '',
+    returnAddress: v[CAR.returnAddress] || '',
+    carType:       v[CAR.carType] || '',
+    cost:          cellCost(v[CAR.cost]),
+    notes:         v[CAR.notes] || '',
+    receipt:       receipt.name,
+    receiptUrl:    receipt.url,
+    lat:           cellCoord(v[CAR.latitude]),
+    lng:           cellCoord(v[CAR.longitude]),
+    day:           dayNum
+  };
+});
+
 // ── Category mapping and normalization ────────────────────────────────────
 // Maps old multi-word categories from Coda to simplified single-word names
 const CATEGORY_NORMALIZE = {
@@ -745,7 +810,7 @@ const timesOfDay = [
 
 const generatedAt = new Date().toISOString();
 const out = `// Auto-generated by sync.mjs — do not edit by hand.
-// Source: Coda doc dJMxdg1mRFk. Run \`node sync.mjs\` to regenerate.
+// Source: Coda doc dxcK3zPlhp7 (Japen & Korea New). Run \`node sync.mjs\` to regenerate.
 // Generated ${generatedAt}
 window.DATA = ${JSON.stringify({
   trip: {
@@ -760,6 +825,7 @@ window.DATA = ${JSON.stringify({
   flights,
   hotels,
   events,
+  carRentals,
   categories,
   timesOfDay
 }, null, 2)};
@@ -773,4 +839,4 @@ window.DATA = ${JSON.stringify({
 })();
 `;
 await writeFile('data.js', out, 'utf8');
-console.log(`Wrote data.js — ${days.length} days, ${activities.length} activities, ${todos.length} todos, ${flights.length} flights, ${hotels.length} hotels, ${events.length} events`);
+console.log(`Wrote data.js — ${days.length} days, ${activities.length} activities, ${todos.length} todos, ${flights.length} flights, ${hotels.length} hotels, ${events.length} events, ${carRentals.length} car rentals`);

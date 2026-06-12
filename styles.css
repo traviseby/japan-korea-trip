@@ -470,6 +470,53 @@ html.ios-standalone .tabbar {
   letter-spacing: 0.08em;
 }
 
+/* Car rental card */
+.car-rental-card {
+  margin: 0 var(--pad) 10px;
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
+}
+.car-rental-card:last-child {
+  margin-bottom: 0;
+}
+.car-rental-card:active {
+  background: var(--surface-hover, rgba(0, 0, 0, 0.03));
+}
+.car-rental-card .crc-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.car-rental-card .crc-emoji {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.car-rental-card .crc-info {
+  flex: 1;
+  min-width: 0;
+}
+.car-rental-card .crc-name {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.car-rental-card .crc-meta {
+  font-size: 11px;
+  color: var(--fg-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .sheet-nav .sheet-nav-spacer {
   flex: 1;
 }

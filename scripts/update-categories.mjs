@@ -11,7 +11,7 @@ if (!TOKEN) {
 
 // Doc IDs
 const DOCS = [
-  { id: 'JMxdg1mRFk', name: 'Japan & Korea Trip' },
+  { id: 'xcK3zPlhp7', name: 'Japan & Korea Trip (New)' },
   { id: 'nmnstSTNl1', name: 'Orlando Trip' }
 ];
 

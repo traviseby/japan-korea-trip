@@ -1,6 +1,6 @@
 // Vercel serverless function to fetch trip data from Coda doc on-demand
 // Returns the same data structure that sync.mjs generates, but as JSON
-const FETCH_TRIP_DATA_VERSION = '2026-06-12-coda-table-fix';
+const FETCH_TRIP_DATA_VERSION = '2026-06-06-doc-xcK3zPlhp7';
 
 export default async function handler(req, res) {
   console.log('fetch-trip-data called, method:', req.method, 'version:', FETCH_TRIP_DATA_VERSION);
@@ -73,7 +73,8 @@ export default async function handler(req, res) {
       todos: ['To do list'],
       flights: ['All Flights', 'All flights'],
       hotels: ['All Hotels'],
-      events: ['All Tickets', 'All Events']
+      events: ['All Tickets', 'All Events'],
+      carRentals: ['All Car Rentals']
     };
 
     function findTable(items, names) {
@@ -356,6 +357,7 @@ export default async function handler(req, res) {
     const flCols = await fetchColumns(tables.flights);
     const htlCols = await fetchColumns(tables.hotels);
     const evtCols = await fetchColumns(tables.events);
+    const carCols = await fetchColumns(tables.carRentals);
 
     const ITN_MAP = buildColumnMap(itnCols);
     const ACT_MAP = buildColumnMap(actCols);
@@ -363,6 +365,7 @@ export default async function handler(req, res) {
     const FL_MAP = buildColumnMap(flCols);
     const HTL_MAP = buildColumnMap(htlCols);
     const EVT_MAP = buildColumnMap(evtCols);
+    const CAR_MAP = buildColumnMap(carCols);
 
     warnMissingColumns('Itinerary', ITN_MAP, ['Date', 'Title', 'Day', 'Overview', 'Location', 'Notes', 'Image URL', 'Description']);
     warnMissingColumns('All activities', ACT_MAP, ['Date', 'Time of Day', 'Description', 'Category', 'More Info']);
@@ -373,6 +376,7 @@ export default async function handler(req, res) {
     warnMissingColumns('All Flights', FL_MAP, ['Airline', 'Flight #', 'Depart Date', 'Depart City', 'Arrive City', 'Departure Code', 'Arrival Code', 'Receipt']);
     warnMissingColumns('All Hotels', HTL_MAP, ['Name', 'City', 'Start Date', 'End Date', 'Address', 'Latitude', 'Longitude']);
     warnMissingColumns('All Tickets', EVT_MAP, ['Name', 'Provider', 'Date', 'Start Time', 'Address', 'Receipt']);
+    warnMissingColumns('All Car Rentals', CAR_MAP, ['Provider', 'Pick-up Date', 'Pick-up Time', 'Return Date', 'Address', 'Car Type']);
 
     report('columns', 0.30);
 
@@ -410,6 +414,7 @@ export default async function handler(req, res) {
       ['flights', tables.flights, 'rich', 0.58],
       ['hotels', tables.hotels, 'simple', 0.78],
       ['events', tables.events, 'rich', 0.85],
+      ['carRentals', tables.carRentals, 'rich', 0.88],
       ['activities', tables.activities, 'rich', 0.92],
       ['todos', tables.todos, 'simple', null],
     ].map(async ([key, tableId, valueFormat, progressValue]) => {
@@ -423,6 +428,7 @@ export default async function handler(req, res) {
     const flRows = rowBuckets.flights;
     const htlRows = rowBuckets.hotels;
     const evtRows = rowBuckets.events;
+    const carRows = rowBuckets.carRentals;
 
     report('parsing', 0.94);
 
@@ -468,6 +474,26 @@ export default async function handler(req, res) {
       time: 'c-ZVDsJccngI',
       endTime: 'c-xiG4Fcu5H3'
     };
+    const CAR_TEMPLATE_IDS = {
+      provider: 'c-PS-TKGxgsQ',
+      bookingCode: 'c-lrtyYT4qXg',
+      pickupDate: 'c-orqKRPUA30',
+      pickupTime: 'c-c52yNMQgbK',
+      returnDate: 'c-dFfzC0AzGn',
+      returnTime: 'c--Lw3065zU4',
+      address: 'c-tHw5yKk5VZ',
+      returnAddress: 'c-wlAzyfxacy',
+      carType: 'c-pMZjbHr5Dz',
+      cost: 'c-3qSW1C1Fpy',
+      notes: 'c-x0lUlyXl3F',
+      receipt: 'c-meN57e8B_8',
+      latitude: 'c-ISU8SvVMeQ',
+      longitude: 'c-EJvsYxIQMw'
+    };
+
+    function resolveCarCol(map, templateKey, ...names) {
+      return mapCol(map, ...names) || CAR_TEMPLATE_IDS[templateKey] || null;
+    }
 
     function resolveFlCol(map, templateKey, ...names) {
       return mapCol(map, ...names) || FL_TEMPLATE_IDS[templateKey] || null;
@@ -654,6 +680,32 @@ export default async function handler(req, res) {
       };
     });
 
+    const carRentals = carRows.map(row => {
+      const v = row.values;
+      const pickupDate = cellToDate(v[resolveCarCol(CAR_MAP, 'pickupDate', 'Pick-up Date', 'Pickup Date')]) || '';
+      const dayNum = days.find(d => d.date === pickupDate)?.n || null;
+      const receipt = cellReceipt(v[resolveCarCol(CAR_MAP, 'receipt', 'Receipt')]);
+      return {
+        id: row.id,
+        provider: cellText(v[resolveCarCol(CAR_MAP, 'provider', 'Provider')]?.name || v[resolveCarCol(CAR_MAP, 'provider', 'Provider')]),
+        bookingCode: cellText(v[resolveCarCol(CAR_MAP, 'bookingCode', 'Booking Code')]),
+        pickupDate,
+        pickupTime: cellTimeDisplay(v[resolveCarCol(CAR_MAP, 'pickupTime', 'Pick-up Time', 'Pickup Time')]),
+        returnDate: cellToDate(v[resolveCarCol(CAR_MAP, 'returnDate', 'Return Date')]) || '',
+        returnTime: cellTimeDisplay(v[resolveCarCol(CAR_MAP, 'returnTime', 'Return Time')]),
+        address: cellText(v[resolveCarCol(CAR_MAP, 'address', 'Address', 'Pick-up Address')]),
+        returnAddress: cellText(v[resolveCarCol(CAR_MAP, 'returnAddress', 'Return Address')]),
+        carType: cellText(v[resolveCarCol(CAR_MAP, 'carType', 'Car Type')]),
+        cost: cellCost(v[resolveCarCol(CAR_MAP, 'cost', 'Cost')]),
+        notes: cellText(v[resolveCarCol(CAR_MAP, 'notes', 'Notes')]),
+        receipt: receipt.name,
+        receiptUrl: receipt.url,
+        lat: cellCoord(v[resolveCarCol(CAR_MAP, 'latitude', 'Latitude', 'Lat')]),
+        lng: cellCoord(v[resolveCarCol(CAR_MAP, 'longitude', 'Longitude', 'Lng')]),
+        day: dayNum
+      };
+    });
+
     // Calculate trip metadata
     const allDates = days.map(d => d.date).filter(Boolean);
     const tripStart = allDates.length > 0 ? allDates[0] : '';
@@ -694,6 +746,7 @@ export default async function handler(req, res) {
       flights,
       hotels,
       events,
+      carRentals,
       categories,
       timesOfDay,
       lastGenerated: new Date().toISOString()

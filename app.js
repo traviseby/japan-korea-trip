@@ -71,6 +71,7 @@
     hotelSheet: null,         // hotel object shown in sheet, or null
     flightSheet: null,        // flight object shown in sheet, or null
     eventSheet: null,         // booked event object shown in sheet, or null
+    carRentalSheet: null,   // car rental object shown in sheet, or null
     fullscreenMap: null,      // day number, or null
     location: null,           // {lat,lng} from geolocation, or null
     searching: false,         // filter-bar search mode on Map + Activities
@@ -382,6 +383,18 @@
       );
       root.appendChild(section);
       dayEvents.forEach(ev => root.appendChild(buildEventCard(ev, day)));
+    }
+
+    // Car rentals on pick-up day
+    const dayCarRentals = carRentalsForDay(day);
+    if (dayCarRentals.length){
+      const section = el('div', { class: 'section tight' },
+        el('div', { class: 'section-head' },
+          el('h3', null, dayCarRentals.length === 1 ? 'Car Rental Today' : 'Car Rentals Today')
+        )
+      );
+      root.appendChild(section);
+      dayCarRentals.forEach(cr => root.appendChild(buildCarRentalCard(cr, day)));
     }
 
     // Mini map
@@ -928,6 +941,7 @@
 
   function enrichTripData(data){
     if (!Array.isArray(data.events)) data.events = [];
+    if (!Array.isArray(data.carRentals)) data.carRentals = [];
     (data.flights || []).forEach(f => {
       if (!f.day && f.date) {
         f.day = data.days?.find(d => d.date === f.date)?.n ?? null;
@@ -939,6 +953,11 @@
         f.number = `${f.airline ? f.airline.split(' ')[0] : ''} ${f.flightNum || ''}`.trim();
       }
       f.trip = flightTripLabel(f.fromCity, f.toCity) || stripCodaFence(f.trip);
+    });
+    (data.carRentals || []).forEach(cr => {
+      if (!cr.day && cr.pickupDate) {
+        cr.day = data.days?.find(d => d.date === cr.pickupDate)?.n ?? null;
+      }
     });
   }
 
@@ -972,6 +991,9 @@
     }
     if (collection === 'events' && record.date) {
       record.day = window.DATA.days?.find(d => d.date === record.date)?.n ?? null;
+    }
+    if (collection === 'carRentals' && record.pickupDate) {
+      record.day = window.DATA.days?.find(d => d.date === record.pickupDate)?.n ?? null;
     }
   }
 
@@ -1020,6 +1042,9 @@
     }
     if (collection === 'hotels') {
       return window.DATA.days?.find(d => d.date === record.startDate) || null;
+    }
+    if (collection === 'carRentals') {
+      return window.DATA.days?.find(d => d.date === record.pickupDate) || null;
     }
     if (collection === 'activities') {
       return window.DATA.byDay?.[record.day] || null;
@@ -1090,6 +1115,7 @@
     state.hotelSheet = null;
     state.flightSheet = null;
     state.eventSheet = null;
+    state.carRentalSheet = null;
     state.fullscreenMap = null;
     state.searching = false;
     state.filterTray = null;
@@ -2814,6 +2840,84 @@
     );
     attachScrollSafeTap(card, () => openEventSheet(ev, day));
     return card;
+  }
+
+  const CAR_RENTAL_PROVIDERS = ['Priceline', 'Direct', 'Other', 'Hertz', 'Enterprise', 'Avis', 'Budget', 'National', 'Alamo', 'Dollar', 'Thrifty', 'Sixt', 'Europcar'];
+
+  function carRentalsForDay(day){
+    return (D.carRentals || [])
+      .filter(cr => cr.pickupDate === day.date)
+      .sort((a, b) => eventTimeOrder(a.pickupTime) - eventTimeOrder(b.pickupTime));
+  }
+
+  function carRentalTitle(cr){
+    return cr.carType || cr.provider || 'Car rental';
+  }
+
+  function carRentalTimeRange(cr){
+    if (cr.pickupTime && cr.returnTime) return `${cr.pickupTime} – ${cr.returnTime}`;
+    return cr.pickupTime || cr.returnTime || '';
+  }
+
+  function carRentalRoute(cr){
+    const pickup = (cr.address || '').split(',')[0].trim();
+    const ret = (cr.returnAddress || '').split(',')[0].trim();
+    if (pickup && ret && pickup !== ret) return `${pickup} → ${ret}`;
+    return pickup || ret || '';
+  }
+
+  function carRentalCardMeta(cr){
+    const parts = [];
+    const timeRange = carRentalTimeRange(cr);
+    if (timeRange) parts.push(timeRange);
+    if (cr.provider) parts.push(cr.provider);
+    const route = carRentalRoute(cr);
+    if (route) parts.push(route);
+    return parts.join(' · ') || 'Car rental';
+  }
+
+  function buildCarRentalCard(cr, day){
+    const card = el('div', {
+      class: 'car-rental-card',
+      role: 'button',
+      tabindex: '0',
+      'aria-label': `${carRentalTitle(cr)}, ${carRentalCardMeta(cr)}`
+    },
+      el('div', { class: 'crc-header' },
+        el('div', { class: 'crc-emoji' }, '🚗'),
+        el('div', { class: 'crc-info' },
+          el('div', { class: 'crc-name' }, carRentalTitle(cr)),
+          el('div', { class: 'crc-meta' }, carRentalCardMeta(cr))
+        )
+      )
+    );
+    attachScrollSafeTap(card, () => openCarRentalSheet(cr, day));
+    return card;
+  }
+
+  function isCarRentalInKorea(cr, day){
+    if (day?.country === 'KR') return true;
+    if (day?.country === 'JP') return false;
+    const lat = normalizeCoord(cr.lat);
+    const lng = normalizeCoord(cr.lng);
+    if (lat == null || lng == null) return false;
+    return lat >= 33 && lat <= 39.6 && lng >= 124.5 && lng <= 132.1;
+  }
+
+  function buildCarRentalDirectionsUrl(cr, day){
+    const lat = normalizeCoord(cr.lat);
+    const lng = normalizeCoord(cr.lng);
+    if (lat != null && lng != null) {
+      return buildDirectionsUrlForPoint({
+        lat, lng, name: carRentalTitle(cr), inKorea: isCarRentalInKorea(cr, day)
+      });
+    }
+    const addr = (cr.address || '').trim();
+    if (!addr) return null;
+    if (isCarRentalInKorea(cr, day)) {
+      return `https://map.naver.com/v5/search/${encodeURIComponent(addr)}`;
+    }
+    return `https://maps.google.com/?q=${encodeURIComponent(addr)}`;
   }
 
   function isEventInKorea(ev, day){
@@ -4989,6 +5093,7 @@
     state.hotelSheet = null;
     state.flightSheet = null;
     state.eventSheet = null;
+    state.carRentalSheet = null;
     state.sheet = a.id;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
@@ -5143,6 +5248,7 @@
     state.sheet = null;
     state.hotelSheet = null;
     state.eventSheet = null;
+    state.carRentalSheet = null;
     f = resolveFlightRecord(f);
     state.flightSheet = f;
     const backdrop = $('#sheet-backdrop');
@@ -5468,6 +5574,7 @@
     state.sheet = null;
     state.flightSheet = null;
     state.eventSheet = null;
+    state.carRentalSheet = null;
     h = resolveHotelRecord(h);
     state.hotelSheet = h;
     const backdrop = $('#sheet-backdrop');
@@ -5609,6 +5716,7 @@
     state.sheet = null;
     state.hotelSheet = null;
     state.flightSheet = null;
+    state.carRentalSheet = null;
     ev = resolveEventRecord(ev);
     state.eventSheet = ev;
     const backdrop = $('#sheet-backdrop');
@@ -5981,6 +6089,512 @@
     });
   }
 
+  function resolveCarRentalRecord(cr){
+    if (!cr) return null;
+    if (cr.id) return cr;
+    return (D.carRentals || []).find(x =>
+      x.id &&
+      x.pickupDate === cr.pickupDate &&
+      x.provider === cr.provider &&
+      x.carType === cr.carType
+    ) || cr;
+  }
+
+  async function ensureCarRentalRecord(cr){
+    let rental = resolveCarRentalRecord(cr);
+    if (rental?.id) return rental;
+
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) return rental;
+
+    const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+    localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+    toast('Refreshing trip\u2026');
+    try {
+      await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
+      rental = resolveCarRentalRecord(cr);
+    } catch (err) {
+      console.warn('Failed to refresh trip for car rental edit:', err);
+    }
+    return rental;
+  }
+
+  async function fetchCarRentalReceiptUrl(rowId){
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) return '';
+
+    try {
+      const body = { docUrl: activeTrip.url, rowId };
+      if (activeTrip.token) body.token = activeTrip.token;
+      const res = await fetch('/api/car-rental-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) return '';
+      return isHttpUrl(payload.url) ? payload.url.trim() : '';
+    } catch (err) {
+      console.warn('Failed to resolve car rental receipt URL:', err);
+      return '';
+    }
+  }
+
+  async function openCarRentalSheet(cr, day){
+    state.sheet = null;
+    state.hotelSheet = null;
+    state.flightSheet = null;
+    state.eventSheet = null;
+    cr = resolveCarRentalRecord(cr);
+    state.carRentalSheet = cr;
+    const backdrop = $('#sheet-backdrop');
+    const sheet = $('#sheet');
+    sheet.innerHTML = '';
+
+    const accent = day?.color || dayAccent(day?.n) || '#b25a14';
+    const directionsUrl = buildCarRentalDirectionsUrl(cr, day);
+    let receiptUrl = isHttpUrl(cr.receiptUrl) ? cr.receiptUrl.trim() : '';
+    if (!receiptUrl && cr.receipt && cr.id) {
+      receiptUrl = await fetchCarRentalReceiptUrl(cr.id);
+      if (receiptUrl) cr.receiptUrl = receiptUrl;
+    }
+    const costText = formatEventCost(cr.cost);
+    const lat = normalizeCoord(cr.lat);
+    const lng = normalizeCoord(cr.lng);
+    const hasCoords = lat != null && lng != null;
+
+    sheet.appendChild(el('div', { class: 'handle' }));
+    sheet.appendChild(el('div', { class: 'sheet-nav' },
+      el('div', { class: 'sheet-nav-spacer' }),
+      el('div', { class: 'sheet-nav-actions' },
+        el('button', {
+          class: 'toolbar-btn',
+          'aria-label': 'Edit car rental',
+          onclick: () => openEditCarRentalSheet(cr, day)
+        }, tabIcon('edit')),
+        buildSheetCloseButton(closeSheet)
+      )
+    ));
+
+    if (hasCoords){
+      const mapWrap = el('div', { class: 'map-wrap' }, el('div', { id: 'map-sheet' }));
+      sheet.appendChild(mapWrap);
+
+      const distRow = el('div', { class: 'distance' });
+      if (state.location){
+        const km = haversine(state.location, { lat, lng });
+        const walkMin = Math.round(km / 5 * 60);
+        const transitMin = Math.round(km / 25 * 60);
+        distRow.appendChild(el('div', { class: 'dist-pill' }, '🚶 ', el('span', { class: 'v' }, walkMin + ' min')));
+        distRow.appendChild(el('div', { class: 'dist-pill' }, '🚇 ', el('span', { class: 'v' }, transitMin + ' min')));
+        distRow.appendChild(el('div', { class: 'dist-pill' }, '↔ ', el('span', { class: 'v' }, km.toFixed(1) + ' km')));
+      } else {
+        distRow.appendChild(el('div', { class: 'dist-pill', style: { color: 'var(--fg-mute)' } }, 'Enable location for travel times'));
+      }
+      sheet.appendChild(distRow);
+    }
+
+    const body = el('div', { class: 'sheet-body' });
+    body.appendChild(el('h2', { class: 'sheet-title' }, carRentalTitle(cr)));
+    body.appendChild(el('div', { class: 'sheet-badges' },
+      cr.provider ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, cr.provider) : null,
+      iconBadge('b', '🚗', 'Car rental'),
+      cr.carType ? el('span', { class: 'b' }, cr.carType) : null
+    ));
+
+    const details = el('div', { class: 'sheet-desc' });
+    if (cr.pickupDate) {
+      const pickupLine = carRentalTimeRange(cr)
+        ? `Pick-up ${fmtDate(cr.pickupDate)} · ${cr.pickupTime || '—'}`
+        : `Pick-up ${fmtDate(cr.pickupDate)}`;
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, pickupLine));
+    }
+    if (cr.returnDate) {
+      const returnLine = cr.returnTime
+        ? `Return ${fmtDate(cr.returnDate)} · ${cr.returnTime}`
+        : `Return ${fmtDate(cr.returnDate)}`;
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, returnLine));
+    }
+    if (cr.address) details.appendChild(el('p', { class: 'sheet-detail-line' }, `Pick-up: ${cr.address}`));
+    if (cr.returnAddress) details.appendChild(el('p', { class: 'sheet-detail-line' }, `Return: ${cr.returnAddress}`));
+    if (cr.bookingCode) details.appendChild(el('p', { class: 'sheet-detail-line' }, `Booking: ${cr.bookingCode}`));
+    if (cr.notes) details.appendChild(el('p', { class: 'sheet-detail-line' }, cr.notes));
+    if (costText) details.appendChild(el('p', { class: 'sheet-detail-line' }, costText));
+    if (cr.receipt && !receiptUrl) {
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Receipt: ${cr.receipt}`));
+    }
+    body.appendChild(details);
+    sheet.appendChild(body);
+
+    const actionItems = [];
+    if (directionsUrl) actionItems.push({ type: 'link', href: directionsUrl, label: 'Get Directions' });
+    if (receiptUrl) actionItems.push({ type: 'receipt', url: receiptUrl, filename: cr.receipt });
+    if (actionItems.length) {
+      const actions = el('div', { class: sheetActionsClass(actionItems.length) });
+      actionItems.forEach((item, index) => {
+        const primary = actionItems.length === 1 || index === 0;
+        if (item.type === 'receipt') {
+          actions.appendChild(buildReceiptActionButton(item.url, item.filename, { secondary: !primary }));
+        } else {
+          actions.appendChild(el('a', {
+            class: 'btn' + (primary ? '' : ' secondary'),
+            href: item.href,
+            target: '_blank',
+            rel: 'noopener'
+          }, item.label));
+        }
+      });
+      sheet.appendChild(actions);
+    }
+    sheet.appendChild(el('div', { class: 'bottom-pad' }));
+
+    backdrop.classList.add('open');
+    requestAnimationFrame(() => sheet.classList.add('open'));
+
+    if (hasCoords){
+      setTimeout(() => {
+        if (leafletSheet) { leafletSheet.remove(); leafletSheet = null; }
+        const node = $('#map-sheet');
+        if (!node) return;
+        leafletSheet = L.map(node, {
+          center: [lat, lng], zoom: 14,
+          zoomControl: false, attributionControl: false,
+          dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+          touchZoom: false, boxZoom: false, keyboard: false, tap: false
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          subdomains: 'abcd'
+        }).addTo(leafletSheet);
+        L.marker([lat, lng], { icon: pinIcon('Transit', accent) }).addTo(leafletSheet);
+        const kmFromUser = state.location
+          ? haversine(state.location, { lat, lng })
+          : null;
+        const showUserOnSheetMap = kmFromUser != null && kmFromUser <= 100 * 1.60934;
+        if (showUserOnSheetMap){
+          L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletSheet);
+          const dashed = L.polyline([[state.location.lat, state.location.lng], [lat, lng]], {
+            color: '#bfb', weight: 1.5, dashArray: '4 4', opacity: 0.6
+          }).addTo(leafletSheet);
+          leafletSheet.fitBounds(dashed.getBounds(), { padding: [30,30] });
+        }
+      }, 380);
+    }
+  }
+
+  // ─── Edit Car Rental Sheet ────────────────────────────────────────────────
+  let editCarRentalDraft = null;
+  let editCarRentalDay = null;
+
+  function carRentalToDraft(cr){
+    return {
+      rowId: cr.id || null,
+      provider: cr.provider || '',
+      bookingCode: cr.bookingCode || '',
+      pickupDate: cr.pickupDate || '',
+      pickupTime: cr.pickupTime || '',
+      returnDate: cr.returnDate || '',
+      returnTime: cr.returnTime || '',
+      address: cr.address || '',
+      returnAddress: cr.returnAddress || '',
+      carType: cr.carType || '',
+      notes: cr.notes || '',
+      cost: cr.cost != null && cr.cost !== '' ? String(cr.cost) : '',
+      lat: cr.lat != null && !isNaN(cr.lat) ? String(cr.lat) : '',
+      lng: cr.lng != null && !isNaN(cr.lng) ? String(cr.lng) : ''
+    };
+  }
+
+  function ensureEditCarRentalSheetDom(){
+    const root = $('#app') || $('.phone-fullscreen') || document.body;
+    let backdrop = $('#edit-car-rental-backdrop');
+    let sheet = $('#edit-car-rental-sheet');
+    if (!backdrop) {
+      backdrop = el('div', { id: 'edit-car-rental-backdrop', class: 'sheet-backdrop sheet-stack-2' });
+      root.appendChild(backdrop);
+    }
+    if (!sheet) {
+      sheet = el('div', { id: 'edit-car-rental-sheet', class: 'sheet sheet-stack-2' });
+      root.appendChild(sheet);
+    }
+    return { sheet, backdrop };
+  }
+
+  function hideEditCarRentalSheet(){
+    const sheet = $('#edit-car-rental-sheet');
+    const backdrop = $('#edit-car-rental-backdrop');
+    if (!sheet || !backdrop) return;
+    clearSheetDragStyles(sheet);
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
+    backdrop.onclick = null;
+    editCarRentalDraft = null;
+    editCarRentalDay = null;
+  }
+
+  function openEditCarRentalProviderPicker(){
+    if (!editCarRentalDraft) return;
+    openPickTray({
+      title: 'Provider',
+      value: editCarRentalDraft.provider,
+      options: CAR_RENTAL_PROVIDERS.map(name => ({ value: name, label: name, sub: '' })),
+      onPick: (value) => {
+        editCarRentalDraft.provider = value;
+        updateEditPickerLabel('edit-car-rental-provider-label', value || 'None');
+      }
+    });
+  }
+
+  function openEditCarRentalPickupDatePicker(){
+    if (!editCarRentalDraft) return;
+    openPickTray({
+      title: 'Pick-up date',
+      value: editCarRentalDraft.pickupDate,
+      options: hotelDatePickerOptions(),
+      onPick: (value) => {
+        editCarRentalDraft.pickupDate = value;
+        if (editCarRentalDraft.returnDate && editCarRentalDraft.returnDate < value) {
+          editCarRentalDraft.returnDate = value;
+          updateEditPickerLabel('edit-car-rental-return-date-label', hotelDateLabel(value));
+        }
+        updateEditPickerLabel('edit-car-rental-pickup-date-label', hotelDateLabel(value));
+      }
+    });
+  }
+
+  function openEditCarRentalReturnDatePicker(){
+    if (!editCarRentalDraft) return;
+    openPickTray({
+      title: 'Return date',
+      value: editCarRentalDraft.returnDate,
+      options: hotelDatePickerOptions(editCarRentalDraft.pickupDate),
+      onPick: (value) => {
+        editCarRentalDraft.returnDate = value;
+        updateEditPickerLabel('edit-car-rental-return-date-label', hotelDateLabel(value));
+      }
+    });
+  }
+
+  async function openEditCarRentalSheet(cr, day){
+    const rental = await ensureCarRentalRecord(cr);
+    if (!rental?.id) {
+      toast('Couldn\u2019t load car rental for editing');
+      return;
+    }
+    editCarRentalDay = day || null;
+    editCarRentalDraft = carRentalToDraft(rental);
+    const { sheet, backdrop } = ensureEditCarRentalSheetDom();
+    const draft = editCarRentalDraft;
+    sheet.innerHTML = '';
+
+    sheet.appendChild(buildSheetCloseButton(hideEditCarRentalSheet));
+    sheet.appendChild(el('div', { class: 'sheet-form-header' },
+      el('h2', { class: 'sheet-form-title' }, 'Edit Car Rental')
+    ));
+
+    const form = el('div', { class: 'edit-activity-container' },
+      buildEditPickerField('Provider', 'edit-car-rental-provider-label', draft.provider || 'None', openEditCarRentalProviderPicker),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-booking' }, 'Booking code'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-booking',
+          class: 'edit-input',
+          value: draft.bookingCode,
+          oninput: (e) => { draft.bookingCode = e.target.value; }
+        })
+      ),
+      buildEditPickerField('Pick-up date', 'edit-car-rental-pickup-date-label', hotelDateLabel(draft.pickupDate), openEditCarRentalPickupDatePicker),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-pickup-time' }, 'Pick-up time'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-pickup-time',
+          class: 'edit-input',
+          value: draft.pickupTime,
+          placeholder: '9:00 AM',
+          oninput: (e) => { draft.pickupTime = e.target.value; }
+        })
+      ),
+      buildEditPickerField('Return date', 'edit-car-rental-return-date-label', hotelDateLabel(draft.returnDate), openEditCarRentalReturnDatePicker),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-return-time' }, 'Return time'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-return-time',
+          class: 'edit-input',
+          value: draft.returnTime,
+          placeholder: '5:00 PM',
+          oninput: (e) => { draft.returnTime = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-address' }, 'Pick-up address'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-address',
+          class: 'edit-input',
+          value: draft.address,
+          oninput: (e) => { draft.address = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-return-address' }, 'Return address'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-return-address',
+          class: 'edit-input',
+          value: draft.returnAddress,
+          oninput: (e) => { draft.returnAddress = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-car-type' }, 'Car type'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-car-type',
+          class: 'edit-input',
+          value: draft.carType,
+          oninput: (e) => { draft.carType = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-notes' }, 'Notes'),
+        el('textarea', {
+          id: 'edit-car-rental-notes',
+          class: 'edit-input edit-textarea',
+          rows: '3',
+          oninput: (e) => { draft.notes = e.target.value; }
+        }, draft.notes)
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-cost' }, 'Cost (USD)'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-cost',
+          class: 'edit-input',
+          value: draft.cost,
+          placeholder: '220',
+          oninput: (e) => { draft.cost = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-lat' }, 'Latitude'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-lat',
+          class: 'edit-input',
+          value: draft.lat,
+          placeholder: '35.2564',
+          oninput: (e) => { draft.lat = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-car-rental-lng' }, 'Longitude'),
+        el('input', {
+          type: 'text',
+          id: 'edit-car-rental-lng',
+          class: 'edit-input',
+          value: draft.lng,
+          placeholder: '139.1547',
+          oninput: (e) => { draft.lng = e.target.value; }
+        })
+      ),
+      el('button', {
+        id: 'edit-car-rental-submit',
+        class: 'oc-btn',
+        style: { marginTop: '8px', marginBottom: '24px' },
+        onclick: submitUpdateCarRental
+      }, 'Update')
+    );
+    sheet.appendChild(form);
+
+    backdrop.classList.add('open');
+    backdrop.onclick = hideEditCarRentalSheet;
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  }
+
+  async function submitUpdateCarRental(){
+    const draft = editCarRentalDraft;
+    if (!draft) return;
+
+    const trips = getTrips();
+    const activeTrip = trips.find(t => t.active);
+    if (!activeTrip) {
+      toast('Select a trip to continue');
+      return;
+    }
+
+    if (!draft.rowId) {
+      toast('Car rental can\u2019t be edited');
+      return;
+    }
+
+    const costStr = draft.cost.trim();
+    let cost = null;
+    if (costStr !== '') {
+      cost = parseFloat(costStr);
+      if (isNaN(cost)) {
+        toast('Cost must be a number');
+        return;
+      }
+    }
+
+    const latStr = draft.lat.trim();
+    const lngStr = draft.lng.trim();
+    const lat = latStr === '' ? null : parseFloat(latStr);
+    const lng = lngStr === '' ? null : parseFloat(lngStr);
+    if ((latStr && isNaN(lat)) || (lngStr && isNaN(lng))) {
+      toast('Lat & long must be numbers');
+      return;
+    }
+
+    const btn = $('#edit-car-rental-submit');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+    }
+
+    const savedDay = editCarRentalDay;
+    const rowId = draft.rowId;
+    const rentalPatch = {
+      provider: draft.provider || '',
+      bookingCode: draft.bookingCode.trim(),
+      pickupDate: draft.pickupDate || '',
+      pickupTime: draft.pickupTime.trim(),
+      returnDate: draft.returnDate || '',
+      returnTime: draft.returnTime.trim(),
+      address: draft.address.trim(),
+      returnAddress: draft.returnAddress.trim(),
+      carType: draft.carType.trim(),
+      notes: draft.notes.trim(),
+      cost,
+      lat,
+      lng
+    };
+
+    await syncTripRecordEdit({
+      applyLocal: () => patchTripRecord('carRentals', rowId, rentalPatch),
+      apiCall: async () => {
+        const body = { docUrl: activeTrip.url, rowId, carRental: rentalPatch };
+        if (activeTrip.token) body.token = activeTrip.token;
+        const res = await fetch('/api/update-car-rental', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload.error || 'Failed to update car rental');
+      },
+      hideEditSheet: hideEditCarRentalSheet,
+      reopenDetail: openCarRentalSheet,
+      savedDay,
+      successToast: 'Car rental updated',
+      failToast: 'Couldn\u2019t update car rental',
+      submitBtn: btn,
+      submitBtnLabel: 'Update'
+    });
+  }
+
   function closeSheet(){
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
@@ -5991,6 +6605,7 @@
     state.hotelSheet = null;
     state.flightSheet = null;
     state.eventSheet = null;
+    state.carRentalSheet = null;
     if (leafletSheet){ setTimeout(() => { try { leafletSheet.remove(); } catch{} leafletSheet = null; }, 350); }
   }
 
@@ -6496,6 +7111,9 @@
     });
     (D.hotels || []).forEach(h => {
       if (hasMapCoord(h)) points.push({ lat: h.lat, lng: h.lng });
+    });
+    (D.carRentals || []).forEach(cr => {
+      if (hasMapCoord(cr)) points.push({ lat: cr.lat, lng: cr.lng });
     });
     return points;
   }
@@ -7445,6 +8063,7 @@
   function tripDataNeedsRefresh(data){
     if (!isValidTripData(data)) return true;
     if (!Array.isArray(data.events)) return true;
+    if (!Array.isArray(data.carRentals)) return true;
     const flights = data.flights || [];
     if (flights.length && flights.some(f => !f.id)) return true;
     if (flights.length && flights.some(f => f.date && !f.depart && !f.arrive)) return true;
@@ -7453,6 +8072,8 @@
     if (hotels.length && hotels.some(h => !h.id)) return true;
     const events = data.events || [];
     if (events.length && events.some(e => !e.id)) return true;
+    const carRentals = data.carRentals || [];
+    if (carRentals.length && carRentals.some(cr => !cr.id)) return true;
     return false;
   }
 

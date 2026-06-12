@@ -147,6 +147,27 @@ window.DEMO_TRIP_DATA = {
       moreInfo: ''
     }
   ],
+  carRentals: [
+    {
+      id: 'demo-car-rental-1',
+      provider: 'Other',
+      bookingCode: 'TBD',
+      pickupDate: '2026-07-31',
+      pickupTime: '9:00 AM',
+      returnDate: '2026-07-31',
+      returnTime: '5:00 PM',
+      address: 'Odawara Station',
+      returnAddress: 'Haneda Airport Terminal 3',
+      carType: 'Compact / Intermediate',
+      cost: 220,
+      notes: 'One-way rental for Mt Fuji → Haneda.',
+      receipt: '',
+      receiptUrl: '',
+      lat: 35.2564,
+      lng: 139.1547,
+      day: 10
+    }
+  ],
   categories: {
     Food: { label: 'Food', emoji: '🍜' },
     Temple: { label: 'Temple', emoji: '⛩️' },
