@@ -5005,9 +5005,9 @@
     await syncTripRecordEdit({
       applyLocal: () => patchTripRecord('hotels', rowId, hotelPatch),
       apiCall: async () => {
-        const body = { docUrl: activeTrip.url, rowId, hotel: hotelPatch };
+        const body = { docUrl: activeTrip.url, rowId, type: 'hotel', data: hotelPatch };
         if (activeTrip.token) body.token = activeTrip.token;
-        const res = await fetch('/api/update-hotel', {
+        const res = await fetch('/api/update-record', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -5228,9 +5228,9 @@
     if (!activeTrip) return '';
 
     try {
-      const body = { docUrl: activeTrip.url, rowId };
+      const body = { docUrl: activeTrip.url, rowId, type: 'flight' };
       if (activeTrip.token) body.token = activeTrip.token;
-      const res = await fetch('/api/flight-receipt', {
+      const res = await fetch('/api/receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -5550,9 +5550,9 @@
     await syncTripRecordEdit({
       applyLocal: () => patchTripRecord('flights', rowId, flightPatch),
       apiCall: async () => {
-        const body = { docUrl: activeTrip.url, rowId, flight: flightPatch };
+        const body = { docUrl: activeTrip.url, rowId, type: 'flight', data: flightPatch };
         if (activeTrip.token) body.token = activeTrip.token;
-        const res = await fetch('/api/update-flight', {
+        const res = await fetch('/api/update-record', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -5802,9 +5802,9 @@
     if (!activeTrip) return '';
 
     try {
-      const body = { docUrl: activeTrip.url, rowId };
+      const body = { docUrl: activeTrip.url, rowId, type: 'event' };
       if (activeTrip.token) body.token = activeTrip.token;
-      const res = await fetch('/api/event-receipt', {
+      const res = await fetch('/api/receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -6069,9 +6069,9 @@
     await syncTripRecordEdit({
       applyLocal: () => patchTripRecord('events', rowId, eventPatch),
       apiCall: async () => {
-        const body = { docUrl: activeTrip.url, rowId, event: eventPatch };
+        const body = { docUrl: activeTrip.url, rowId, type: 'event', data: eventPatch };
         if (activeTrip.token) body.token = activeTrip.token;
-        const res = await fetch('/api/update-event', {
+        const res = await fetch('/api/update-record', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -6124,9 +6124,9 @@
     if (!activeTrip) return '';
 
     try {
-      const body = { docUrl: activeTrip.url, rowId };
+      const body = { docUrl: activeTrip.url, rowId, type: 'carRental' };
       if (activeTrip.token) body.token = activeTrip.token;
-      const res = await fetch('/api/car-rental-receipt', {
+      const res = await fetch('/api/receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -6575,9 +6575,9 @@
     await syncTripRecordEdit({
       applyLocal: () => patchTripRecord('carRentals', rowId, rentalPatch),
       apiCall: async () => {
-        const body = { docUrl: activeTrip.url, rowId, carRental: rentalPatch };
+        const body = { docUrl: activeTrip.url, rowId, type: 'carRental', data: rentalPatch };
         if (activeTrip.token) body.token = activeTrip.token;
-        const res = await fetch('/api/update-car-rental', {
+        const res = await fetch('/api/update-record', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
