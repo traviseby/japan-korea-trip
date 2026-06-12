@@ -2776,17 +2776,21 @@
 
   function buildHotelCard(h, day){
     const nightsText = h.nights === 1 ? '1 night' : `${h.nights} nights`;
+    const metaParts = [];
+    if (h.checkinDate) metaParts.push(fmtDate(h.checkinDate));
+    if (h.city) metaParts.push(h.city);
+    metaParts.push(nightsText);
     const card = el('div', {
       class: 'hotel-card',
       role: 'button',
       tabindex: '0',
-      'aria-label': `${h.name}, ${h.city}, ${nightsText}`
+      'aria-label': `${h.name}, ${metaParts.join(', ')}`
     },
       el('div', { class: 'hc-header' },
         el('div', { class: 'hc-emoji' }, '🏨'),
         el('div', { class: 'hc-info' },
           el('div', { class: 'hc-name' }, h.name),
-          el('div', { class: 'hc-meta' }, `${h.city} · ${nightsText}`)
+          el('div', { class: 'hc-meta' }, metaParts.join(' · '))
         )
       )
     );
