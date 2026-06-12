@@ -3823,15 +3823,13 @@
     const d = unscheduled ? null : D.byDay[a.day];
     const accent = dayAccent(a.day);
     const firstSentence = (a.desc || '').split(/(?<=[.!?])\s/)[0] || '';
-    const badges = el('div', { class: 'badges' });
-    if (showDayBadge) {
-      badges.appendChild(el('span', {
-        class: 'badge day-badge',
-        style: { '--day-accent': accent, background: accent }
-      }, unscheduled ? 'Unscheduled' : 'Day ' + d.n));
-    }
-    if (a.time) badges.appendChild(iconBadge('badge', todEmoji(a.time), a.time));
-    if (a.category) badges.appendChild(iconBadge('badge', catEmoji(a.category), a.category));
+    
+    // Build metadata text with dots (category first, then time)
+    const metaParts = [];
+    if (a.category) metaParts.push(a.category);
+    if (a.time) metaParts.push(a.time);
+    const metaText = metaParts.join(' · ');
+    
     const checked = checkedActs.has(a.id);
     const row = el('div', {
       class: 'list-row' + (checked ? ' checked' : ''),
@@ -3856,7 +3854,13 @@
       el('div', { class: 'list-body' },
         el('div', { class: 'list-title' }, a.name),
         firstSentence ? el('div', { class: 'list-desc' }, firstSentence) : null,
-        badges
+        showDayBadge ? el('div', { class: 'list-badges' },
+          el('span', {
+            class: 'badge day-badge',
+            style: { '--day-accent': accent, background: accent }
+          }, unscheduled ? 'Unscheduled' : 'Day ' + d.n),
+          metaText ? el('span', { class: 'list-meta' }, metaText) : null
+        ) : (metaText ? el('div', { class: 'list-meta' }, metaText) : null)
       )
     );
     return row;

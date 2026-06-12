@@ -1399,7 +1399,13 @@ html.ios-standalone .tabbar {
 .act-list .full-row .em { font-size: 19px; text-align: center; padding-top: 2px; }
 .act-list .full-row .name { font-size: 15px; font-weight: 500; color: var(--fg); margin-bottom: 3px; letter-spacing: -0.005em; }
 .act-list .full-row .desc { font-size: 12px; color: var(--fg-mute); line-height: 1.5; margin-bottom: 6px; }
-.act-list .full-row .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.act-list .full-row .list-badges { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.act-list .full-row .list-meta {
+  font-size: 11px;
+  color: var(--fg-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 .act-list .full-row .badge {
   font-size: 10px;
   padding: 2px 7px;
@@ -1903,7 +1909,13 @@ html.ios-standalone .tabbar {
 .act-swipe-container .full-row .em { font-size: 19px; text-align: center; padding-top: 2px; }
 .act-swipe-container .full-row .name { font-size: 15px; font-weight: 500; color: var(--fg); margin-bottom: 3px; letter-spacing: -0.005em; }
 .act-swipe-container .full-row .desc { font-size: 12px; color: var(--fg-mute); line-height: 1.5; margin-bottom: 6px; }
-.act-swipe-container .full-row .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.act-swipe-container .full-row .list-badges { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.act-swipe-container .full-row .list-meta {
+  font-size: 11px;
+  color: var(--fg-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 .act-swipe-container .full-row .badge {
   font-size: 10px;
   padding: 2px 7px;
