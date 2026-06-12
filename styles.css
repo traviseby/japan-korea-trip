@@ -408,6 +408,58 @@ html.ios-standalone .tabbar {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+
+/* Event card */
+.event-card {
+  margin: 0 var(--pad) 10px;
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
+}
+.event-card:last-child {
+  margin-bottom: 0;
+}
+.event-card:active {
+  background: var(--surface-hover, rgba(0, 0, 0, 0.03));
+}
+.event-card .ec-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.event-card .ec-emoji {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.event-card .ec-info {
+  flex: 1;
+  min-width: 0;
+}
+.event-card .ec-name {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.event-card .ec-meta {
+  font-size: 11px;
+  color: var(--fg-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .sheet-nav .sheet-nav-spacer {
   flex: 1;
 }

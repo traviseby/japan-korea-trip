@@ -129,6 +129,24 @@ window.DEMO_TRIP_DATA = {
       lng: null
     }
   ],
+  events: [
+    {
+      id: 'demo-event-1',
+      name: 'Sample Food Tour',
+      provider: 'Klook',
+      bookingRef: 'DEMO123',
+      date: '2026-07-24',
+      day: 3,
+      time: '6:00 PM',
+      endTime: '9:00 PM',
+      meetupAddress: 'Shinjuku, Tokyo',
+      notes: 'Present mobile voucher.',
+      cost: null,
+      receipt: '',
+      receiptUrl: '',
+      moreInfo: ''
+    }
+  ],
   categories: {
     Food: { label: 'Food', emoji: '🍜' },
     Temple: { label: 'Temple', emoji: '⛩️' },

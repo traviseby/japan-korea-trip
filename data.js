@@ -1869,6 +1869,72 @@ window.DATA = {
       "lng": 126.918553
     }
   ],
+  "events": [
+    {
+      "id": "i-Dey2-e7BYm",
+      "name": "Tokyo: Shinjuku Food Tour - 15 Dishes at 4 Eateries",
+      "provider": "Klook",
+      "bookingRef": "NPG274276",
+      "date": "2026-07-24",
+      "day": 3,
+      "time": "6:00 PM",
+      "endTime": "9:00 PM",
+      "meetupAddress": "3-chōme-38-1 Shinjuku, Shinjuku City, Tokyo 160-0022, Japan",
+      "notes": "The JR Shinjuku Station East Exit Police Box (Koban) is located at . Present mobile voucher",
+      "cost": null,
+      "receipt": "klook1.pdf",
+      "receiptUrl": "",
+      "moreInfo": ""
+    },
+    {
+      "id": "i-ISr7Rbp-3l",
+      "name": "Tokyo: Asakusa & Sensoji ー Oldest Temple Walking Tour (2hrs)",
+      "provider": "Klook",
+      "bookingRef": "WUR095172",
+      "date": "2026-06-27",
+      "day": null,
+      "time": "10:30 AM",
+      "endTime": "11:30 AM",
+      "meetupAddress": "1 Chome-3-1 Asakusa, Taito City, Tokyo 111-0032",
+      "notes": "Present mobile voucher.",
+      "cost": null,
+      "receipt": "klook2.pdf",
+      "receiptUrl": "",
+      "moreInfo": ""
+    },
+    {
+      "id": "i-RGw1dKtM61",
+      "name": "teamLab Planets TOKYO",
+      "provider": "Direct",
+      "bookingRef": "c52db6a28e32db930c",
+      "date": "2026-07-24",
+      "day": 3,
+      "time": "1:00 PM",
+      "endTime": "1:30 PM",
+      "meetupAddress": "6-1-16 Toyosu, Koto City, Tokyo 135-0061",
+      "notes": "QR code via My Tickets (opens day-of).",
+      "cost": 93.33,
+      "receipt": "teamlabs.pdf",
+      "receiptUrl": "",
+      "moreInfo": "https://teamlabplanets.dmm.com/en/mytickets/c52db6a28e32db930c"
+    },
+    {
+      "id": "i-t7LOYpox5-",
+      "name": "Japan Entry QR Code",
+      "provider": "Direct",
+      "bookingRef": "",
+      "date": "2026-07-23",
+      "day": 2,
+      "time": "5:00 PM",
+      "endTime": "",
+      "meetupAddress": "",
+      "notes": "",
+      "cost": null,
+      "receipt": "Screenshot 2026-06-09 at 9.57.59 PM.png",
+      "receiptUrl": "",
+      "moreInfo": ""
+    }
+  ],
   "categories": {
     "Food & Drink": {
       "label": "Food & Drink",

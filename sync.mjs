@@ -47,7 +47,8 @@ const TABLE_NAMES = {
   activities: 'All activities',
   todos:      'To do list',
   flights:    'All flights',
-  hotels:     'All Hotels'
+  hotels:     'All Hotels',
+  events:     'All Events'
 };
 
 // Will be populated dynamically
@@ -117,6 +118,21 @@ const HTL = {
   longitude:  'c-FWE3R1vEpp'
 };
 
+// Events column IDs
+const EVT = {
+  name:          'c-kiFZ0M0kjP',
+  provider:      'c-_P4izwrfSt',
+  bookingRef:    'c-gNJrh2O6WO',
+  date:          'c-WiwlYbb4h1',
+  time:          'c-ZVDsJccngI',
+  meetupAddress: 'c-Hi8adBIoSJ',
+  notes:         'c-_piSqa4hWt',
+  cost:          'c-C6NG8dUgfy',
+  receipt:       'c-PTOUgEz_Wi',
+  moreInfo:      'c-zGATbJ6tpW',
+  endTime:       'c-xiG4Fcu5H3'
+};
+
 // Convert "Tokyo (Narita)" → "NRT". Fallback: first 3 letters of city, upper.
 function deriveAirportCode(cityField){
   if (!cityField) return '';
@@ -129,12 +145,44 @@ function deriveAirportCode(cityField){
   return cityField.slice(0, 3).toUpperCase();
 }
 
-// Convert seconds-of-day → "HH:MM"
+// Convert seconds-of-day → "H:MM AM/PM"
 function fmtTimeSeconds(s){
   if (typeof s !== 'number') return '';
-  const h = Math.floor(s / 3600);
+  const h24 = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  const ampm = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function cellTimeSeconds(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'object' && typeof v.seconds === 'number') return v.seconds;
+  return null;
+}
+
+function cellCost(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'object' && typeof v.scalar === 'number') return v.scalar;
+  const n = parseFloat(String(v));
+  return Number.isFinite(n) ? n : null;
+}
+
+function cellReceipt(v) {
+  if (!v) return { name: '', url: '' };
+  const items = Array.isArray(v) ? v : [v];
+  for (const item of items) {
+    if (typeof item === 'string' && item) return { name: item, url: '' };
+    if (item && typeof item === 'object') {
+      const name = item.name || '';
+      const url = typeof item.url === 'string' ? item.url : '';
+      if (url) return { name: name || 'Receipt', url };
+      if (name) return { name, url: '' };
+    }
+  }
+  return { name: '', url: '' };
 }
 
 // ── Static metadata: things Coda doesn't store, kept in code ───────────────
@@ -161,11 +209,11 @@ const DAY_META = {
 // No more hardcoded mapping needed!
 
 // ── Coda fetch helper ──────────────────────────────────────────────────────
-async function fetchAllRows(tableId){
+async function fetchAllRows(tableId, valueFormat = 'simple'){
   const out = [];
   let pageToken = null;
   do {
-  const params = new URLSearchParams({ limit: '200', useColumnNames: 'false', valueFormat: 'simple' });
+  const params = new URLSearchParams({ limit: '200', useColumnNames: 'false', valueFormat });
     if (pageToken) params.set('pageToken', pageToken);
     const url = `https://coda.io/apis/v1/docs/${DOC}/tables/${tableId}/rows?${params}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
@@ -273,12 +321,13 @@ for (const [key, name] of Object.entries(TABLE_NAMES)) {
 
 // Fetch columns for each table
 console.log('Fetching columns...');
-const [itnCols, actCols, todoCols, flCols, htlCols] = await Promise.all([
+const [itnCols, actCols, todoCols, flCols, htlCols, evtCols] = await Promise.all([
   fetchColumns(TABLES.itinerary),
   fetchColumns(TABLES.activities),
   fetchColumns(TABLES.todos),
   fetchColumns(TABLES.flights),
-  fetchColumns(TABLES.hotels)
+  fetchColumns(TABLES.hotels),
+  fetchColumns(TABLES.events)
 ]);
 
 const ITN_MAP = buildColumnMap(itnCols);
@@ -286,6 +335,7 @@ const ACT_MAP = buildColumnMap(actCols);
 const TODO_MAP = buildColumnMap(todoCols);
 const FL_MAP = buildColumnMap(flCols);
 const HTL_MAP = buildColumnMap(htlCols);
+const EVT_MAP = buildColumnMap(evtCols);
 
 // Update hardcoded column ID objects with dynamic lookups
 // Itinerary
@@ -340,16 +390,30 @@ HTL.address = HTL_MAP['Address'] || HTL.address;
 HTL.latitude = HTL_MAP['Latitude'] || HTL.latitude;
 HTL.longitude = HTL_MAP['Longitude'] || HTL.longitude;
 
+// Events
+EVT.name = EVT_MAP['Name'] || EVT.name;
+EVT.provider = EVT_MAP['Provider'] || EVT.provider;
+EVT.bookingRef = EVT_MAP['Booking Reference'] || EVT.bookingRef;
+EVT.date = EVT_MAP['Date'] || EVT.date;
+EVT.time = EVT_MAP['Time'] || EVT.time;
+EVT.meetupAddress = EVT_MAP['Meet-up Address'] || EVT.meetupAddress;
+EVT.notes = EVT_MAP['Notes'] || EVT.notes;
+EVT.cost = EVT_MAP['Cost'] || EVT.cost;
+EVT.receipt = EVT_MAP['Receipt'] || EVT.receipt;
+EVT.moreInfo = EVT_MAP['More Info'] || EVT.moreInfo;
+EVT.endTime = EVT_MAP['End time'] || EVT.endTime;
+
 console.log('Column mappings complete.');
 
 // ── Main ───────────────────────────────────────────────────────────────────
 console.log('Fetching table data...');
-const [itnRows, actRows, todoRows, flightRows, hotelRows] = await Promise.all([
+const [itnRows, actRows, todoRows, flightRows, hotelRows, eventRows] = await Promise.all([
   fetchAllRows(TABLES.itinerary),
   fetchAllRows(TABLES.activities),
   fetchAllRows(TABLES.todos),
   fetchAllRows(TABLES.flights),
-  fetchAllRows(TABLES.hotels)
+  fetchAllRows(TABLES.hotels),
+  fetchAllRows(TABLES.events, 'rich')
 ]);
 
 // — Itinerary days, sorted by date
@@ -453,6 +517,31 @@ const hotels = hotelRows.map(r => {
   };
 });
 
+const events = eventRows.map(r => {
+  const v = r.values;
+  const date = cellToDate(v[EVT.date]) || '';
+  const dayNum = days.find(d => d.date === date)?.n || null;
+  const timeSec = cellTimeSeconds(v[EVT.time]);
+  const endSec = cellTimeSeconds(v[EVT.endTime]);
+  const receipt = cellReceipt(v[EVT.receipt]);
+  return {
+    id:             r.id,
+    name:           v[EVT.name] || '',
+    provider:       v[EVT.provider]?.name || v[EVT.provider] || '',
+    bookingRef:     v[EVT.bookingRef] || '',
+    date,
+    day:            dayNum,
+    time:           timeSec != null ? fmtTimeSeconds(timeSec) : '',
+    endTime:        endSec != null ? fmtTimeSeconds(endSec) : '',
+    meetupAddress:  v[EVT.meetupAddress] || '',
+    notes:          v[EVT.notes] || '',
+    cost:           cellCost(v[EVT.cost]),
+    receipt:        receipt.name,
+    receiptUrl:     receipt.url,
+    moreInfo:       v[EVT.moreInfo]?.url || v[EVT.moreInfo] || ''
+  };
+});
+
 // ── Category mapping and normalization ────────────────────────────────────
 // Maps old multi-word categories from Coda to simplified single-word names
 const CATEGORY_NORMALIZE = {
@@ -516,6 +605,7 @@ window.DATA = ${JSON.stringify({
   todos,
   flights,
   hotels,
+  events,
   categories,
   timesOfDay
 }, null, 2)};
@@ -529,4 +619,4 @@ window.DATA = ${JSON.stringify({
 })();
 `;
 await writeFile('data.js', out, 'utf8');
-console.log(`Wrote data.js — ${days.length} days, ${activities.length} activities, ${todos.length} todos, ${flights.length} flights, ${hotels.length} hotels`);
+console.log(`Wrote data.js — ${days.length} days, ${activities.length} activities, ${todos.length} todos, ${flights.length} flights, ${hotels.length} hotels, ${events.length} events`);

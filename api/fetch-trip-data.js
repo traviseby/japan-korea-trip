@@ -71,7 +71,8 @@ export default async function handler(req, res) {
       activities: 'All activities',
       todos: 'To do list',
       flights: 'All flights',
-      hotels: 'All Hotels'
+      hotels: 'All Hotels',
+      events: 'All Events'
     };
 
     for (const [key, name] of Object.entries(TABLE_NAMES)) {
@@ -125,6 +126,15 @@ export default async function handler(req, res) {
       return null;
     }
 
+    function extractSlateText(node) {
+      if (!node) return '';
+      if (typeof node.text === 'string') return node.text;
+      if (Array.isArray(node.children)) {
+        return node.children.map(extractSlateText).join('');
+      }
+      return '';
+    }
+
     function cellText(v) {
       if (v == null) return '';
       if (typeof v === 'string') return stripFence(v);
@@ -138,6 +148,7 @@ export default async function handler(req, res) {
         return '';
       }
       if (typeof v === 'object') {
+        if (v.type === 'slate' && v.root) return extractSlateText(v.root).trim();
         if (typeof v.display === 'string') return stripFence(v.display);
         if (typeof v.formattedValue === 'string') return stripFence(v.formattedValue);
         if (typeof v.name === 'string') return stripFence(v.name);
@@ -145,6 +156,39 @@ export default async function handler(req, res) {
         if (typeof v.url === 'string') return v.url;
       }
       return stripFence(String(v));
+    }
+
+    function cellCost(v) {
+      if (v == null || v === '') return null;
+      if (typeof v === 'number') return v;
+      if (typeof v === 'object') {
+        if (typeof v.scalar === 'number') return v.scalar;
+        if (typeof v.value === 'number') return v.value;
+      }
+      const n = parseFloat(String(v));
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function cellReceipt(v) {
+      if (!v) return { name: '', url: '' };
+      const items = Array.isArray(v) ? v : [v];
+      for (const item of items) {
+        if (typeof item === 'string' && item) return { name: item, url: '' };
+        if (item && typeof item === 'object') {
+          const name = item.name || '';
+          const url = typeof item.url === 'string' ? item.url : '';
+          if (url) return { name: name || 'Receipt', url };
+          if (name) return { name, url: '' };
+        }
+      }
+      return { name: '', url: '' };
+    }
+
+    function cellTimeSeconds(v) {
+      if (v == null || v === '') return null;
+      if (typeof v === 'number') return v;
+      if (typeof v === 'object' && typeof v.seconds === 'number') return v.seconds;
+      return null;
     }
 
     function moreInfoFromCell(v) {
@@ -210,12 +254,14 @@ export default async function handler(req, res) {
     const todoCols = await fetchColumns(tables.todos);
     const flCols = await fetchColumns(tables.flights);
     const htlCols = await fetchColumns(tables.hotels);
+    const evtCols = await fetchColumns(tables.events);
 
     const ITN_MAP = buildColumnMap(itnCols);
     const ACT_MAP = buildColumnMap(actCols);
     const TODO_MAP = buildColumnMap(todoCols);
     const FL_MAP = buildColumnMap(flCols);
     const HTL_MAP = buildColumnMap(htlCols);
+    const EVT_MAP = buildColumnMap(evtCols);
 
     report('columns', 0.30);
 
@@ -252,6 +298,7 @@ export default async function handler(req, res) {
       ['itinerary', tables.itinerary, 'simple', 0.36],
       ['flights', tables.flights, 'simple', 0.58],
       ['hotels', tables.hotels, 'simple', 0.78],
+      ['events', tables.events, 'rich', 0.85],
       ['activities', tables.activities, 'rich', 0.92],
       ['todos', tables.todos, 'simple', null],
     ].map(async ([key, tableId, valueFormat, progressValue]) => {
@@ -264,6 +311,7 @@ export default async function handler(req, res) {
     const todoRows = rowBuckets.todos;
     const flRows = rowBuckets.flights;
     const htlRows = rowBuckets.hotels;
+    const evtRows = rowBuckets.events;
 
     report('parsing', 0.94);
 
@@ -427,6 +475,31 @@ export default async function handler(req, res) {
       };
     });
 
+    const events = evtRows.map(row => {
+      const v = row.values;
+      const date = cellToDate(v[EVT_MAP['Date']]) || '';
+      const dayNum = days.find(d => d.date === date)?.n || null;
+      const timeSec = cellTimeSeconds(v[EVT_MAP['Time']]);
+      const endSec = cellTimeSeconds(v[EVT_MAP['End time']]);
+      const receipt = cellReceipt(v[EVT_MAP['Receipt']]);
+      return {
+        id: row.id,
+        name: cellText(v[EVT_MAP['Name']]),
+        provider: cellText(v[EVT_MAP['Provider']]?.name || v[EVT_MAP['Provider']]),
+        bookingRef: cellText(v[EVT_MAP['Booking Reference']]),
+        date,
+        day: dayNum,
+        time: timeSec != null ? fmtTimeSeconds(timeSec) : '',
+        endTime: endSec != null ? fmtTimeSeconds(endSec) : '',
+        meetupAddress: cellText(v[EVT_MAP['Meet-up Address']]),
+        notes: cellText(v[EVT_MAP['Notes']]),
+        cost: cellCost(v[EVT_MAP['Cost']]),
+        receipt: receipt.name,
+        receiptUrl: receipt.url,
+        moreInfo: moreInfoFromCell(v[EVT_MAP['More Info']])
+      };
+    });
+
     // Calculate trip metadata
     const allDates = days.map(d => d.date).filter(Boolean);
     const tripStart = allDates.length > 0 ? allDates[0] : '';
@@ -466,6 +539,7 @@ export default async function handler(req, res) {
       todos,
       flights,
       hotels,
+      events,
       categories,
       timesOfDay,
       lastGenerated: new Date().toISOString()

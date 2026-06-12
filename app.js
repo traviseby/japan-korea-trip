@@ -69,6 +69,7 @@
     region: null,             // map city key for Map tab — set later
     sheet: null,              // current activity id shown in sheet
     hotelSheet: null,         // hotel object shown in sheet, or null
+    eventSheet: null,         // booked event object shown in sheet, or null
     fullscreenMap: null,      // day number, or null
     location: null,           // {lat,lng} from geolocation, or null
     searching: false,         // filter-bar search mode on Map + Activities
@@ -358,6 +359,18 @@
       );
       root.appendChild(section);
       root.appendChild(buildHotelCard(hotel, day));
+    }
+
+    // Booked events on this calendar date
+    const dayEvents = eventsForDay(day);
+    if (dayEvents.length){
+      const section = el('div', { class: 'section tight' },
+        el('div', { class: 'section-head' },
+          el('h3', null, dayEvents.length === 1 ? 'Today\u2019s Event' : 'Today\u2019s Events')
+        )
+      );
+      root.appendChild(section);
+      dayEvents.forEach(ev => root.appendChild(buildEventCard(ev, day)));
     }
 
     // Mini map
@@ -908,6 +921,7 @@
     state.region = null;
     state.sheet = null;
     state.hotelSheet = null;
+    state.eventSheet = null;
     state.fullscreenMap = null;
     state.searching = false;
     state.filterTray = null;
@@ -2301,6 +2315,87 @@
     );
     attachScrollSafeTap(card, () => openHotelSheet(h, day));
     return card;
+  }
+
+  const EVENT_PROVIDERS = ['Klook', 'GetYourGuide', 'Viator', 'Direct', 'Other'];
+
+  function parseClockTimeSeconds(str){
+    if (!str) return null;
+    const m = String(str).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const ampm = m[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 3600 + min * 60;
+  }
+
+  function eventTimeOrder(t){
+    return parseClockTimeSeconds(t) ?? 99999;
+  }
+
+  function formatEventTimeRange(ev){
+    if (ev.time && ev.endTime) return `${ev.time} – ${ev.endTime}`;
+    return ev.time || ev.endTime || '';
+  }
+
+  function eventsForDay(day){
+    return (D.events || [])
+      .filter(e => e.date === day.date)
+      .sort((a, b) => eventTimeOrder(a.time) - eventTimeOrder(b.time) || a.name.localeCompare(b.name));
+  }
+
+  function eventCardMeta(ev){
+    const parts = [];
+    const timeRange = formatEventTimeRange(ev);
+    if (timeRange) parts.push(timeRange);
+    if (ev.provider) parts.push(ev.provider);
+    return parts.join(' · ') || 'Event';
+  }
+
+  function buildEventCard(ev, day){
+    const card = el('div', {
+      class: 'event-card',
+      role: 'button',
+      tabindex: '0',
+      'aria-label': `${ev.name}, ${eventCardMeta(ev)}`
+    },
+      el('div', { class: 'ec-header' },
+        el('div', { class: 'ec-emoji' }, '🎟️'),
+        el('div', { class: 'ec-info' },
+          el('div', { class: 'ec-name' }, ev.name),
+          el('div', { class: 'ec-meta' }, eventCardMeta(ev))
+        )
+      )
+    );
+    attachScrollSafeTap(card, () => openEventSheet(ev, day));
+    return card;
+  }
+
+  function isEventInKorea(ev, day){
+    if (day?.country === 'KR') return true;
+    if (day?.country === 'JP') return false;
+    const addr = (ev.meetupAddress || '').toLowerCase();
+    if (addr.includes('seoul') || addr.includes('korea')) return true;
+    if (addr.includes('tokyo') || addr.includes('japan') || addr.includes('sapporo')) return false;
+    return day?.country === 'KR';
+  }
+
+  function buildEventDirectionsUrl(ev, day){
+    const addr = (ev.meetupAddress || '').trim();
+    if (!addr) return null;
+    if (isEventInKorea(ev, day)) {
+      return `https://map.naver.com/v5/search/${encodeURIComponent(addr)}`;
+    }
+    return `https://maps.google.com/?q=${encodeURIComponent(addr)}`;
+  }
+
+  function formatEventCost(cost){
+    if (cost == null || cost === '') return '';
+    const n = Number(cost);
+    if (!Number.isFinite(n)) return '';
+    return `$${n.toFixed(n % 1 ? 2 : 0)}`;
   }
 
   function isHotelInKorea(h, day){
@@ -4451,6 +4546,7 @@
 
   function openSheet(a){
     state.hotelSheet = null;
+    state.eventSheet = null;
     state.sheet = a.id;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
@@ -4552,6 +4648,7 @@
 
   function openHotelSheet(h, day){
     state.sheet = null;
+    state.eventSheet = null;
     h = resolveHotelRecord(h);
     state.hotelSheet = h;
     const backdrop = $('#sheet-backdrop');
@@ -4659,6 +4756,430 @@
     }
   }
 
+  function resolveEventRecord(ev){
+    if (!ev) return null;
+    if (ev.id) return ev;
+    return (D.events || []).find(x =>
+      x.id &&
+      x.name === ev.name &&
+      x.date === ev.date &&
+      x.time === ev.time
+    ) || ev;
+  }
+
+  async function ensureEventRecord(ev){
+    let event = resolveEventRecord(ev);
+    if (event?.id) return event;
+
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) return event;
+
+    const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+    localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+    toast('Refreshing trip\u2026');
+    try {
+      await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
+      event = resolveEventRecord(ev);
+    } catch (err) {
+      console.warn('Failed to refresh trip for event edit:', err);
+    }
+    return event;
+  }
+
+  async function openEventSheet(ev, day){
+    state.sheet = null;
+    state.hotelSheet = null;
+    ev = resolveEventRecord(ev);
+    state.eventSheet = ev;
+    const backdrop = $('#sheet-backdrop');
+    const sheet = $('#sheet');
+    sheet.innerHTML = '';
+
+    const accent = day?.color || dayAccent(day?.n) || '#8e44ad';
+    const directionsUrl = buildEventDirectionsUrl(ev, day);
+    const infoUrl = isHttpUrl(ev.moreInfo) ? ev.moreInfo.trim() : '';
+    let receiptUrl = isHttpUrl(ev.receiptUrl) ? ev.receiptUrl.trim() : '';
+    if (!receiptUrl && ev.receipt && ev.id) {
+      receiptUrl = await fetchEventReceiptUrl(ev.id);
+      if (receiptUrl) ev.receiptUrl = receiptUrl;
+    }
+    const costText = formatEventCost(ev.cost);
+
+    sheet.appendChild(el('div', { class: 'handle' }));
+    sheet.appendChild(el('div', { class: 'sheet-nav' },
+      el('div', { class: 'sheet-nav-spacer' }),
+      el('div', { class: 'sheet-nav-actions' },
+        el('button', {
+          class: 'toolbar-btn',
+          'aria-label': 'Edit event',
+          onclick: () => openEditEventSheet(ev, day)
+        }, tabIcon('edit')),
+        buildSheetCloseButton(closeSheet)
+      )
+    ));
+
+    const body = el('div', { class: 'sheet-body' });
+    body.appendChild(el('h2', { class: 'sheet-title' }, ev.name));
+    body.appendChild(el('div', { class: 'sheet-badges' },
+      ev.provider ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, ev.provider) : null,
+      el('span', { class: 'b' }, '🎟️ Event')
+    ));
+
+    const details = el('div', { class: 'sheet-desc' });
+    if (ev.date) {
+      const dateLine = formatEventTimeRange(ev)
+        ? `${fmtDate(ev.date)} · ${formatEventTimeRange(ev)}`
+        : fmtDate(ev.date);
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, dateLine));
+    } else if (formatEventTimeRange(ev)) {
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, formatEventTimeRange(ev)));
+    }
+    if (ev.bookingRef) details.appendChild(el('p', { class: 'sheet-detail-line' }, `Ref ${ev.bookingRef}`));
+    if (ev.meetupAddress) details.appendChild(el('p', { class: 'sheet-detail-line' }, ev.meetupAddress));
+    if (ev.notes) details.appendChild(el('p', { class: 'sheet-detail-line' }, ev.notes));
+    if (costText) details.appendChild(el('p', { class: 'sheet-detail-line' }, costText));
+    if (ev.receipt && !receiptUrl) {
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Receipt: ${ev.receipt}`));
+    }
+    body.appendChild(details);
+    sheet.appendChild(body);
+
+    const actionItems = [];
+    if (directionsUrl) actionItems.push({ href: directionsUrl, label: 'Get Directions' });
+    if (receiptUrl) actionItems.push({ href: receiptUrl, label: 'View Receipt' });
+    if (infoUrl) actionItems.push({ href: infoUrl, label: 'More Info' });
+    if (actionItems.length) {
+      const actions = el('div', { class: 'sheet-actions' + (actionItems.length === 1 ? ' single' : '') });
+      actionItems.forEach((item, index) => {
+        actions.appendChild(el('a', {
+          class: 'btn' + (actionItems.length === 1 || index === 0 ? '' : ' secondary'),
+          href: item.href,
+          target: '_blank',
+          rel: 'noopener'
+        }, item.label));
+      });
+      sheet.appendChild(actions);
+    }
+    sheet.appendChild(el('div', { class: 'bottom-pad' }));
+
+    backdrop.classList.add('open');
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  }
+
+  async function fetchEventReceiptUrl(rowId){
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) return '';
+
+    try {
+      const body = { docUrl: activeTrip.url, rowId };
+      if (activeTrip.token) body.token = activeTrip.token;
+      const res = await fetch('/api/event-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) return '';
+      return isHttpUrl(payload.url) ? payload.url.trim() : '';
+    } catch (err) {
+      console.warn('Failed to resolve event receipt URL:', err);
+      return '';
+    }
+  }
+
+  // ─── Edit Event Sheet ─────────────────────────────────────────────────────
+  let editEventDraft = null;
+  let editEventDay = null;
+
+  function eventToDraft(ev){
+    return {
+      rowId: ev.id || null,
+      name: ev.name || '',
+      provider: ev.provider || '',
+      bookingRef: ev.bookingRef || '',
+      date: ev.date || '',
+      time: ev.time || '',
+      endTime: ev.endTime || '',
+      meetupAddress: ev.meetupAddress || '',
+      notes: ev.notes || '',
+      cost: ev.cost != null && ev.cost !== '' ? String(ev.cost) : '',
+      moreInfo: ev.moreInfo || ''
+    };
+  }
+
+  function uniqueEventValues(field){
+    return [...new Set((D.events || []).map(e => e[field]).filter(Boolean))];
+  }
+
+  function eventDateLabel(date){ return date ? fmtDate(date) : 'None'; }
+
+  function ensureEditEventSheetDom(){
+    const root = $('#app') || $('.phone-fullscreen') || document.body;
+    let backdrop = $('#edit-event-backdrop');
+    let sheet = $('#edit-event-sheet');
+    if (!backdrop) {
+      backdrop = el('div', { id: 'edit-event-backdrop', class: 'sheet-backdrop sheet-stack-2' });
+      root.appendChild(backdrop);
+    }
+    if (!sheet) {
+      sheet = el('div', { id: 'edit-event-sheet', class: 'sheet sheet-stack-2' });
+      root.appendChild(sheet);
+    }
+    return { sheet, backdrop };
+  }
+
+  function hideEditEventSheet(){
+    const sheet = $('#edit-event-sheet');
+    const backdrop = $('#edit-event-backdrop');
+    if (!sheet || !backdrop) return;
+    clearSheetDragStyles(sheet);
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
+    backdrop.onclick = null;
+    editEventDraft = null;
+    editEventDay = null;
+  }
+
+  function openEditEventProviderPicker(){
+    if (!editEventDraft) return;
+    openPickTray({
+      title: 'Provider',
+      value: editEventDraft.provider,
+      options: EVENT_PROVIDERS.map(name => ({ value: name, label: name, sub: '' })),
+      onPick: (value) => {
+        editEventDraft.provider = value;
+        updateEditPickerLabel('edit-event-provider-label', value || 'None');
+      }
+    });
+  }
+
+  function openEditEventDatePicker(){
+    if (!editEventDraft) return;
+    openPickTray({
+      title: 'Date',
+      value: editEventDraft.date,
+      options: hotelDatePickerOptions(),
+      onPick: (value) => {
+        editEventDraft.date = value;
+        updateEditPickerLabel('edit-event-date-label', eventDateLabel(value));
+      }
+    });
+  }
+
+  async function openEditEventSheet(ev, day){
+    const event = await ensureEventRecord(ev);
+    if (!event?.id) {
+      toast('Couldn\u2019t load event for editing');
+      return;
+    }
+    editEventDay = day || null;
+    editEventDraft = eventToDraft(event);
+    const { sheet, backdrop } = ensureEditEventSheetDom();
+    const draft = editEventDraft;
+    sheet.innerHTML = '';
+
+    sheet.appendChild(buildSheetCloseButton(hideEditEventSheet));
+    sheet.appendChild(el('div', { class: 'sheet-form-header' },
+      el('h2', { class: 'sheet-form-title' }, 'Edit Event')
+    ));
+
+    const form = el('div', { class: 'edit-activity-container' },
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-name' }, 'Name'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-name',
+          class: 'edit-input',
+          value: draft.name,
+          oninput: (e) => { draft.name = e.target.value; }
+        })
+      ),
+      buildEditPickerField('Provider', 'edit-event-provider-label', draft.provider || 'None', openEditEventProviderPicker),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-booking-ref' }, 'Booking reference'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-booking-ref',
+          class: 'edit-input',
+          value: draft.bookingRef,
+          oninput: (e) => { draft.bookingRef = e.target.value; }
+        })
+      ),
+      buildEditPickerField('Date', 'edit-event-date-label', eventDateLabel(draft.date), openEditEventDatePicker),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-time' }, 'Time'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-time',
+          class: 'edit-input',
+          value: draft.time,
+          placeholder: '1:00 PM',
+          oninput: (e) => { draft.time = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-end-time' }, 'End time'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-end-time',
+          class: 'edit-input',
+          value: draft.endTime,
+          placeholder: '1:30 PM',
+          oninput: (e) => { draft.endTime = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-meetup' }, 'Meet-up address'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-meetup',
+          class: 'edit-input',
+          value: draft.meetupAddress,
+          oninput: (e) => { draft.meetupAddress = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-notes' }, 'Notes'),
+        el('textarea', {
+          id: 'edit-event-notes',
+          class: 'edit-input edit-textarea',
+          rows: '3',
+          oninput: (e) => { draft.notes = e.target.value; }
+        }, draft.notes)
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-cost' }, 'Cost (USD)'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-cost',
+          class: 'edit-input',
+          value: draft.cost,
+          placeholder: '93.33',
+          oninput: (e) => { draft.cost = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-more-info' }, 'More info URL'),
+        el('input', {
+          type: 'url',
+          id: 'edit-event-more-info',
+          class: 'edit-input',
+          value: draft.moreInfo,
+          oninput: (e) => { draft.moreInfo = e.target.value; }
+        })
+      ),
+      el('button', {
+        id: 'edit-event-submit',
+        class: 'oc-btn',
+        style: { marginTop: '8px', marginBottom: '24px' },
+        onclick: submitUpdateEvent
+      }, 'Update')
+    );
+    sheet.appendChild(form);
+
+    backdrop.classList.add('open');
+    backdrop.onclick = hideEditEventSheet;
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  }
+
+  async function submitUpdateEvent(){
+    const draft = editEventDraft;
+    if (!draft) return;
+
+    const trips = getTrips();
+    const activeTrip = trips.find(t => t.active);
+    if (!activeTrip) {
+      toast('Select a trip to continue');
+      return;
+    }
+
+    if (!draft.rowId) {
+      toast('Event can\u2019t be edited');
+      return;
+    }
+
+    const name = draft.name.trim();
+    if (!name) {
+      toast('Enter an event name');
+      return;
+    }
+
+    const costStr = draft.cost.trim();
+    let cost = null;
+    if (costStr !== '') {
+      cost = parseFloat(costStr);
+      if (isNaN(cost)) {
+        toast('Cost must be a number');
+        return;
+      }
+    }
+
+    const btn = $('#edit-event-submit');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+    }
+
+    const savedDay = editEventDay;
+    const rowId = draft.rowId;
+
+    try {
+      toast('Updating Doc');
+      const body = {
+        docUrl: activeTrip.url,
+        rowId,
+        event: {
+          name,
+          provider: draft.provider || '',
+          bookingRef: draft.bookingRef.trim(),
+          date: draft.date || '',
+          time: draft.time.trim(),
+          endTime: draft.endTime.trim(),
+          meetupAddress: draft.meetupAddress.trim(),
+          notes: draft.notes.trim(),
+          cost,
+          moreInfo: draft.moreInfo.trim()
+        }
+      };
+      if (activeTrip.token) body.token = activeTrip.token;
+
+      const res = await fetch('/api/update-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || 'Failed to update event');
+
+      const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+      const savedTab = state.tab;
+      hideEditEventSheet();
+      try {
+        await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
+        switchTab(savedTab);
+        const refreshed = (D.events || []).find(x => x.id === rowId);
+        if (refreshed) {
+          const day = savedDay || D.days?.find(d => d.date === refreshed.date) || null;
+          openEventSheet(refreshed, day);
+        } else {
+          closeSheet();
+        }
+      } catch (reloadErr) {
+        console.warn('Updated in Coda but failed to refresh trip data:', reloadErr);
+        closeSheet();
+      }
+      toast('Event updated');
+    } catch (err) {
+      console.error('Error updating event:', err);
+      toast('Couldn\u2019t update event');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Update';
+      }
+    }
+  }
+
   function closeSheet(){
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
@@ -4667,6 +5188,7 @@
     backdrop.classList.remove('open');
     state.sheet = null;
     state.hotelSheet = null;
+    state.eventSheet = null;
     if (leafletSheet){ setTimeout(() => { try { leafletSheet.remove(); } catch{} leafletSheet = null; }, 350); }
   }
 
@@ -4792,6 +5314,7 @@
     attachBottomSheetDismiss('#add-activity-sheet', hideAddActivitySheet);
     attachBottomSheetDismiss('#edit-activity-sheet', hideEditActivitySheet);
     attachBottomSheetDismiss('#edit-hotel-sheet', hideEditHotelSheet);
+    attachBottomSheetDismiss('#edit-event-sheet', hideEditEventSheet);
   }
 
   // Block pinch-zoom on fixed UI (Safari ignores touch-action for pinch).
@@ -6115,6 +6638,8 @@
     if (!data?.days?.length || !data?.trip) return false;
     const hotels = data.hotels || [];
     if (hotels.length && hotels.some(h => !h.id)) return false;
+    const events = data.events || [];
+    if (events.length && events.some(e => !e.id)) return false;
     return true;
   }
 
