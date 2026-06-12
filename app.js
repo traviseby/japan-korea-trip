@@ -2825,8 +2825,8 @@
 
   function eventCardMeta(ev){
     const parts = [];
-    const timeRange = formatEventTimeRange(ev);
-    if (timeRange) parts.push(timeRange);
+    if (ev.date) parts.push(fmtDate(ev.date));
+    if (ev.time) parts.push(ev.time);
     if (ev.provider) parts.push(ev.provider);
     return parts.join(' · ') || 'Ticket';
   }
