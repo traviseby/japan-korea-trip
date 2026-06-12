@@ -1979,37 +1979,32 @@ html.ios-standalone .tabbar {
    Booking Type Headers (Bookings Tab)
 ────────────────────────────────────────────────────────────────────────── */
 .booking-type-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 20px 12px;
-  margin-top: 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 5;
+  background: #181818;
+  padding: 12px var(--pad) 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid var(--type-accent, #555);
+  padding-left: calc(var(--pad) - 3px);
+  box-shadow: 0 8px 12px -8px var(--bg);
 }
 .booking-type-header:first-child {
   margin-top: 0;
 }
-.booking-type-header .type-emoji {
-  font-size: 20px;
-  line-height: 1;
+.lt-sticky ~ .booking-type-header,
+.lt-sticky + * .booking-type-header {
+  top: 60px;
 }
 .booking-type-header .type-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--type-accent);
-  flex: 1;
-}
-.booking-type-header .type-count {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--fg-mid);
-  background: var(--bg-mid);
-  padding: 4px 10px;
-  border-radius: 12px;
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--fg);
+  white-space: nowrap;
 }
 
 /* Bookings list container */

@@ -3905,9 +3905,7 @@
 
       // Type header
       root.appendChild(el('div', { class: 'booking-type-header', style: { '--type-accent': bookingTypeColor(type) } },
-        el('span', { class: 'type-emoji' }, bookingTypeEmoji(type)),
-        el('span', { class: 'type-name' }, type),
-        el('span', { class: 'type-count' }, `${items.length}`)
+        el('span', { class: 'type-name' }, type)
       ));
 
       // Cards
