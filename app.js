@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.30';
+  const APP_VERSION = '2.31';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -7439,6 +7439,7 @@
     if (!Array.isArray(data.events)) return true;
     const flights = data.flights || [];
     if (flights.length && flights.some(f => !f.id)) return true;
+    if (flights.length && flights.some(f => f.date && !f.depart && !f.arrive)) return true;
     const hotels = data.hotels || [];
     if (hotels.length && hotels.some(h => !h.id)) return true;
     const events = data.events || [];

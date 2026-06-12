@@ -157,11 +157,43 @@ function fmtTimeSeconds(s){
   return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
-function cellTimeSeconds(v) {
-  if (v == null || v === '') return null;
-  if (typeof v === 'number') return v;
-  if (typeof v === 'object' && typeof v.seconds === 'number') return v.seconds;
+function parseClockString(str) {
+  if (!str) return null;
+  const s = stripFence(String(str)).trim();
+  const m12 = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (m12) {
+    let h = parseInt(m12[1], 10);
+    const min = parseInt(m12[2], 10);
+    const ampm = m12[3].toUpperCase();
+    if (ampm === 'PM' && h !== 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+    return h * 3600 + min * 60;
+  }
+  const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (m24) return parseInt(m24[1], 10) * 3600 + parseInt(m24[2], 10) * 60;
   return null;
+}
+
+function cellTimeDisplay(v) {
+  if (v == null || v === '') return '';
+  if (typeof v === 'number') return fmtTimeSeconds(v);
+  if (typeof v === 'string') {
+    const sec = parseClockString(v);
+    return sec != null ? fmtTimeSeconds(sec) : stripFence(v);
+  }
+  if (typeof v === 'object') {
+    if (typeof v.seconds === 'number') return fmtTimeSeconds(v.seconds);
+    for (const key of ['formatted', 'display', 'formattedValue', 'input', 'name']) {
+      if (typeof v[key] !== 'string') continue;
+      const sec = parseClockString(v[key]);
+      if (sec != null) return fmtTimeSeconds(sec);
+    }
+    for (const key of ['formatted', 'display', 'formattedValue']) {
+      const cleaned = stripFence(v[key]);
+      if (cleaned) return cleaned;
+    }
+  }
+  return '';
 }
 
 function cellCost(v) {
@@ -518,8 +550,8 @@ const flights = flightRows.map(r => {
     toCity,
     date:     flightDate,
     day:      dayNum,
-    depart:   fmtTimeSeconds(cellTimeSeconds(v[FL.departTime])),
-    arrive:   fmtTimeSeconds(cellTimeSeconds(v[FL.arriveTime])),
+    depart:   cellTimeDisplay(v[FL.departTime]),
+    arrive:   cellTimeDisplay(v[FL.arriveTime]),
     cost:     cellCost(v[FL.cost]),
     receipt:  receipt.name,
     receiptUrl: receipt.url
@@ -546,8 +578,6 @@ const events = eventRows.map(r => {
   const v = r.values;
   const date = cellToDate(v[EVT.date]) || '';
   const dayNum = days.find(d => d.date === date)?.n || null;
-  const timeSec = cellTimeSeconds(v[EVT.time]);
-  const endSec = cellTimeSeconds(v[EVT.endTime]);
   const receipt = cellReceipt(v[EVT.receipt]);
   return {
     id:             r.id,
@@ -556,8 +586,8 @@ const events = eventRows.map(r => {
     bookingRef:     v[EVT.bookingRef] || '',
     date,
     day:            dayNum,
-    time:           timeSec != null ? fmtTimeSeconds(timeSec) : '',
-    endTime:        endSec != null ? fmtTimeSeconds(endSec) : '',
+    time:           cellTimeDisplay(v[EVT.time]),
+    endTime:        cellTimeDisplay(v[EVT.endTime]),
     meetupAddress:  v[EVT.meetupAddress] || '',
     notes:          v[EVT.notes] || '',
     cost:           cellCost(v[EVT.cost]),

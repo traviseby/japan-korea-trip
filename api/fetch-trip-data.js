@@ -184,11 +184,53 @@ export default async function handler(req, res) {
       return { name: '', url: '' };
     }
 
-    function cellTimeSeconds(v) {
-      if (v == null || v === '') return null;
-      if (typeof v === 'number') return v;
-      if (typeof v === 'object' && typeof v.seconds === 'number') return v.seconds;
+    function fmtTimeSeconds(sec) {
+      if (typeof sec !== 'number' || !Number.isFinite(sec)) return '';
+      const s = ((sec % 86400) + 86400) % 86400;
+      const h24 = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const ampm = h24 >= 12 ? 'PM' : 'AM';
+      const h12 = h24 % 12 || 12;
+      return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+    }
+
+    function parseClockString(str) {
+      if (!str) return null;
+      const s = stripFence(String(str)).trim();
+      const m12 = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (m12) {
+        let h = parseInt(m12[1], 10);
+        const min = parseInt(m12[2], 10);
+        const ampm = m12[3].toUpperCase();
+        if (ampm === 'PM' && h !== 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return h * 3600 + min * 60;
+      }
+      const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (m24) return parseInt(m24[1], 10) * 3600 + parseInt(m24[2], 10) * 60;
       return null;
+    }
+
+    function cellTimeDisplay(v) {
+      if (v == null || v === '') return '';
+      if (typeof v === 'number') return fmtTimeSeconds(v);
+      if (typeof v === 'string') {
+        const sec = parseClockString(v);
+        return sec != null ? fmtTimeSeconds(sec) : stripFence(v);
+      }
+      if (typeof v === 'object') {
+        if (typeof v.seconds === 'number') return fmtTimeSeconds(v.seconds);
+        for (const key of ['formatted', 'display', 'formattedValue', 'input', 'name']) {
+          if (typeof v[key] !== 'string') continue;
+          const sec = parseClockString(v[key]);
+          if (sec != null) return fmtTimeSeconds(sec);
+        }
+        for (const key of ['formatted', 'display', 'formattedValue']) {
+          const cleaned = stripFence(v[key]);
+          if (cleaned) return cleaned;
+        }
+      }
+      return '';
     }
 
     function moreInfoFromCell(v) {
@@ -338,16 +380,14 @@ export default async function handler(req, res) {
       return null;
     }
 
-    // Helper to format time from seconds
-    function fmtTimeSeconds(sec) {
-      if (!sec && sec !== 0) return '';
-      const d = new Date(sec * 1000);
-      const h = d.getUTCHours();
-      const m = d.getUTCMinutes();
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const h12 = h % 12 || 12;
-      return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-    }
+    const FL_TEMPLATE_IDS = {
+      departTime: 'c-QDdLu0WGdF',
+      arriveTime: 'c-FZuDLcOtcn'
+    };
+    const EVT_TEMPLATE_IDS = {
+      time: 'c-ZVDsJccngI',
+      endTime: 'c-xiG4Fcu5H3'
+    };
 
     // Helper to extract airport code from city name
     function deriveAirportCode(city) {
@@ -451,6 +491,8 @@ export default async function handler(req, res) {
       const flightDate = cellToDate(v[FL_MAP['Date']]) || '';
       const dayNum = days.find(d => d.date === flightDate)?.n || null;
       const receipt = cellReceipt(v[FL_MAP['Receipt']]);
+      const departTimeCol = mapCol(FL_MAP, 'Depart Time', 'Departure') || FL_TEMPLATE_IDS.departTime;
+      const arriveTimeCol = mapCol(FL_MAP, 'Arrive Time', 'Arrival') || FL_TEMPLATE_IDS.arriveTime;
 
       return {
         id: row.id,
@@ -464,8 +506,8 @@ export default async function handler(req, res) {
         toCity: toCity,
         date: flightDate,
         day: dayNum,
-        depart: fmtTimeSeconds(cellTimeSeconds(v[FL_MAP['Depart Time']])),
-        arrive: fmtTimeSeconds(cellTimeSeconds(v[FL_MAP['Arrive Time']])),
+        depart: cellTimeDisplay(v[departTimeCol]),
+        arrive: cellTimeDisplay(v[arriveTimeCol]),
         cost: cellCost(v[FL_MAP['Cost']]),
         receipt: receipt.name,
         receiptUrl: receipt.url
@@ -492,8 +534,8 @@ export default async function handler(req, res) {
       const v = row.values;
       const date = cellToDate(v[EVT_MAP['Date']]) || '';
       const dayNum = days.find(d => d.date === date)?.n || null;
-      const timeSec = cellTimeSeconds(v[EVT_MAP['Time']]);
-      const endSec = cellTimeSeconds(v[EVT_MAP['End time']]);
+      const timeCol = mapCol(EVT_MAP, 'Time') || EVT_TEMPLATE_IDS.time;
+      const endTimeCol = mapCol(EVT_MAP, 'End time', 'End Time') || EVT_TEMPLATE_IDS.endTime;
       const receipt = cellReceipt(v[EVT_MAP['Receipt']]);
       return {
         id: row.id,
@@ -502,8 +544,8 @@ export default async function handler(req, res) {
         bookingRef: cellText(v[EVT_MAP['Booking Reference']]),
         date,
         day: dayNum,
-        time: timeSec != null ? fmtTimeSeconds(timeSec) : '',
-        endTime: endSec != null ? fmtTimeSeconds(endSec) : '',
+        time: cellTimeDisplay(v[timeCol]),
+        endTime: cellTimeDisplay(v[endTimeCol]),
         meetupAddress: cellText(v[EVT_MAP['Meet-up Address']]),
         notes: cellText(v[EVT_MAP['Notes']]),
         cost: cellCost(v[EVT_MAP['Cost']]),
