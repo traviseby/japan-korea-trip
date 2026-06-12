@@ -1,8 +1,9 @@
 // Vercel serverless function to fetch trip data from Coda doc on-demand
 // Returns the same data structure that sync.mjs generates, but as JSON
+const FETCH_TRIP_DATA_VERSION = '2026-06-12-coda-table-fix';
 
 export default async function handler(req, res) {
-  console.log('fetch-trip-data called, method:', req.method);
+  console.log('fetch-trip-data called, method:', req.method, 'version:', FETCH_TRIP_DATA_VERSION);
   
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
