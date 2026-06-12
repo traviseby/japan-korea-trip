@@ -21,7 +21,7 @@
 
 (() => {
   const CW = 402, CH = 874;
-  const PW = { x: 67, y: 140, w: 268, h: 516, r: 92 };
+  const PW = { x: 58, y: 130, w: 286, h: 542, r: 97 };
 
   const clamp = (t, a = 0, b = 1) => Math.min(b, Math.max(a, t));
   const lerp = (a, b, t) => a + (b - a) * t;

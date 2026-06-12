@@ -296,7 +296,7 @@ export default async function handler(req, res) {
     const rowBuckets = {};
     await Promise.all([
       ['itinerary', tables.itinerary, 'simple', 0.36],
-      ['flights', tables.flights, 'simple', 0.58],
+      ['flights', tables.flights, 'rich', 0.58],
       ['hotels', tables.hotels, 'simple', 0.78],
       ['events', tables.events, 'rich', 0.85],
       ['activities', tables.activities, 'rich', 0.92],
@@ -440,29 +440,35 @@ export default async function handler(req, res) {
     // Build flights array
     const flights = flRows.map(row => {
       const v = row.values;
-      const airline = String(v[FL_MAP['Airline']] || '');
-      const flightNum = String(v[FL_MAP['Flight #']] || '');
+      const airline = cellText(v[FL_MAP['Airline']]);
+      const flightNum = cellText(v[FL_MAP['Flight #']]);
       const departCityCol = mapCol(FL_MAP, 'Depart City', 'From');
       const arriveCityCol = mapCol(FL_MAP, 'Arrive City', 'To');
       const fromCodeCol = mapCol(FL_MAP, 'Code', 'From (code)', 'From Code');
       const toCodeCol = mapCol(FL_MAP, 'Dest code', 'To (code)', 'To Code');
-      const fromCity = String(v[departCityCol] || '');
-      const toCity = String(v[arriveCityCol] || '');
+      const fromCity = cellText(v[departCityCol]);
+      const toCity = cellText(v[arriveCityCol]);
       const flightDate = cellToDate(v[FL_MAP['Date']]) || '';
       const dayNum = days.find(d => d.date === flightDate)?.n || null;
+      const receipt = cellReceipt(v[FL_MAP['Receipt']]);
 
       return {
-        trip: String(v[FL_MAP['Trip']] || ''),
+        id: row.id,
+        trip: cellText(v[FL_MAP['Trip']]),
         airline: airline,
+        flightNum: flightNum,
         number: `${airline ? airline.split(' ')[0] : ''} ${flightNum}`.trim(),
-        from: String(v[fromCodeCol] || '') || deriveAirportCode(fromCity),
-        to: String(v[toCodeCol] || '') || deriveAirportCode(toCity),
+        from: cellText(v[fromCodeCol]) || deriveAirportCode(fromCity),
+        to: cellText(v[toCodeCol]) || deriveAirportCode(toCity),
         fromCity: fromCity,
         toCity: toCity,
         date: flightDate,
         day: dayNum,
         depart: fmtTimeSeconds(cellTimeSeconds(v[FL_MAP['Depart Time']])),
-        arrive: fmtTimeSeconds(cellTimeSeconds(v[FL_MAP['Arrive Time']]))
+        arrive: fmtTimeSeconds(cellTimeSeconds(v[FL_MAP['Arrive Time']])),
+        cost: cellCost(v[FL_MAP['Cost']]),
+        receipt: receipt.name,
+        receiptUrl: receipt.url
       };
     });
 

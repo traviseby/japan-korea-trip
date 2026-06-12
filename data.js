@@ -1759,40 +1759,58 @@ window.DATA = {
   ],
   "flights": [
     {
+      "id": "i-BGnpblCib5",
       "trip": "Tokyo → Seoul",
       "airline": "Asiana",
+      "flightNum": "OZ1035",
       "number": "Asiana OZ1035",
       "from": "HND",
       "to": "ICN",
       "fromCity": "Tokyo (Haneda)",
       "toCity": "Seoul / Gimpo",
       "date": "2026-07-31",
-      "depart": "",
-      "arrive": ""
+      "day": 10,
+      "depart": "8:15 PM",
+      "arrive": "10:25 PM",
+      "cost": null,
+      "receipt": "",
+      "receiptUrl": ""
     },
     {
+      "id": "i-bz--ooYi5W",
       "trip": "Seattle → Tokyo",
       "airline": "Alaska Airlines",
+      "flightNum": "823",
       "number": "Alaska 823",
       "from": "SEA",
       "to": "NRT",
       "fromCity": "Seattle",
       "toCity": "Tokyo (Narita)",
       "date": "2026-07-22",
-      "depart": "",
-      "arrive": ""
+      "day": 1,
+      "depart": "1:30 PM",
+      "arrive": "4:00 PM",
+      "cost": 11.2,
+      "receipt": "alaska.pdf",
+      "receiptUrl": ""
     },
     {
+      "id": "i-6VVyGS_TDR",
       "trip": "Seoul → Seattle",
       "airline": "Alaska Airlines",
+      "flightNum": "172",
       "number": "Alaska 172",
       "from": "ICN",
       "to": "SEA",
       "fromCity": "Seoul (Incheon)",
       "toCity": "Seattle",
       "date": "2026-08-05",
-      "depart": "",
-      "arrive": ""
+      "day": 15,
+      "depart": "7:35 PM",
+      "arrive": "2:05 PM",
+      "cost": 69.06,
+      "receipt": "Hawaiian.pdf",
+      "receiptUrl": ""
     }
   ],
   "hotels": [

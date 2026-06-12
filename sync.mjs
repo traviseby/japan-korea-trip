@@ -102,7 +102,9 @@ const FL = {
   fromCity:    'c-0PM_8S1PJ1',
   departTime:  'c-QDdLu0WGdF',
   toCity:      'c-gwntR7jmva',
-  arriveTime:  'c-FZuDLcOtcn'
+  arriveTime:  'c-FZuDLcOtcn',
+  receipt:     'c-O8VedL3PU4',
+  cost:        'c-tuKKd6A0D8'
 };
 
 // Hotel column IDs
@@ -256,6 +258,16 @@ function stripFence(v){
   return v.replace(/```/g, '').trim();
 }
 
+function cellText(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return stripFence(v);
+  if (typeof v === 'number') return String(v);
+  const flat = flattenSlate(v);
+  if (flat) return stripFence(String(flat));
+  if (typeof v === 'object' && typeof v.name === 'string') return stripFence(v.name);
+  return stripFence(String(v));
+}
+
 // Convert a Coda date cell to YYYY-MM-DD, handling old (.epoch) and new (ISO string) formats.
 function cellToDate(cell){
   if (!cell) return null;
@@ -378,6 +390,8 @@ FL.fromCity = FL_MAP['Depart City'] || FL_MAP['From'] || FL.fromCity;
 FL.departTime = FL_MAP['Depart Time'] || FL_MAP['Departure'] || FL.departTime;
 FL.toCity = FL_MAP['Arrive City'] || FL_MAP['To'] || FL.toCity;
 FL.arriveTime = FL_MAP['Arrive Time'] || FL_MAP['Arrival'] || FL.arriveTime;
+FL.receipt = FL_MAP['Receipt'] || FL.receipt;
+FL.cost = FL_MAP['Cost'] || FL.cost;
 
 // Hotels
 HTL.startDate = HTL_MAP['Start Date'] || HTL.startDate;
@@ -411,7 +425,7 @@ const [itnRows, actRows, todoRows, flightRows, hotelRows, eventRows] = await Pro
   fetchAllRows(TABLES.itinerary),
   fetchAllRows(TABLES.activities),
   fetchAllRows(TABLES.todos),
-  fetchAllRows(TABLES.flights),
+  fetchAllRows(TABLES.flights, 'rich'),
   fetchAllRows(TABLES.hotels),
   fetchAllRows(TABLES.events, 'rich')
 ]);
@@ -485,22 +499,30 @@ const todos = todoRows.map(r => {
 
 const flights = flightRows.map(r => {
   const v = r.values;
-  const fromCity = v[FL.fromCity] || '';
-  const toCity   = v[FL.toCity] || '';
   const flightDate = cellToDate(v[FL.date]) || '';
   const dayNum = days.find(d => d.date === flightDate)?.n || null;
+  const flightNum = cellText(v[FL.number]);
+  const airline = cellText(v[FL.airline]);
+  const fromCity = cellText(v[FL.fromCity]);
+  const toCity = cellText(v[FL.toCity]);
+  const receipt = cellReceipt(v[FL.receipt]);
   return {
-    trip:     v[FL.trip] || '',
-    airline:  v[FL.airline] || '',
-    number:   `${v[FL.airline] ? v[FL.airline].split(' ')[0] : ''} ${v[FL.number] || ''}`.trim(),
-    from:     v[FL.fromCode] || deriveAirportCode(fromCity),
-    to:       v[FL.toCode]   || deriveAirportCode(toCity),
+    id:       r.id,
+    trip:     cellText(v[FL.trip]),
+    airline,
+    flightNum,
+    number:   `${airline ? airline.split(' ')[0] : ''} ${flightNum}`.trim(),
+    from:     cellText(v[FL.fromCode]) || deriveAirportCode(fromCity),
+    to:       cellText(v[FL.toCode])   || deriveAirportCode(toCity),
     fromCity,
     toCity,
     date:     flightDate,
     day:      dayNum,
     depart:   fmtTimeSeconds(cellTimeSeconds(v[FL.departTime])),
-    arrive:   fmtTimeSeconds(cellTimeSeconds(v[FL.arriveTime]))
+    arrive:   fmtTimeSeconds(cellTimeSeconds(v[FL.arriveTime])),
+    cost:     cellCost(v[FL.cost]),
+    receipt:  receipt.name,
+    receiptUrl: receipt.url
   };
 });
 

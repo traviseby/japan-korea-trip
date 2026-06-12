@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.27';
+  const APP_VERSION = '2.30';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -69,6 +69,7 @@
     region: null,             // map city key for Map tab — set later
     sheet: null,              // current activity id shown in sheet
     hotelSheet: null,         // hotel object shown in sheet, or null
+    flightSheet: null,        // flight object shown in sheet, or null
     eventSheet: null,         // booked event object shown in sheet, or null
     fullscreenMap: null,      // day number, or null
     location: null,           // {lat,lng} from geolocation, or null
@@ -137,6 +138,16 @@
   function todEmoji(tod){
     const t = D.timesOfDay.find(t => t.id === tod);
     return t ? t.emoji : '•';
+  }
+  function iconChipParts(icon, text) {
+    if (!icon) return [text];
+    return [
+      el('span', { class: 'chip-ico', 'aria-hidden': 'true' }, icon),
+      text
+    ];
+  }
+  function iconBadge(className, icon, text, attrs = {}) {
+    return el('span', { class: className, ...attrs }, ...iconChipParts(icon, text));
   }
   function timeOrder(t){
     return { 'Morning': 0, 'Afternoon': 1, 'Evening': 2, 'Late Night': 3 }[t] ?? 9;
@@ -346,7 +357,7 @@
         )
       );
       root.appendChild(section);
-      root.appendChild(buildFlightCard(flight));
+      root.appendChild(buildFlightCard(flight, day));
     }
 
     // Hotel cards if check-in day
@@ -903,13 +914,150 @@
     return true;
   }
 
+  function stripCodaFence(s) {
+    if (s == null) return '';
+    return String(s).replace(/```/g, '').trim();
+  }
+
   function enrichTripData(data){
     if (!Array.isArray(data.events)) data.events = [];
     (data.flights || []).forEach(f => {
       if (!f.day && f.date) {
         f.day = data.days?.find(d => d.date === f.date)?.n ?? null;
       }
+      for (const key of ['airline', 'flightNum', 'trip', 'from', 'to', 'fromCity', 'toCity']) {
+        if (typeof f[key] === 'string') f[key] = stripCodaFence(f[key]);
+      }
+      if (f.airline || f.flightNum) {
+        f.number = `${f.airline ? f.airline.split(' ')[0] : ''} ${f.flightNum || ''}`.trim();
+      }
     });
+  }
+
+  function refreshVisibleTab() {
+    const tab = state.tab;
+    if (tab === 'today') renderToday();
+    else if (tab === 'map') renderMapTab();
+    else if (tab === 'activities') renderActivitiesTab();
+    else if (tab === 'settings') renderSettingsTab();
+  }
+
+  function persistTripDataCache() {
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip || !window.DATA) return;
+    const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+    try {
+      localStorage.setItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`, JSON.stringify(window.DATA));
+    } catch (e) {
+      console.warn('Failed to persist trip cache:', e);
+    }
+  }
+
+  function afterTripRecordPatch(collection, record) {
+    if (collection === 'activities') rebuildActivityIndexes();
+    if (collection === 'flights') {
+      if (record.airline || record.flightNum) {
+        record.number = `${record.airline ? record.airline.split(' ')[0] : ''} ${record.flightNum || ''}`.trim();
+      }
+      if (record.date) record.day = window.DATA.days?.find(d => d.date === record.date)?.n ?? null;
+    }
+    if (collection === 'events' && record.date) {
+      record.day = window.DATA.days?.find(d => d.date === record.date)?.n ?? null;
+    }
+  }
+
+  function getTripRecord(collection, rowId) {
+    return (window.DATA?.[collection] || []).find(x => x.id === rowId) || null;
+  }
+
+  function patchTripRecord(collection, rowId, patch) {
+    const list = window.DATA?.[collection];
+    if (!Array.isArray(list)) return null;
+    const idx = list.findIndex(x => x.id === rowId);
+    if (idx < 0) return null;
+    const snapshot = { ...list[idx] };
+    Object.assign(list[idx], patch);
+    afterTripRecordPatch(collection, list[idx]);
+    return { collection, rowId, snapshot };
+  }
+
+  function insertTripRecord(collection, record) {
+    if (!window.DATA[collection]) window.DATA[collection] = [];
+    window.DATA[collection].push(record);
+    afterTripRecordPatch(collection, record);
+    return { collection, rowId: record.id, snapshot: null };
+  }
+
+  function restoreTripRecord({ collection, rowId, snapshot }) {
+    const list = window.DATA?.[collection];
+    if (!Array.isArray(list)) return;
+    const idx = list.findIndex(x => x.id === rowId);
+    if (snapshot == null) {
+      if (idx >= 0) list.splice(idx, 1);
+    } else if (idx >= 0) {
+      list[idx] = { ...snapshot };
+    } else {
+      list.push({ ...snapshot });
+    }
+    const record = list.find(x => x.id === rowId);
+    if (record) afterTripRecordPatch(collection, record);
+    else if (collection === 'activities') rebuildActivityIndexes();
+  }
+
+  function dayForTripRecord(collection, record) {
+    if (!record) return null;
+    if (collection === 'events' || collection === 'flights') {
+      return window.DATA.days?.find(d => d.date === record.date) || null;
+    }
+    if (collection === 'hotels') {
+      return window.DATA.days?.find(d => d.date === record.startDate) || null;
+    }
+    if (collection === 'activities') {
+      return window.DATA.byDay?.[record.day] || null;
+    }
+    return null;
+  }
+
+  async function syncTripRecordEdit({
+    applyLocal,
+    apiCall,
+    hideEditSheet,
+    reopenDetail,
+    savedDay,
+    successToast,
+    failToast,
+    submitBtn,
+    submitBtnLabel = 'Update'
+  }) {
+    let rollback = null;
+    try {
+      rollback = applyLocal();
+      if (!rollback?.rowId) throw new Error('Record not found');
+      persistTripDataCache();
+      hideEditSheet();
+      refreshVisibleTab();
+      const updated = getTripRecord(rollback.collection, rollback.rowId);
+      const day = savedDay || dayForTripRecord(rollback.collection, updated);
+      if (updated && reopenDetail) reopenDetail(updated, day);
+
+      await apiCall();
+      persistTripDataCache();
+      toast(successToast);
+    } catch (err) {
+      console.error(err);
+      if (rollback) {
+        restoreTripRecord(rollback);
+        persistTripDataCache();
+        refreshVisibleTab();
+        const restored = getTripRecord(rollback.collection, rollback.rowId);
+        if (restored && reopenDetail) reopenDetail(restored, savedDay);
+      }
+      toast(failToast);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtnLabel;
+      }
+    }
   }
 
   function applyTripData(tripData, opts = {}){
@@ -931,6 +1079,7 @@
     state.region = null;
     state.sheet = null;
     state.hotelSheet = null;
+    state.flightSheet = null;
     state.eventSheet = null;
     state.fullscreenMap = null;
     state.searching = false;
@@ -2281,8 +2430,281 @@
     );
   }
 
-  function buildFlightCard(f){
-    return el('div', { class: 'flight-card' },
+  function formatFlightTime(t){
+    return t && String(t).trim() ? String(t).trim() : '';
+  }
+
+  function formatFlightCost(cost){
+    if (cost == null || cost === '') return '';
+    const n = Number(cost);
+    if (!Number.isFinite(n)) return '';
+    return `$${n.toFixed(n % 1 ? 2 : 0)}`;
+  }
+
+  const RECEIPT_IMAGE_RE = /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/i;
+  const RECEIPT_PDF_RE = /\.pdf$/i;
+
+  function receiptKind(filename){
+    const name = String(filename || '').trim();
+    if (RECEIPT_IMAGE_RE.test(name)) return 'image';
+    if (RECEIPT_PDF_RE.test(name)) return 'pdf';
+    return 'unknown';
+  }
+
+  function receiptViewLabel(kind){
+    if (kind === 'image') return 'View Image';
+    if (kind === 'pdf') return 'View PDF';
+    return 'View Receipt';
+  }
+
+  function openExternalReceipt(url){
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  }
+
+  function sheetActionsClass(count) {
+    if (count <= 1) return 'sheet-actions single';
+    if (count === 3) return 'sheet-actions triple';
+    return 'sheet-actions';
+  }
+
+  function buildReceiptActionButton(url, filename, { secondary = false } = {}){
+    const kind = receiptKind(filename);
+    const label = receiptViewLabel(kind);
+    const className = 'btn' + (secondary ? ' secondary' : '');
+    if (kind === 'image') {
+      return el('button', {
+        class: className,
+        type: 'button',
+        onclick: () => openReceiptImageSheet(url, filename)
+      }, label);
+    }
+    return el('a', {
+      class: className,
+      href: url,
+      target: '_blank',
+      rel: 'noopener'
+    }, label);
+  }
+
+  function ensureReceiptImageSheetDom(){
+    const root = $('#app') || $('.phone-fullscreen') || document.body;
+    let backdrop = $('#receipt-image-backdrop');
+    let sheet = $('#receipt-image-sheet');
+    if (!backdrop) {
+      backdrop = el('div', { id: 'receipt-image-backdrop', class: 'sheet-backdrop sheet-stack-3' });
+      root.appendChild(backdrop);
+    }
+    if (!sheet) {
+      sheet = el('div', { id: 'receipt-image-sheet', class: 'sheet sheet-stack-3 receipt-image-sheet' });
+      root.appendChild(sheet);
+    }
+    return { sheet, backdrop };
+  }
+
+  function hideReceiptImageSheet(){
+    const sheet = $('#receipt-image-sheet');
+    const backdrop = $('#receipt-image-backdrop');
+    if (!sheet || !backdrop) return;
+    if (sheet.__receiptZoomCleanup) {
+      sheet.__receiptZoomCleanup();
+      sheet.__receiptZoomCleanup = null;
+    }
+    clearSheetDragStyles(sheet);
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
+    backdrop.onclick = null;
+    sheet.innerHTML = '';
+  }
+
+  function attachReceiptPinchZoom(viewport, stage, img){
+    let scale = 1;
+    let minScale = 1;
+    let maxScale = 4;
+    let tx = 0;
+    let ty = 0;
+    let viewW = 0;
+    let viewH = 0;
+    let natW = 0;
+    let natH = 0;
+    const pointers = new Map();
+    let pinchStartDist = 0;
+    let pinchStartScale = 1;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panOriginTx = 0;
+    let panOriginTy = 0;
+
+    function measure(){
+      viewW = viewport.clientWidth;
+      viewH = viewport.clientHeight;
+    }
+
+    function clampPan(){
+      const w = natW * scale;
+      const h = natH * scale;
+      if (w <= viewW) tx = (viewW - w) / 2;
+      else tx = Math.min(0, Math.max(viewW - w, tx));
+      if (h <= viewH) ty = (viewH - h) / 2;
+      else ty = Math.min(0, Math.max(viewH - h, ty));
+    }
+
+    function applyTransform(){
+      clampPan();
+      stage.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    }
+
+    function fitToViewport(){
+      measure();
+      natW = img.naturalWidth;
+      natH = img.naturalHeight;
+      if (!natW || !natH || !viewW || !viewH) return;
+      img.style.width = `${natW}px`;
+      img.style.height = `${natH}px`;
+      minScale = Math.min(viewW / natW, viewH / natH);
+      maxScale = minScale * 5;
+      scale = minScale;
+      tx = (viewW - natW * scale) / 2;
+      ty = (viewH - natH * scale) / 2;
+      applyTransform();
+    }
+
+    function pointerDistance(a, b){
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function zoomAroundMidpoint(nextScale, mx, my){
+      const prevScale = scale;
+      scale = Math.min(maxScale, Math.max(minScale, nextScale));
+      const ratio = scale / prevScale;
+      tx = mx - (mx - tx) * ratio;
+      ty = my - (my - ty) * ratio;
+      applyTransform();
+    }
+
+    function onPointerDown(e){
+      viewport.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) {
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panOriginTx = tx;
+        panOriginTy = ty;
+      } else if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        pinchStartDist = pointerDistance(pts[0], pts[1]);
+        pinchStartScale = scale;
+      }
+    }
+
+    function onPointerMove(e){
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        const d = pointerDistance(pts[0], pts[1]);
+        if (pinchStartDist > 0) {
+          const midX = (pts[0].x + pts[1].x) / 2;
+          const midY = (pts[0].y + pts[1].y) / 2;
+          const rect = viewport.getBoundingClientRect();
+          zoomAroundMidpoint(pinchStartScale * (d / pinchStartDist), midX - rect.left, midY - rect.top);
+        }
+      } else if (pointers.size === 1) {
+        tx = panOriginTx + (e.clientX - panStartX);
+        ty = panOriginTy + (e.clientY - panStartY);
+        applyTransform();
+      }
+    }
+
+    function onPointerUp(e){
+      pointers.delete(e.pointerId);
+      try { viewport.releasePointerCapture(e.pointerId); } catch {}
+      if (pointers.size === 1) {
+        const remaining = [...pointers.values()][0];
+        panStartX = remaining.x;
+        panStartY = remaining.y;
+        panOriginTx = tx;
+        panOriginTy = ty;
+      }
+    }
+
+    viewport.addEventListener('pointerdown', onPointerDown);
+    viewport.addEventListener('pointermove', onPointerMove);
+    viewport.addEventListener('pointerup', onPointerUp);
+    viewport.addEventListener('pointercancel', onPointerUp);
+    const onResize = () => fitToViewport();
+    window.addEventListener('resize', onResize);
+    img.addEventListener('load', fitToViewport);
+    if (img.complete) fitToViewport();
+
+    return () => {
+      viewport.removeEventListener('pointerdown', onPointerDown);
+      viewport.removeEventListener('pointermove', onPointerMove);
+      viewport.removeEventListener('pointerup', onPointerUp);
+      viewport.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('resize', onResize);
+    };
+  }
+
+  function openReceiptImageSheet(url, filename){
+    const { sheet, backdrop } = ensureReceiptImageSheetDom();
+    if (sheet.__receiptZoomCleanup) {
+      sheet.__receiptZoomCleanup();
+      sheet.__receiptZoomCleanup = null;
+    }
+    sheet.innerHTML = '';
+
+    sheet.appendChild(el('div', { class: 'handle' }));
+    sheet.appendChild(el('div', { class: 'sheet-nav' },
+      el('div', { class: 'sheet-nav-spacer' }),
+      el('div', { class: 'sheet-nav-actions' },
+        buildSheetCloseButton(hideReceiptImageSheet)
+      )
+    ));
+
+    const viewport = el('div', { class: 'receipt-zoom-viewport' });
+    const stage = el('div', { class: 'receipt-zoom-stage' });
+    const status = el('div', { class: 'receipt-zoom-status' }, 'Loading…');
+    const img = el('img', {
+      class: 'receipt-zoom-img',
+      src: url,
+      alt: 'Receipt',
+      draggable: 'false'
+    });
+    img.addEventListener('load', () => { status.style.display = 'none'; });
+    img.addEventListener('error', () => {
+      status.textContent = 'Couldn\u2019t load image';
+      status.classList.add('error');
+    });
+    stage.appendChild(img);
+    viewport.appendChild(stage);
+    viewport.appendChild(status);
+    sheet.appendChild(viewport);
+    sheet.appendChild(el('div', { class: 'receipt-image-actions' },
+      el('button', {
+        class: 'btn secondary',
+        type: 'button',
+        onclick: () => openExternalReceipt(url)
+      }, 'Open in Browser')
+    ));
+    sheet.appendChild(el('div', { class: 'bottom-pad' }));
+
+    sheet.__receiptZoomCleanup = attachReceiptPinchZoom(viewport, stage, img);
+
+    backdrop.classList.add('open');
+    backdrop.onclick = hideReceiptImageSheet;
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  }
+
+  function buildFlightCard(f, day){
+    const depart = formatFlightTime(f.depart);
+    const arrive = formatFlightTime(f.arrive);
+    const card = el('div', {
+      class: 'flight-card',
+      role: 'button',
+      tabindex: '0',
+      'aria-label': `${f.trip || f.number}, ${f.from} to ${f.to}`
+    },
       el('div', { class: 'fc-top' },
         el('span', null, f.airline),
         el('span', null, f.number)
@@ -2297,14 +2719,16 @@
         el('div', { class: 'fc-airport right' }, f.to)
       ),
       el('div', { class: 'fc-times' },
-        el('div', { class: 'time' }, f.depart),
-        el('div', { class: 'time' }, f.arrive)
+        el('div', { class: 'time' + (depart ? '' : ' muted') }, depart || '—'),
+        el('div', { class: 'time' + (arrive ? '' : ' muted') }, arrive || '—')
       ),
       el('div', { class: 'fc-cities' },
         el('div', null, f.fromCity),
         el('div', null, f.toCity)
       )
     );
+    attachScrollSafeTap(card, () => openFlightSheet(f, day));
+    return card;
   }
 
   function buildHotelCard(h, day){
@@ -2895,9 +3319,9 @@
     wrap.appendChild(buildFilterChipRow(tab));
   }
 
-  function summaryChip(label, active, onclick){
+  function summaryChip(label, active, onclick, icon){
     const c = el('button', { class: 'chip chip-summary' + (active ? ' active' : ''), onclick },
-      el('span', { class: 'chip-label' }, label),
+      el('span', { class: 'chip-label' }, ...iconChipParts(icon, label)),
       svgIcon('chevron-down')
     );
     return c;
@@ -3243,17 +3667,19 @@
     ));
     chips.appendChild(summaryChip(
       filterState.timeOfDay.length === 0 ? 'All Times' :
-        filterState.timeOfDay.length === 1 ? (D.timesOfDay.find(t => t.id === filterState.timeOfDay[0]).emoji + ' ' + filterState.timeOfDay[0]) :
+        filterState.timeOfDay.length === 1 ? filterState.timeOfDay[0] :
         `${filterState.timeOfDay.length} Times`,
       filterState.timeOfDay.length > 0,
-      () => openFilterTray('time')
+      () => openFilterTray('time'),
+      filterState.timeOfDay.length === 1 ? todEmoji(filterState.timeOfDay[0]) : null
     ));
     chips.appendChild(summaryChip(
       filterState.category.length === 0 ? 'All Types' :
-        filterState.category.length === 1 ? (catEmoji(filterState.category[0]) + ' ' + filterState.category[0]) :
+        filterState.category.length === 1 ? filterState.category[0] :
         `${filterState.category.length} Types`,
       filterState.category.length > 0,
-      () => openFilterTray('type')
+      () => openFilterTray('type'),
+      filterState.category.length === 1 ? catEmoji(filterState.category[0]) : null
     ));
 
     wrap.appendChild(chips);
@@ -3276,8 +3702,8 @@
         style: { '--day-accent': accent, background: accent }
       }, unscheduled ? 'Unscheduled' : 'Day ' + d.n));
     }
-    if (a.time) badges.appendChild(el('span', { class: 'badge' }, todEmoji(a.time) + ' ' + a.time));
-    if (a.cat) badges.appendChild(el('span', { class: 'badge' }, catEmoji(a.cat) + ' ' + a.cat));
+    if (a.time) badges.appendChild(iconBadge('badge', todEmoji(a.time), a.time));
+    if (a.cat) badges.appendChild(iconBadge('badge', catEmoji(a.cat), a.cat));
 
     const confirmDelete = async (e) => {
       e.preventDefault();
@@ -4097,6 +4523,17 @@
 
     const date = isUnscheduledDay(draft.day) ? null : (D.byDay[draft.day]?.date || null);
     let rowId = draft.rowId;
+    const dayNum = isUnscheduledDay(draft.day) ? UNSCHEDULED_DAY : draft.day;
+    const activityPatch = {
+      name,
+      desc: draft.desc.trim(),
+      url: draft.url.trim(),
+      lat,
+      lng,
+      cat: draft.cat || null,
+      time: draft.time || null,
+      day: dayNum
+    };
 
     try {
       if (!rowId) {
@@ -4124,45 +4561,45 @@
         draft.rowId = rowId;
       }
 
-      const body = {
-        docUrl: activeTrip.url,
-        rowId,
-        activity: {
-          name,
-          desc: draft.desc.trim(),
-          url: draft.url.trim(),
-          lat,
-          lng,
-          category: draft.cat || null,
-          time: draft.time || null,
-          date
-        }
-      };
-      if (activeTrip.token) body.token = activeTrip.token;
-
-      const res = await fetch('/api/update-activity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+      await syncTripRecordEdit({
+        applyLocal: () => {
+          if (!getTripRecord('activities', rowId)) {
+            return insertTripRecord('activities', { id: rowId, ...activityPatch });
+          }
+          return patchTripRecord('activities', rowId, activityPatch);
+        },
+        apiCall: async () => {
+          const body = {
+            docUrl: activeTrip.url,
+            rowId,
+            activity: {
+              name,
+              desc: activityPatch.desc,
+              url: activityPatch.url,
+              lat,
+              lng,
+              category: draft.cat || null,
+              time: draft.time || null,
+              date
+            }
+          };
+          if (activeTrip.token) body.token = activeTrip.token;
+          const res = await fetch('/api/update-activity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(payload.error || 'Failed to update activity');
+        },
+        hideEditSheet: hideEditActivitySheet,
+        reopenDetail: openSheet,
+        savedDay: null,
+        successToast: isNew ? 'Activity added' : 'Activity updated',
+        failToast: isNew ? 'Couldn\u2019t add activity' : 'Couldn\u2019t update activity',
+        submitBtn: btn,
+        submitBtnLabel: isNew ? 'Add' : 'Update'
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || 'Failed to update activity');
-
-      const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
-      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
-      const savedTab = state.tab;
-      hideEditActivitySheet();
-      try {
-        await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
-        switchTab(savedTab);
-        const refreshed = D.byId[rowId];
-        if (refreshed) openSheet(refreshed);
-        else closeSheet();
-      } catch (reloadErr) {
-        console.warn('Updated in Coda but failed to refresh trip data:', reloadErr);
-        closeSheet();
-      }
-      toast(isNew ? 'Activity added' : 'Activity updated');
     } catch (err) {
       console.error('Error updating activity:', err);
       toast(isNew ? 'Couldn\u2019t add activity' : 'Couldn\u2019t update activity');
@@ -4434,60 +4871,38 @@
     const nights = hotelNightsBetween(draft.startDate, draft.endDate);
     const savedDay = editHotelDay;
     const rowId = draft.rowId;
+    const hotelPatch = {
+      name,
+      city: draft.city || '',
+      startDate: draft.startDate || '',
+      endDate: draft.endDate || '',
+      nights,
+      roomType: draft.roomType.trim(),
+      lat,
+      lng
+    };
 
-    try {
-      toast('Updating Doc');
-      const body = {
-        docUrl: activeTrip.url,
-        rowId,
-        hotel: {
-          name,
-          city: draft.city || '',
-          startDate: draft.startDate || '',
-          endDate: draft.endDate || '',
-          nights,
-          roomType: draft.roomType.trim(),
-          lat,
-          lng
-        }
-      };
-      if (activeTrip.token) body.token = activeTrip.token;
-
-      const res = await fetch('/api/update-hotel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || 'Failed to update hotel');
-
-      const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
-      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
-      const savedTab = state.tab;
-      hideEditHotelSheet();
-      try {
-        await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
-        switchTab(savedTab);
-        const refreshed = (D.hotels || []).find(x => x.id === rowId);
-        if (refreshed) {
-          const day = savedDay || D.days?.find(d => d.date === refreshed.startDate) || null;
-          openHotelSheet(refreshed, day);
-        } else {
-          closeSheet();
-        }
-      } catch (reloadErr) {
-        console.warn('Updated in Coda but failed to refresh trip data:', reloadErr);
-        closeSheet();
-      }
-      toast('Hotel updated');
-    } catch (err) {
-      console.error('Error updating hotel:', err);
-      toast('Couldn\u2019t update hotel');
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Update';
-      }
-    }
+    await syncTripRecordEdit({
+      applyLocal: () => patchTripRecord('hotels', rowId, hotelPatch),
+      apiCall: async () => {
+        const body = { docUrl: activeTrip.url, rowId, hotel: hotelPatch };
+        if (activeTrip.token) body.token = activeTrip.token;
+        const res = await fetch('/api/update-hotel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload.error || 'Failed to update hotel');
+      },
+      hideEditSheet: hideEditHotelSheet,
+      reopenDetail: openHotelSheet,
+      savedDay,
+      successToast: 'Hotel updated',
+      failToast: 'Couldn\u2019t update hotel',
+      submitBtn: btn,
+      submitBtnLabel: 'Update'
+    });
   }
 
   // Emoji prefixes for To-Do types — uses Activity-category emoji where the
@@ -4556,6 +4971,7 @@
 
   function openSheet(a){
     state.hotelSheet = null;
+    state.flightSheet = null;
     state.eventSheet = null;
     state.sheet = a.id;
     const backdrop = $('#sheet-backdrop');
@@ -4604,8 +5020,8 @@
     body.appendChild(el('h2', { class: 'sheet-title' }, a.name));
     const badges = el('div', { class: 'sheet-badges' },
       el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, unscheduled ? 'Unscheduled' : 'Day ' + d.n),
-      a.time ? el('span', { class: 'b' }, todEmoji(a.time) + ' ' + a.time) : null,
-      a.cat ? el('span', { class: 'b' }, catEmoji(a.cat) + ' ' + a.cat) : null
+      a.time ? iconBadge('b', todEmoji(a.time), a.time) : null,
+      a.cat ? iconBadge('b', catEmoji(a.cat), a.cat) : null
     );
     body.appendChild(badges);
     body.appendChild(el('div', { class: 'sheet-desc' }, a.desc || ''));
@@ -4656,8 +5072,393 @@
     }, 380);
   }
 
+  function resolveFlightRecord(f){
+    if (!f) return null;
+    if (f.id) return f;
+    return (D.flights || []).find(x =>
+      x.id &&
+      x.trip === f.trip &&
+      x.date === f.date &&
+      x.number === f.number
+    ) || f;
+  }
+
+  async function ensureFlightRecord(f){
+    let flight = resolveFlightRecord(f);
+    if (flight?.id) return flight;
+
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) return flight;
+
+    const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
+    localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+    toast('Refreshing trip\u2026');
+    try {
+      await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
+      flight = resolveFlightRecord(f);
+    } catch (err) {
+      console.warn('Failed to refresh trip for flight edit:', err);
+    }
+    return flight;
+  }
+
+  async function fetchFlightReceiptUrl(rowId){
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) return '';
+
+    try {
+      const body = { docUrl: activeTrip.url, rowId };
+      if (activeTrip.token) body.token = activeTrip.token;
+      const res = await fetch('/api/flight-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) return '';
+      return isHttpUrl(payload.url) ? payload.url.trim() : '';
+    } catch (err) {
+      console.warn('Failed to resolve flight receipt URL:', err);
+      return '';
+    }
+  }
+
+  async function openFlightSheet(f, day){
+    state.sheet = null;
+    state.hotelSheet = null;
+    state.eventSheet = null;
+    f = resolveFlightRecord(f);
+    state.flightSheet = f;
+    const backdrop = $('#sheet-backdrop');
+    const sheet = $('#sheet');
+    sheet.innerHTML = '';
+
+    const accent = day?.color || dayAccent(day?.n) || '#1e6a9a';
+    let receiptUrl = isHttpUrl(f.receiptUrl) ? f.receiptUrl.trim() : '';
+    if (!receiptUrl && f.receipt && f.id) {
+      receiptUrl = await fetchFlightReceiptUrl(f.id);
+      if (receiptUrl) f.receiptUrl = receiptUrl;
+    }
+    const costText = formatFlightCost(f.cost);
+    const depart = formatFlightTime(f.depart);
+    const arrive = formatFlightTime(f.arrive);
+
+    sheet.appendChild(el('div', { class: 'handle' }));
+    sheet.appendChild(el('div', { class: 'sheet-nav' },
+      el('div', { class: 'sheet-nav-spacer' }),
+      el('div', { class: 'sheet-nav-actions' },
+        el('button', {
+          class: 'toolbar-btn',
+          'aria-label': 'Edit flight',
+          onclick: () => openEditFlightSheet(f, day)
+        }, tabIcon('edit')),
+        buildSheetCloseButton(closeSheet)
+      )
+    ));
+
+    const body = el('div', { class: 'sheet-body' });
+    body.appendChild(el('h2', { class: 'sheet-title' }, f.trip || `${f.from} → ${f.to}`));
+    body.appendChild(el('div', { class: 'sheet-badges' },
+      f.airline ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, f.airline) : null,
+      iconBadge('b', '✈️', 'Flight'),
+      f.number ? el('span', { class: 'b' }, f.number) : null
+    ));
+
+    const details = el('div', { class: 'sheet-desc' });
+    if (f.date) details.appendChild(el('p', { class: 'sheet-detail-line' }, fmtDate(f.date)));
+    details.appendChild(el('p', { class: 'sheet-detail-line' }, `${f.from} → ${f.to}`));
+    if (f.fromCity || f.toCity) {
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, `${f.fromCity || '—'} → ${f.toCity || '—'}`));
+    }
+    if (depart || arrive) {
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Depart ${depart || '—'} · Arrive ${arrive || '—'}`));
+    }
+    if (costText) details.appendChild(el('p', { class: 'sheet-detail-line' }, costText));
+    if (f.receipt && !receiptUrl) {
+      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Receipt: ${f.receipt}`));
+    }
+    body.appendChild(details);
+    sheet.appendChild(body);
+
+    if (receiptUrl) {
+      sheet.appendChild(el('div', { class: 'sheet-actions single' },
+        buildReceiptActionButton(receiptUrl, f.receipt)
+      ));
+    }
+    sheet.appendChild(el('div', { class: 'bottom-pad' }));
+
+    backdrop.classList.add('open');
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  }
+
+  // ─── Edit Flight Sheet ──────────────────────────────────────────────────────
+  let editFlightDraft = null;
+  let editFlightDay = null;
+
+  function flightToDraft(f){
+    return {
+      rowId: f.id || null,
+      trip: f.trip || '',
+      airline: f.airline || '',
+      flightNum: f.flightNum || '',
+      from: f.from || '',
+      to: f.to || '',
+      fromCity: f.fromCity || '',
+      toCity: f.toCity || '',
+      date: f.date || '',
+      depart: f.depart || '',
+      arrive: f.arrive || '',
+      cost: f.cost != null && f.cost !== '' ? String(f.cost) : ''
+    };
+  }
+
+  function ensureEditFlightSheetDom(){
+    const root = $('#app') || $('.phone-fullscreen') || document.body;
+    let backdrop = $('#edit-flight-backdrop');
+    let sheet = $('#edit-flight-sheet');
+    if (!backdrop) {
+      backdrop = el('div', { id: 'edit-flight-backdrop', class: 'sheet-backdrop sheet-stack-2' });
+      root.appendChild(backdrop);
+    }
+    if (!sheet) {
+      sheet = el('div', { id: 'edit-flight-sheet', class: 'sheet sheet-stack-2' });
+      root.appendChild(sheet);
+    }
+    return { sheet, backdrop };
+  }
+
+  function hideEditFlightSheet(){
+    const sheet = $('#edit-flight-sheet');
+    const backdrop = $('#edit-flight-backdrop');
+    if (!sheet || !backdrop) return;
+    clearSheetDragStyles(sheet);
+    sheet.classList.remove('open');
+    backdrop.classList.remove('open');
+    backdrop.onclick = null;
+    editFlightDraft = null;
+    editFlightDay = null;
+  }
+
+  function openEditFlightDatePicker(){
+    if (!editFlightDraft) return;
+    openPickTray({
+      title: 'Date',
+      value: editFlightDraft.date,
+      options: hotelDatePickerOptions(),
+      onPick: (value) => {
+        editFlightDraft.date = value;
+        updateEditPickerLabel('edit-flight-date-label', hotelDateLabel(value));
+      }
+    });
+  }
+
+  async function openEditFlightSheet(f, day){
+    const flight = await ensureFlightRecord(f);
+    if (!flight?.id) {
+      toast('Couldn\u2019t load flight for editing');
+      return;
+    }
+    editFlightDay = day || null;
+    editFlightDraft = flightToDraft(flight);
+    const { sheet, backdrop } = ensureEditFlightSheetDom();
+    const draft = editFlightDraft;
+    sheet.innerHTML = '';
+
+    sheet.appendChild(buildSheetCloseButton(hideEditFlightSheet));
+    sheet.appendChild(el('div', { class: 'sheet-form-header' },
+      el('h2', { class: 'sheet-form-title' }, 'Edit Flight')
+    ));
+
+    const form = el('div', { class: 'edit-activity-container' },
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-trip' }, 'Trip'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-trip',
+          class: 'edit-input',
+          value: draft.trip,
+          oninput: (e) => { draft.trip = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-airline' }, 'Airline'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-airline',
+          class: 'edit-input',
+          value: draft.airline,
+          oninput: (e) => { draft.airline = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-number' }, 'Flight #'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-number',
+          class: 'edit-input',
+          value: draft.flightNum,
+          oninput: (e) => { draft.flightNum = e.target.value; }
+        })
+      ),
+      buildEditPickerField('Date', 'edit-flight-date-label', hotelDateLabel(draft.date), openEditFlightDatePicker),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-from-code' }, 'From code'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-from-code',
+          class: 'edit-input',
+          value: draft.from,
+          oninput: (e) => { draft.from = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-from-city' }, 'Depart city'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-from-city',
+          class: 'edit-input',
+          value: draft.fromCity,
+          oninput: (e) => { draft.fromCity = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-depart' }, 'Depart time'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-depart',
+          class: 'edit-input',
+          value: draft.depart,
+          placeholder: '1:30 PM',
+          oninput: (e) => { draft.depart = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-to-code' }, 'To code'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-to-code',
+          class: 'edit-input',
+          value: draft.to,
+          oninput: (e) => { draft.to = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-to-city' }, 'Arrive city'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-to-city',
+          class: 'edit-input',
+          value: draft.toCity,
+          oninput: (e) => { draft.toCity = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-arrive' }, 'Arrive time'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-arrive',
+          class: 'edit-input',
+          value: draft.arrive,
+          placeholder: '4:00 PM',
+          oninput: (e) => { draft.arrive = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-flight-cost' }, 'Cost (USD)'),
+        el('input', {
+          type: 'text',
+          id: 'edit-flight-cost',
+          class: 'edit-input',
+          value: draft.cost,
+          oninput: (e) => { draft.cost = e.target.value; }
+        })
+      ),
+      el('button', {
+        id: 'edit-flight-submit',
+        class: 'oc-btn',
+        style: { marginTop: '8px', marginBottom: '24px' },
+        onclick: submitUpdateFlight
+      }, 'Update')
+    );
+    sheet.appendChild(form);
+
+    backdrop.classList.add('open');
+    backdrop.onclick = hideEditFlightSheet;
+    requestAnimationFrame(() => sheet.classList.add('open'));
+  }
+
+  async function submitUpdateFlight(){
+    const draft = editFlightDraft;
+    if (!draft) return;
+
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) {
+      toast('Select a trip to continue');
+      return;
+    }
+    if (!draft.rowId) {
+      toast('Flight can\u2019t be edited');
+      return;
+    }
+
+    const costStr = draft.cost.trim();
+    let cost = null;
+    if (costStr !== '') {
+      cost = parseFloat(costStr);
+      if (isNaN(cost)) {
+        toast('Cost must be a number');
+        return;
+      }
+    }
+
+    const btn = $('#edit-flight-submit');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+    }
+
+    const savedDay = editFlightDay;
+    const rowId = draft.rowId;
+    const flightPatch = {
+      trip: draft.trip.trim(),
+      airline: draft.airline.trim(),
+      flightNum: draft.flightNum.trim(),
+      from: draft.from.trim(),
+      to: draft.to.trim(),
+      fromCity: draft.fromCity.trim(),
+      toCity: draft.toCity.trim(),
+      date: draft.date || '',
+      depart: draft.depart.trim(),
+      arrive: draft.arrive.trim(),
+      cost
+    };
+
+    await syncTripRecordEdit({
+      applyLocal: () => patchTripRecord('flights', rowId, flightPatch),
+      apiCall: async () => {
+        const body = { docUrl: activeTrip.url, rowId, flight: flightPatch };
+        if (activeTrip.token) body.token = activeTrip.token;
+        const res = await fetch('/api/update-flight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload.error || 'Failed to update flight');
+      },
+      hideEditSheet: hideEditFlightSheet,
+      reopenDetail: openFlightSheet,
+      savedDay,
+      successToast: 'Flight updated',
+      failToast: 'Couldn\u2019t update flight',
+      submitBtn: btn,
+      submitBtnLabel: 'Update'
+    });
+  }
+
   function openHotelSheet(h, day){
     state.sheet = null;
+    state.flightSheet = null;
     state.eventSheet = null;
     h = resolveHotelRecord(h);
     state.hotelSheet = h;
@@ -4707,7 +5508,7 @@
     body.appendChild(el('h2', { class: 'sheet-title' }, h.name));
     body.appendChild(el('div', { class: 'sheet-badges' },
       h.city ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, h.city) : null,
-      el('span', { class: 'b' }, '🏨 Hotel'),
+      iconBadge('b', '🏨', 'Hotel'),
       el('span', { class: 'b' }, nightsText)
     ));
 
@@ -4799,6 +5600,7 @@
   async function openEventSheet(ev, day){
     state.sheet = null;
     state.hotelSheet = null;
+    state.flightSheet = null;
     ev = resolveEventRecord(ev);
     state.eventSheet = ev;
     const backdrop = $('#sheet-backdrop');
@@ -4832,7 +5634,7 @@
     body.appendChild(el('h2', { class: 'sheet-title' }, ev.name));
     body.appendChild(el('div', { class: 'sheet-badges' },
       ev.provider ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, ev.provider) : null,
-      el('span', { class: 'b' }, '🎟️ Event')
+      iconBadge('b', '🎟️', 'Event')
     ));
 
     const details = el('div', { class: 'sheet-desc' });
@@ -4844,8 +5646,6 @@
     } else if (formatEventTimeRange(ev)) {
       details.appendChild(el('p', { class: 'sheet-detail-line' }, formatEventTimeRange(ev)));
     }
-    if (ev.bookingRef) details.appendChild(el('p', { class: 'sheet-detail-line' }, `Ref ${ev.bookingRef}`));
-    if (ev.meetupAddress) details.appendChild(el('p', { class: 'sheet-detail-line' }, ev.meetupAddress));
     if (ev.notes) details.appendChild(el('p', { class: 'sheet-detail-line' }, ev.notes));
     if (costText) details.appendChild(el('p', { class: 'sheet-detail-line' }, costText));
     if (ev.receipt && !receiptUrl) {
@@ -4855,18 +5655,23 @@
     sheet.appendChild(body);
 
     const actionItems = [];
-    if (directionsUrl) actionItems.push({ href: directionsUrl, label: 'Get Directions' });
-    if (receiptUrl) actionItems.push({ href: receiptUrl, label: 'View Receipt' });
-    if (infoUrl) actionItems.push({ href: infoUrl, label: 'More Info' });
+    if (directionsUrl) actionItems.push({ type: 'link', href: directionsUrl, label: 'Get Directions' });
+    if (receiptUrl) actionItems.push({ type: 'receipt', url: receiptUrl, filename: ev.receipt });
+    if (infoUrl) actionItems.push({ type: 'link', href: infoUrl, label: 'More Info' });
     if (actionItems.length) {
-      const actions = el('div', { class: 'sheet-actions' + (actionItems.length === 1 ? ' single' : '') });
+      const actions = el('div', { class: sheetActionsClass(actionItems.length) });
       actionItems.forEach((item, index) => {
-        actions.appendChild(el('a', {
-          class: 'btn' + (actionItems.length === 1 || index === 0 ? '' : ' secondary'),
-          href: item.href,
-          target: '_blank',
-          rel: 'noopener'
-        }, item.label));
+        const primary = actionItems.length === 1 || index === 0;
+        if (item.type === 'receipt') {
+          actions.appendChild(buildReceiptActionButton(item.url, item.filename, { secondary: !primary }));
+        } else {
+          actions.appendChild(el('a', {
+            class: 'btn' + (primary ? '' : ' secondary'),
+            href: item.href,
+            target: '_blank',
+            rel: 'noopener'
+          }, item.label));
+        }
       });
       sheet.appendChild(actions);
     }
@@ -5132,62 +5937,40 @@
 
     const savedDay = editEventDay;
     const rowId = draft.rowId;
+    const eventPatch = {
+      name,
+      provider: draft.provider || '',
+      bookingRef: draft.bookingRef.trim(),
+      date: draft.date || '',
+      time: draft.time.trim(),
+      endTime: draft.endTime.trim(),
+      meetupAddress: draft.meetupAddress.trim(),
+      notes: draft.notes.trim(),
+      cost,
+      moreInfo: draft.moreInfo.trim()
+    };
 
-    try {
-      toast('Updating Doc');
-      const body = {
-        docUrl: activeTrip.url,
-        rowId,
-        event: {
-          name,
-          provider: draft.provider || '',
-          bookingRef: draft.bookingRef.trim(),
-          date: draft.date || '',
-          time: draft.time.trim(),
-          endTime: draft.endTime.trim(),
-          meetupAddress: draft.meetupAddress.trim(),
-          notes: draft.notes.trim(),
-          cost,
-          moreInfo: draft.moreInfo.trim()
-        }
-      };
-      if (activeTrip.token) body.token = activeTrip.token;
-
-      const res = await fetch('/api/update-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(payload.error || 'Failed to update event');
-
-      const normalizedUrl = activeTrip.url.split('#')[0].split('?')[0];
-      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
-      const savedTab = state.tab;
-      hideEditEventSheet();
-      try {
-        await loadTripData(activeTrip.url, false, activeTrip.token || null, { preserveUi: true });
-        switchTab(savedTab);
-        const refreshed = (D.events || []).find(x => x.id === rowId);
-        if (refreshed) {
-          const day = savedDay || D.days?.find(d => d.date === refreshed.date) || null;
-          openEventSheet(refreshed, day);
-        } else {
-          closeSheet();
-        }
-      } catch (reloadErr) {
-        console.warn('Updated in Coda but failed to refresh trip data:', reloadErr);
-        closeSheet();
-      }
-      toast('Event updated');
-    } catch (err) {
-      console.error('Error updating event:', err);
-      toast('Couldn\u2019t update event');
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Update';
-      }
-    }
+    await syncTripRecordEdit({
+      applyLocal: () => patchTripRecord('events', rowId, eventPatch),
+      apiCall: async () => {
+        const body = { docUrl: activeTrip.url, rowId, event: eventPatch };
+        if (activeTrip.token) body.token = activeTrip.token;
+        const res = await fetch('/api/update-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(payload.error || 'Failed to update event');
+      },
+      hideEditSheet: hideEditEventSheet,
+      reopenDetail: openEventSheet,
+      savedDay,
+      successToast: 'Event updated',
+      failToast: 'Couldn\u2019t update event',
+      submitBtn: btn,
+      submitBtnLabel: 'Update'
+    });
   }
 
   function closeSheet(){
@@ -5198,6 +5981,7 @@
     backdrop.classList.remove('open');
     state.sheet = null;
     state.hotelSheet = null;
+    state.flightSheet = null;
     state.eventSheet = null;
     if (leafletSheet){ setTimeout(() => { try { leafletSheet.remove(); } catch{} leafletSheet = null; }, 350); }
   }
@@ -5325,6 +6109,8 @@
     attachBottomSheetDismiss('#edit-activity-sheet', hideEditActivitySheet);
     attachBottomSheetDismiss('#edit-hotel-sheet', hideEditHotelSheet);
     attachBottomSheetDismiss('#edit-event-sheet', hideEditEventSheet);
+    attachBottomSheetDismiss('#edit-flight-sheet', hideEditFlightSheet);
+    attachBottomSheetDismiss('#receipt-image-sheet', hideReceiptImageSheet);
   }
 
   // Block pinch-zoom on fixed UI (Safari ignores touch-action for pinch).
@@ -6651,6 +7437,8 @@
   function tripDataNeedsRefresh(data){
     if (!isValidTripData(data)) return true;
     if (!Array.isArray(data.events)) return true;
+    const flights = data.flights || [];
+    if (flights.length && flights.some(f => !f.id)) return true;
     const hotels = data.hotels || [];
     if (hotels.length && hotels.some(h => !h.id)) return true;
     const events = data.events || [];
