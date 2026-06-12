@@ -1975,3 +1975,51 @@ html.ios-standalone .tabbar {
   color: var(--fg) !important;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Booking Type Headers (Bookings Tab)
+────────────────────────────────────────────────────────────────────────── */
+.booking-type-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px 12px;
+  margin-top: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.booking-type-header:first-child {
+  margin-top: 0;
+}
+.booking-type-header .type-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+.booking-type-header .type-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--type-accent);
+  flex: 1;
+}
+.booking-type-header .type-count {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-mid);
+  background: var(--bg-mid);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+/* Bookings list container */
+#bookings-list {
+  padding-top: 0;
+}
+#bookings-list .flight-card,
+#bookings-list .hotel-card,
+#bookings-list .event-card,
+#bookings-list .car-rental-card {
+  margin: 12px 20px;
+}
+

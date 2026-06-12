@@ -75,6 +75,7 @@
     fullscreenMap: null,      // day number, or null
     location: null,           // {lat,lng} from geolocation, or null
     searching: false,         // filter-bar search mode on Map + Activities
+    searchingBookings: false, // filter-bar search mode on Bookings
     filterTray: null,          // 'day' | 'time' | 'type' | null
     pickTray: null             // single-select picker open from edit form
   };
@@ -87,6 +88,13 @@
     search: ''
   };
   window.filterState = filterState;
+
+  const bookingsFilterState = {
+    type: [],
+    day: [],
+    search: ''
+  };
+  window.bookingsFilterState = bookingsFilterState;
 
   // ─── Persistence (per device, localStorage) ───────────────────────────────
   const STORAGE = {
@@ -3823,6 +3831,354 @@
       }, unscheduled ? 'Unscheduled' : 'Day ' + d.n));
     }
     if (a.time) badges.appendChild(iconBadge('badge', todEmoji(a.time), a.time));
+    if (a.category) badges.appendChild(iconBadge('badge', catEmoji(a.category), a.category));
+    const checked = checkedActs.has(a.id);
+    const row = el('div', {
+      class: 'list-row' + (checked ? ' checked' : ''),
+      onclick: (e) => {
+        if (e.target.closest('input[type=checkbox]')) return;
+        openActivity(a);
+      }
+    },
+      el('label', { class: 'list-check-label' },
+        el('input', {
+          type: 'checkbox',
+          checked,
+          onchange: (e) => {
+            if (e.target.checked) checkedActs.add(a.id);
+            else checkedActs.delete(a.id);
+            saveSet(STORAGE.activityChecks, checkedActs);
+            e.target.closest('.list-row').classList.toggle('checked', e.target.checked);
+          }
+        }),
+        el('span', { class: 'checkmark' })
+      ),
+      el('div', { class: 'list-body' },
+        el('div', { class: 'list-title' }, a.name),
+        firstSentence ? el('div', { class: 'list-desc' }, firstSentence) : null,
+        badges
+      )
+    );
+    return row;
+  }
+
+  // ─── Bookings Tab ─────────────────────────────────────────────────────────
+  function renderBookingsTab(){
+    renderBookingsList();
+  }
+
+  function renderBookingsFilterBar(){
+    const bar = $('#filter-bar-bookings');
+    bar.innerHTML = '';
+    let rightSlot;
+    if (anyBookingsFilterActive()) {
+      rightSlot = el('button', { class: 'reset', onclick: resetBookingsFilters }, 'Reset');
+    }
+    bar.appendChild(buildLargeTitle('Bookings', rightSlot));
+    bar.appendChild(buildBookingsFilterChipRow());
+  }
+
+  function renderBookingsList(skipBar){
+    if (!skipBar) renderBookingsFilterBar();
+
+    const root = $('#bookings-list');
+    root.innerHTML = '';
+
+    const fb = filteredBookings();
+    if (!fb.length){
+      const pieces = [];
+      if (bookingsFilterState.type.length) pieces.push(bookingsFilterState.type.length === 1 ? bookingsFilterState.type[0] : `${bookingsFilterState.type.length} types`);
+      if (bookingsFilterState.day.length) pieces.push(bookingsFilterState.day.length === 1 ? dayFilterLabel(bookingsFilterState.day[0]) : `${bookingsFilterState.day.length} days`);
+      if (bookingsFilterState.search) pieces.push(`"${bookingsFilterState.search}"`);
+      root.appendChild(el('div', { class: 'empty-state' },
+        el('div', { class: 'em' }, 'No bookings match.'),
+        el('div', { class: 'filters' }, pieces.length ? 'Active filters: ' + pieces.join(' · ') : 'Try adjusting your filters.')
+      ));
+      return;
+    }
+
+    // Group by type
+    const types = ['Flights', 'Hotels', 'Tickets', 'Rental Cars'];
+    types.forEach(type => {
+      const items = fb.filter(b => b.type === type);
+      if (!items.length) return;
+
+      // Type header
+      root.appendChild(el('div', { class: 'booking-type-header', style: { '--type-accent': bookingTypeColor(type) } },
+        el('span', { class: 'type-emoji' }, bookingTypeEmoji(type)),
+        el('span', { class: 'type-name' }, type),
+        el('span', { class: 'type-count' }, `${items.length}`)
+      ));
+
+      // Cards
+      items.forEach(item => {
+        root.appendChild(item.card);
+      });
+    });
+  }
+
+  function buildBookingsFilterChipRow(){
+    const wrap = el('div', { class: 'lt-sticky' });
+
+    if (state.searchingBookings){
+      const input = el('input', {
+        type: 'search',
+        placeholder: 'Search bookings',
+        enterkeyhint: 'search',
+        value: bookingsFilterState.search,
+        oninput: (e) => { bookingsFilterState.search = e.target.value; debouncedSyncBookings(); }
+      });
+      const row = el('div', { class: 'search-row' },
+        el('div', { class: 'search' },
+          svgIcon('search'),
+          input,
+          el('button', {
+            class: 'search-close',
+            'aria-label': 'Close search',
+            onclick: () => { state.searchingBookings = false; bookingsFilterState.search = ''; syncBookingsFilters(); }
+          }, '\u2715')
+        )
+      );
+      wrap.appendChild(row);
+      return wrap;
+    }
+
+    const chips = el('div', { class: 'chips chips-single' });
+
+    chips.appendChild(el('button', {
+      class: 'chip chip-icon',
+      'aria-label': 'Search',
+      onclick: () => { state.searchingBookings = true; syncBookingsFilters({ focusSearch: true }); }
+    }, svgIcon('search')));
+
+    chips.appendChild(summaryChip(
+      bookingsFilterState.type.length === 0 ? 'All Types' : 
+        bookingsFilterState.type.length === 1 ? bookingsFilterState.type[0] :
+        `${bookingsFilterState.type.length} Types`,
+      bookingsFilterState.type.length > 0,
+      () => openBookingsFilterTray('type'),
+      bookingsFilterState.type.length === 1 ? bookingTypeEmoji(bookingsFilterState.type[0]) : null
+    ));
+    chips.appendChild(summaryChip(
+      bookingsFilterState.day.length === 0 ? 'All Days' : 
+        bookingsFilterState.day.length === 1 ? dayFilterLabel(bookingsFilterState.day[0]) :
+        `${bookingsFilterState.day.length} Days`,
+      bookingsFilterState.day.length > 0,
+      () => openBookingsFilterTray('day')
+    ));
+
+    wrap.appendChild(chips);
+    return wrap;
+  }
+
+  function bookingTypeEmoji(type){
+    if (type === 'Flights') return '✈️';
+    if (type === 'Hotels') return '🏨';
+    if (type === 'Tickets') return '🎫';
+    if (type === 'Rental Cars') return '🚗';
+    return '';
+  }
+
+  function bookingTypeColor(type){
+    if (type === 'Flights') return '#3b82f6';
+    if (type === 'Hotels') return '#8b5cf6';
+    if (type === 'Tickets') return '#f59e0b';
+    if (type === 'Rental Cars') return '#10b981';
+    return 'var(--fg)';
+  }
+
+  function filteredBookings(){
+    const all = getAllBookings();
+    let result = all;
+
+    if (bookingsFilterState.type.length){
+      result = result.filter(b => bookingsFilterState.type.includes(b.type));
+    }
+    if (bookingsFilterState.day.length){
+      result = result.filter(b => {
+        if (!b.dayNum) return false;
+        return bookingsFilterState.day.includes(b.dayNum);
+      });
+    }
+    if (bookingsFilterState.search){
+      const q = bookingsFilterState.search.toLowerCase();
+      result = result.filter(b => {
+        const text = [b.searchText || '', b.name || ''].join(' ').toLowerCase();
+        return text.includes(q);
+      });
+    }
+
+    return result;
+  }
+
+  function getAllBookings(){
+    const bookings = [];
+
+    // Flights
+    (D.flights || []).forEach(f => {
+      const day = f.departDay;
+      bookings.push({
+        type: 'Flights',
+        dayNum: day,
+        card: buildFlightCard(f),
+        searchText: `${f.from} ${f.to} ${f.airline} ${f.flightNum}`,
+        name: `${f.from} → ${f.to}`
+      });
+    });
+
+    // Hotels
+    (D.hotels || []).forEach(h => {
+      const day = h.checkinDay;
+      bookings.push({
+        type: 'Hotels',
+        dayNum: day,
+        card: buildHotelCard(h),
+        searchText: `${h.name} ${h.location}`,
+        name: h.name
+      });
+    });
+
+    // Events/Tickets
+    (D.events || []).forEach(e => {
+      const day = e.day;
+      bookings.push({
+        type: 'Tickets',
+        dayNum: day,
+        card: buildEventCard(e),
+        searchText: `${e.name} ${e.location}`,
+        name: e.name
+      });
+    });
+
+    // Car Rentals
+    (D.carRentals || []).forEach(cr => {
+      const day = cr.pickupDay;
+      bookings.push({
+        type: 'Rental Cars',
+        dayNum: day,
+        card: buildCarRentalCard(cr),
+        searchText: `${cr.provider} ${cr.pickupLocation} ${cr.returnLocation}`,
+        name: `${cr.pickupLocation} → ${cr.returnLocation}`
+      });
+    });
+
+    return bookings;
+  }
+
+  function anyBookingsFilterActive(){
+    return bookingsFilterState.type.length > 0 || bookingsFilterState.day.length > 0 || bookingsFilterState.search;
+  }
+
+  function resetBookingsFilters(){
+    bookingsFilterState.type = [];
+    bookingsFilterState.day = [];
+    bookingsFilterState.search = '';
+    state.searchingBookings = false;
+    syncBookingsFilters();
+  }
+
+  function syncBookingsFilters(opts){
+    renderBookingsList();
+    if (opts && opts.focusSearch) {
+      setTimeout(() => {
+        const input = $('#filter-bar-bookings input[type=search]');
+        if (input) input.focus();
+      }, 50);
+    }
+  }
+
+  let debouncedSyncBookings;
+  (() => {
+    let timer;
+    debouncedSyncBookings = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => syncBookingsFilters(), 350);
+    };
+  })();
+
+  function openBookingsFilterTray(mode){
+    const tray = $('#filter-tray');
+    const backdrop = $('#filter-tray-backdrop');
+    tray.innerHTML = '';
+
+    if (mode === 'type'){
+      const types = ['Flights', 'Hotels', 'Tickets', 'Rental Cars'];
+      tray.appendChild(el('div', { class: 'tray-title' }, 'Filter by type'));
+      const list = el('div', { class: 'tray-list' });
+      types.forEach(t => {
+        const selected = bookingsFilterState.type.includes(t);
+        const row = el('button', { 
+          class: 'tray-row' + (selected ? ' selected' : ''),
+          onclick: () => {
+            const idx = bookingsFilterState.type.indexOf(t);
+            if (idx >= 0) bookingsFilterState.type.splice(idx, 1);
+            else bookingsFilterState.type.push(t);
+            openBookingsFilterTray(mode);
+            syncBookingsFilters();
+          }
+        },
+          el('span', { class: 'tray-leader tray-emoji' }, bookingTypeEmoji(t)),
+          el('div', { class: 'tray-text' },
+            el('div', { class: 'tray-label' }, t)
+          ),
+          selected ? (() => {
+            const c = el('span', { class: 'tray-check' });
+            c.appendChild(svgCheck());
+            return c;
+          })() : el('span')
+        );
+        list.appendChild(row);
+      });
+      tray.appendChild(list);
+    } else if (mode === 'day'){
+      tray.appendChild(el('div', { class: 'tray-title' }, 'Filter by day'));
+      const list = el('div', { class: 'tray-list' });
+      D.days.forEach(d => {
+        const selected = bookingsFilterState.day.includes(d.n);
+        const row = el('button', { 
+          class: 'tray-row' + (selected ? ' selected' : ''),
+          onclick: () => {
+            const idx = bookingsFilterState.day.indexOf(d.n);
+            if (idx >= 0) bookingsFilterState.day.splice(idx, 1);
+            else bookingsFilterState.day.push(d.n);
+            openBookingsFilterTray(mode);
+            syncBookingsFilters();
+          }
+        },
+          el('span', { class: 'tray-leader tray-dot', style: { background: d.color } }),
+          el('div', { class: 'tray-text' },
+            el('div', { class: 'tray-label' }, `Day ${d.n}`),
+            el('div', { class: 'tray-sub' }, shortDate(d.date))
+          ),
+          selected ? (() => {
+            const c = el('span', { class: 'tray-check' });
+            c.appendChild(svgCheck());
+            return c;
+          })() : el('span')
+        );
+        list.appendChild(row);
+      });
+      tray.appendChild(list);
+    }
+    tray.appendChild(el('div', { class: 'bottom-pad' }));
+
+    backdrop.classList.add('open');
+    requestAnimationFrame(() => tray.classList.add('open'));
+  }
+
+  function buildFullRow(a, showDayBadge){
+    const unscheduled = isUnscheduledDay(a.day);
+    const d = unscheduled ? null : D.byDay[a.day];
+    const accent = dayAccent(a.day);
+    const firstSentence = (a.desc || '').split(/(?<=[.!?])\s/)[0] || '';
+    const badges = el('div', { class: 'badges' });
+    if (showDayBadge) {
+      badges.appendChild(el('span', {
+        class: 'badge day-badge',
+        style: { '--day-accent': accent, background: accent }
+      }, unscheduled ? 'Unscheduled' : 'Day ' + d.n));
+    }
+    if (a.time) badges.appendChild(iconBadge('badge', todEmoji(a.time), a.time));
     if (a.cat) badges.appendChild(iconBadge('badge', catEmoji(a.cat), a.cat));
 
     const confirmDelete = async (e) => {
@@ -7082,6 +7438,7 @@
     if (tab === 'today') renderToday();
     if (tab === 'map') renderMapTab();
     if (tab === 'activities') renderActivitiesTab();
+    if (tab === 'bookings') renderBookingsTab();
     if (tab === 'settings') renderSettingsTab();
     // give Leaflet a kick after the pane becomes visible
     setTimeout(() => { try { if (leafletFull) leafletFull.invalidateSize(); if (leafletMini) leafletMini.invalidateSize(); } catch{} }, 100);
