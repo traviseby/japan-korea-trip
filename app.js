@@ -2875,13 +2875,8 @@
   }
 
   function carRentalCardMeta(cr){
-    const parts = [];
-    const timeRange = carRentalTimeRange(cr);
-    if (timeRange) parts.push(timeRange);
-    if (cr.provider) parts.push(cr.provider);
     const route = carRentalRoute(cr);
-    if (route) parts.push(route);
-    return parts.join(' · ') || 'Car rental';
+    return route || 'Car rental';
   }
 
   function buildCarRentalCard(cr, day){
