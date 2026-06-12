@@ -370,14 +370,14 @@ TODO.rec = TODO_MAP['Recommendation'] || TODO.rec;
 // Flights
 FL.trip = FL_MAP['Trip'] || FL.trip;
 FL.airline = FL_MAP['Airline'] || FL.airline;
-FL.fromCode = FL_MAP['From Code'] || FL.fromCode;
-FL.toCode = FL_MAP['To Code'] || FL.toCode;
-FL.number = FL_MAP['Flight Number'] || FL.number;
+FL.fromCode = FL_MAP['Code'] || FL_MAP['From Code'] || FL_MAP['From (code)'] || FL.fromCode;
+FL.toCode = FL_MAP['Dest code'] || FL_MAP['To Code'] || FL_MAP['To (code)'] || FL.toCode;
+FL.number = FL_MAP['Flight #'] || FL_MAP['Flight Number'] || FL.number;
 FL.date = FL_MAP['Date'] || FL.date;
-FL.fromCity = FL_MAP['From'] || FL.fromCity;
-FL.departTime = FL_MAP['Departure'] || FL.departTime;
-FL.toCity = FL_MAP['To'] || FL.toCity;
-FL.arriveTime = FL_MAP['Arrival'] || FL.arriveTime;
+FL.fromCity = FL_MAP['Depart City'] || FL_MAP['From'] || FL.fromCity;
+FL.departTime = FL_MAP['Depart Time'] || FL_MAP['Departure'] || FL.departTime;
+FL.toCity = FL_MAP['Arrive City'] || FL_MAP['To'] || FL.toCity;
+FL.arriveTime = FL_MAP['Arrive Time'] || FL_MAP['Arrival'] || FL.arriveTime;
 
 // Hotels
 HTL.startDate = HTL_MAP['Start Date'] || HTL.startDate;
@@ -387,8 +387,8 @@ HTL.nights = HTL_MAP['Nights'] || HTL.nights;
 HTL.name = HTL_MAP['Hotel Name'] || HTL.name;
 HTL.roomType = HTL_MAP['Room Type'] || HTL.roomType;
 HTL.address = HTL_MAP['Address'] || HTL.address;
-HTL.latitude = HTL_MAP['Latitude'] || HTL.latitude;
-HTL.longitude = HTL_MAP['Longitude'] || HTL.longitude;
+HTL.latitude = HTL_MAP['Latitude'] || HTL_MAP['Lat'] || HTL.latitude;
+HTL.longitude = HTL_MAP['Longitude'] || HTL_MAP['Lng'] || HTL.longitude;
 
 // Events
 EVT.name = EVT_MAP['Name'] || EVT.name;
@@ -487,6 +487,8 @@ const flights = flightRows.map(r => {
   const v = r.values;
   const fromCity = v[FL.fromCity] || '';
   const toCity   = v[FL.toCity] || '';
+  const flightDate = cellToDate(v[FL.date]) || '';
+  const dayNum = days.find(d => d.date === flightDate)?.n || null;
   return {
     trip:     v[FL.trip] || '',
     airline:  v[FL.airline] || '',
@@ -495,9 +497,10 @@ const flights = flightRows.map(r => {
     to:       v[FL.toCode]   || deriveAirportCode(toCity),
     fromCity,
     toCity,
-    date:     cellToDate(v[FL.date]) || '',
-    depart:   fmtTimeSeconds(v[FL.departTime]?.seconds),
-    arrive:   fmtTimeSeconds(v[FL.arriveTime]?.seconds)
+    date:     flightDate,
+    day:      dayNum,
+    depart:   fmtTimeSeconds(cellTimeSeconds(v[FL.departTime])),
+    arrive:   fmtTimeSeconds(cellTimeSeconds(v[FL.arriveTime]))
   };
 });
 
@@ -512,8 +515,8 @@ const hotels = hotelRows.map(r => {
     nights:    v[HTL.nights] || 0,
     roomType:  v[HTL.roomType] || '',
     address:   v[HTL.address] || '',
-    lat:       v[HTL.latitude] || null,
-    lng:       v[HTL.longitude] || null
+    lat:       v[HTL.latitude] ?? null,
+    lng:       v[HTL.longitude] ?? null
   };
 });
 

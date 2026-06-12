@@ -442,20 +442,27 @@ export default async function handler(req, res) {
       const v = row.values;
       const airline = String(v[FL_MAP['Airline']] || '');
       const flightNum = String(v[FL_MAP['Flight #']] || '');
-      const fromCity = String(v[FL_MAP['From']] || '');
-      const toCity = String(v[FL_MAP['To']] || '');
-      
+      const departCityCol = mapCol(FL_MAP, 'Depart City', 'From');
+      const arriveCityCol = mapCol(FL_MAP, 'Arrive City', 'To');
+      const fromCodeCol = mapCol(FL_MAP, 'Code', 'From (code)', 'From Code');
+      const toCodeCol = mapCol(FL_MAP, 'Dest code', 'To (code)', 'To Code');
+      const fromCity = String(v[departCityCol] || '');
+      const toCity = String(v[arriveCityCol] || '');
+      const flightDate = cellToDate(v[FL_MAP['Date']]) || '';
+      const dayNum = days.find(d => d.date === flightDate)?.n || null;
+
       return {
         trip: String(v[FL_MAP['Trip']] || ''),
         airline: airline,
         number: `${airline ? airline.split(' ')[0] : ''} ${flightNum}`.trim(),
-        from: String(v[FL_MAP['From (code)']] || '') || deriveAirportCode(fromCity),
-        to: String(v[FL_MAP['To (code)']] || '') || deriveAirportCode(toCity),
+        from: String(v[fromCodeCol] || '') || deriveAirportCode(fromCity),
+        to: String(v[toCodeCol] || '') || deriveAirportCode(toCity),
         fromCity: fromCity,
         toCity: toCity,
-        date: cellToDate(v[FL_MAP['Date']]) || '',
-        depart: fmtTimeSeconds(v[FL_MAP['Depart Time']]?.seconds),
-        arrive: fmtTimeSeconds(v[FL_MAP['Arrive Time']]?.seconds)
+        date: flightDate,
+        day: dayNum,
+        depart: fmtTimeSeconds(cellTimeSeconds(v[FL_MAP['Depart Time']])),
+        arrive: fmtTimeSeconds(cellTimeSeconds(v[FL_MAP['Arrive Time']]))
       };
     });
 
@@ -470,8 +477,8 @@ export default async function handler(req, res) {
         nights: v[HTL_MAP['Nights']] || 0,
         roomType: String(v[HTL_MAP['Room Type']] || ''),
         address: String(v[HTL_MAP['Address']] || ''),
-        lat: v[HTL_MAP['Latitude']] || null,
-        lng: v[HTL_MAP['Longitude']] || null
+        lat: v[HTL_MAP['Latitude']] ?? v[HTL_MAP['Lat']] ?? null,
+        lng: v[HTL_MAP['Longitude']] ?? v[HTL_MAP['Lng']] ?? null
       };
     });
 

@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.26';
+  const APP_VERSION = '2.27';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -338,7 +338,7 @@
     }
 
     // Flight card if travel day
-    const flight = D.flights.find(f => f.day === day.n);
+    const flight = (D.flights || []).find(f => f.day === day.n || f.date === day.date);
     if (flight){
       const section = el('div', { class: 'section tight' },
         el('div', { class: 'section-head' },
@@ -349,16 +349,16 @@
       root.appendChild(buildFlightCard(flight));
     }
 
-    // Hotel card if check-in day
-    const hotel = D.hotels?.find(h => h.startDate === day.date);
-    if (hotel){
+    // Hotel cards if check-in day
+    const checkInHotels = (D.hotels || []).filter(h => h.startDate === day.date);
+    if (checkInHotels.length){
       const section = el('div', { class: 'section tight' },
         el('div', { class: 'section-head' },
-          el('h3', null, 'Check-in Today')
+          el('h3', null, checkInHotels.length === 1 ? 'Check-in Today' : 'Check-ins Today')
         )
       );
       root.appendChild(section);
-      root.appendChild(buildHotelCard(hotel, day));
+      checkInHotels.forEach(h => root.appendChild(buildHotelCard(h, day)));
     }
 
     // Booked events on this calendar date
@@ -903,8 +903,18 @@
     return true;
   }
 
+  function enrichTripData(data){
+    if (!Array.isArray(data.events)) data.events = [];
+    (data.flights || []).forEach(f => {
+      if (!f.day && f.date) {
+        f.day = data.days?.find(d => d.date === f.date)?.n ?? null;
+      }
+    });
+  }
+
   function applyTripData(tripData, opts = {}){
     window.DATA = tripData;
+    enrichTripData(window.DATA);
 
     // Build lookup objects (same as data.js does)
     window.DATA.byId = {};
@@ -946,8 +956,8 @@
         if (cached) {
           try {
             tripData = JSON.parse(cached);
-            if (!isValidTripData(tripData)) {
-              console.warn('Cached trip data is incomplete, refetching');
+            if (tripDataNeedsRefresh(tripData)) {
+              console.warn('Cached trip data is stale, refetching');
               localStorage.removeItem(cacheKey);
               tripData = null;
             } else {
@@ -6635,12 +6645,17 @@
   }
   
   function isValidTripData(data){
-    if (!data?.days?.length || !data?.trip) return false;
+    return !!(data?.days?.length && data?.trip);
+  }
+
+  function tripDataNeedsRefresh(data){
+    if (!isValidTripData(data)) return true;
+    if (!Array.isArray(data.events)) return true;
     const hotels = data.hotels || [];
-    if (hotels.length && hotels.some(h => !h.id)) return false;
+    if (hotels.length && hotels.some(h => !h.id)) return true;
     const events = data.events || [];
-    if (events.length && events.some(e => !e.id)) return false;
-    return true;
+    if (events.length && events.some(e => !e.id)) return true;
+    return false;
   }
 
   function tripDataReady(){
