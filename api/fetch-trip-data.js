@@ -197,6 +197,8 @@ export default async function handler(req, res) {
     function parseClockString(str) {
       if (!str) return null;
       const s = stripFence(String(str)).trim();
+      const iso = s.match(/T(\d{1,2}):(\d{2})(?::\d{2})?/);
+      if (iso) return parseInt(iso[1], 10) * 3600 + parseInt(iso[2], 10) * 60;
       const m12 = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
       if (m12) {
         let h = parseInt(m12[1], 10);
@@ -216,7 +218,10 @@ export default async function handler(req, res) {
       if (typeof v === 'number') return fmtTimeSeconds(v);
       if (typeof v === 'string') {
         const sec = parseClockString(v);
-        return sec != null ? fmtTimeSeconds(sec) : stripFence(v);
+        if (sec != null) return fmtTimeSeconds(sec);
+        const cleaned = stripFence(v);
+        if (cleaned && !/^\d{4}-\d{2}-\d{2}T/.test(cleaned)) return cleaned;
+        return '';
       }
       if (typeof v === 'object') {
         if (typeof v.seconds === 'number') return fmtTimeSeconds(v.seconds);
