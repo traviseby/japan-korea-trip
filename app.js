@@ -6603,9 +6603,9 @@
     const cachedEnrichment = getCachedPlaceEnrichment('hotel', h);
     const hasGooglePhoto = cachedEnrichment?.photoUrl;
 
-    // Request enrichment if not cached
+    // Request enrichment if not cached (but we don't need to do anything with it here)
     if (!cachedEnrichment && h.name) {
-      requestPlaceEnrichment('hotel', h);
+      requestPlaceEnrichment('hotel', h, () => {});
     }
 
     sheet.appendChild(el('div', { class: 'handle' }));
@@ -6845,9 +6845,9 @@
     const cachedEnrichment = getCachedPlaceEnrichment('event', ev);
     const hasGooglePhoto = cachedEnrichment?.photoUrl;
 
-    // Request enrichment if not cached
+    // Request enrichment if not cached (but we don't need to do anything with it here)
     if (!cachedEnrichment && ev.name) {
-      requestPlaceEnrichment('event', ev);
+      requestPlaceEnrichment('event', ev, () => {});
     }
 
     sheet.appendChild(el('div', { class: 'handle' }));
