@@ -4317,7 +4317,19 @@
       ));
 
       // Cards
-      items.forEach(item => {
+      items.forEach((item, idx) => {
+        // Attach click handler with navigation context
+        const day = D.days?.find(d => d.n === item.dayNum);
+        attachScrollSafeTap(item.card, () => {
+          const navContext = {
+            bookings: items,
+            currentIndex: idx
+          };
+          if (item.type === 'Flights') openFlightSheet(item.record, day, navContext);
+          else if (item.type === 'Hotels') openHotelSheet(item.record, day, navContext);
+          else if (item.type === 'Tickets') openEventSheet(item.record, day, navContext);
+          else if (item.type === 'Rental Cars') openCarRentalSheet(item.record, day, navContext);
+        });
         root.appendChild(item.card);
       });
     });
@@ -4443,7 +4455,8 @@
         sortTime: f.depart || '',
         card: buildFlightCard(f),
         searchText: `${f.from} ${f.to} ${f.airline} ${f.flightNum}`,
-        name: `${f.from} → ${f.to}`
+        name: `${f.from} → ${f.to}`,
+        record: f
       });
     });
 
@@ -4456,7 +4469,8 @@
         sortTime: '',
         card: buildHotelCard(h),
         searchText: `${h.name} ${h.location}`,
-        name: h.name
+        name: h.name,
+        record: h
       });
     });
 
@@ -4469,7 +4483,8 @@
         sortTime: e.time || '',
         card: buildEventCard(e),
         searchText: `${e.name} ${e.location}`,
-        name: e.name
+        name: e.name,
+        record: e
       });
     });
 
@@ -4482,7 +4497,8 @@
         sortTime: cr.pickupTime || '',
         card: buildCarRentalCard(cr),
         searchText: `${cr.provider} ${cr.pickupLocation} ${cr.returnLocation}`,
-        name: `${cr.pickupLocation} → ${cr.returnLocation}`
+        name: `${cr.pickupLocation} → ${cr.returnLocation}`,
+        record: cr
       });
     });
 
@@ -6193,7 +6209,7 @@
     }
   }
 
-  async function openFlightSheet(f, day){
+  async function openFlightSheet(f, day, navContext){
     state.sheet = null;
     state.hotelSheet = null;
     state.eventSheet = null;
@@ -6219,17 +6235,59 @@
     const toCoords = getAirportCoords(f.to);
 
     sheet.appendChild(el('div', { class: 'handle' }));
-    sheet.appendChild(el('div', { class: 'sheet-nav' },
-      el('div', { class: 'sheet-nav-spacer' }),
-      el('div', { class: 'sheet-nav-actions' },
-        el('button', {
-          class: 'toolbar-btn',
-          'aria-label': 'Edit flight',
-          onclick: () => openEditFlightSheet(f, day)
-        }, tabIcon('edit')),
-        buildSheetCloseButton(closeSheet)
-      )
-    ));
+    
+    // Build navigation
+    const navChildren = [];
+    
+    // Left chevron or spacer
+    if (navContext && navContext.currentIndex > 0) {
+      navChildren.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        'aria-label': 'Previous booking',
+        onclick: () => {
+          const prev = navContext.bookings[navContext.currentIndex - 1];
+          const prevDay = D.days?.find(d => d.n === prev.dayNum);
+          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+        }
+      }, tabIcon('chev-left')));
+    } else {
+      navChildren.push(el('div', { class: 'sheet-nav-spacer' }));
+    }
+    
+    // Right side actions
+    const rightActions = [
+      el('button', {
+        class: 'toolbar-btn',
+        'aria-label': 'Edit flight',
+        onclick: () => openEditFlightSheet(f, day)
+      }, tabIcon('edit')),
+      buildSheetCloseButton(closeSheet)
+    ];
+    
+    // Right chevron or spacer
+    if (navContext && navContext.currentIndex < navContext.bookings.length - 1) {
+      rightActions.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        'aria-label': 'Next booking',
+        onclick: () => {
+          const next = navContext.bookings[navContext.currentIndex + 1];
+          const nextDay = D.days?.find(d => d.n === next.dayNum);
+          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+        }
+      }, tabIcon('chev-right')));
+    } else if (navContext) {
+      rightActions.push(el('div', { class: 'sheet-nav-spacer' }));
+    }
+    
+    navChildren.push(el('div', { class: 'sheet-nav-actions' }, ...rightActions));
+    
+    sheet.appendChild(el('div', { class: 'sheet-nav' }, ...navChildren));
 
     const body = el('div', { class: 'sheet-body' });
 
@@ -6626,7 +6684,7 @@
     });
   }
 
-  async function openHotelSheet(h, day){
+  async function openHotelSheet(h, day, navContext){
     state.sheet = null;
     state.flightSheet = null;
     state.eventSheet = null;
@@ -6658,17 +6716,59 @@
     }
 
     sheet.appendChild(el('div', { class: 'handle' }));
-    sheet.appendChild(el('div', { class: 'sheet-nav' },
-      el('div', { class: 'sheet-nav-spacer' }),
-      el('div', { class: 'sheet-nav-actions' },
-        el('button', {
-          class: 'toolbar-btn',
-          'aria-label': 'Edit hotel',
-          onclick: () => openEditHotelSheet(h, day)
-        }, tabIcon('edit')),
-        buildSheetCloseButton(closeSheet)
-      )
-    ));
+    
+    // Build navigation
+    const navChildren = [];
+    
+    // Left chevron or spacer
+    if (navContext && navContext.currentIndex > 0) {
+      navChildren.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        'aria-label': 'Previous booking',
+        onclick: () => {
+          const prev = navContext.bookings[navContext.currentIndex - 1];
+          const prevDay = D.days?.find(d => d.n === prev.dayNum);
+          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+        }
+      }, tabIcon('chev-left')));
+    } else {
+      navChildren.push(el('div', { class: 'sheet-nav-spacer' }));
+    }
+    
+    // Right side actions
+    const rightActions = [
+      el('button', {
+        class: 'toolbar-btn',
+        'aria-label': 'Edit hotel',
+        onclick: () => openEditHotelSheet(h, day)
+      }, tabIcon('edit')),
+      buildSheetCloseButton(closeSheet)
+    ];
+    
+    // Right chevron or spacer
+    if (navContext && navContext.currentIndex < navContext.bookings.length - 1) {
+      rightActions.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        'aria-label': 'Next booking',
+        onclick: () => {
+          const next = navContext.bookings[navContext.currentIndex + 1];
+          const nextDay = D.days?.find(d => d.n === next.dayNum);
+          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+        }
+      }, tabIcon('chev-right')));
+    } else if (navContext) {
+      rightActions.push(el('div', { class: 'sheet-nav-spacer' }));
+    }
+    
+    navChildren.push(el('div', { class: 'sheet-nav-actions' }, ...rightActions));
+    
+    sheet.appendChild(el('div', { class: 'sheet-nav' }, ...navChildren));
 
     const body = el('div', { class: 'sheet-body' });
 
@@ -6864,7 +6964,7 @@
     return event;
   }
 
-  async function openEventSheet(ev, day){
+  async function openEventSheet(ev, day, navContext){
     state.sheet = null;
     state.hotelSheet = null;
     state.flightSheet = null;
@@ -6902,17 +7002,59 @@
     }
 
     sheet.appendChild(el('div', { class: 'handle' }));
-    sheet.appendChild(el('div', { class: 'sheet-nav' },
-      el('div', { class: 'sheet-nav-spacer' }),
-      el('div', { class: 'sheet-nav-actions' },
-        el('button', {
-          class: 'toolbar-btn',
-          'aria-label': 'Edit ticket',
-          onclick: () => openEditEventSheet(ev, day)
-        }, tabIcon('edit')),
-        buildSheetCloseButton(closeSheet)
-      )
-    ));
+    
+    // Build navigation
+    const navChildren = [];
+    
+    // Left chevron or spacer
+    if (navContext && navContext.currentIndex > 0) {
+      navChildren.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        'aria-label': 'Previous booking',
+        onclick: () => {
+          const prev = navContext.bookings[navContext.currentIndex - 1];
+          const prevDay = D.days?.find(d => d.n === prev.dayNum);
+          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+        }
+      }, tabIcon('chev-left')));
+    } else {
+      navChildren.push(el('div', { class: 'sheet-nav-spacer' }));
+    }
+    
+    // Right side actions
+    const rightActions = [
+      el('button', {
+        class: 'toolbar-btn',
+        'aria-label': 'Edit ticket',
+        onclick: () => openEditEventSheet(ev, day)
+      }, tabIcon('edit')),
+      buildSheetCloseButton(closeSheet)
+    ];
+    
+    // Right chevron or spacer
+    if (navContext && navContext.currentIndex < navContext.bookings.length - 1) {
+      rightActions.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        'aria-label': 'Next booking',
+        onclick: () => {
+          const next = navContext.bookings[navContext.currentIndex + 1];
+          const nextDay = D.days?.find(d => d.n === next.dayNum);
+          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+        }
+      }, tabIcon('chev-right')));
+    } else if (navContext) {
+      rightActions.push(el('div', { class: 'sheet-nav-spacer' }));
+    }
+    
+    navChildren.push(el('div', { class: 'sheet-nav-actions' }, ...rightActions));
+    
+    sheet.appendChild(el('div', { class: 'sheet-nav' }, ...navChildren));
 
     const body = el('div', { class: 'sheet-body' });
 
@@ -7418,7 +7560,7 @@
     }
   }
 
-  async function openCarRentalSheet(cr, day){
+  async function openCarRentalSheet(cr, day, navContext){
     state.sheet = null;
     state.hotelSheet = null;
     state.flightSheet = null;
@@ -7442,17 +7584,59 @@
     const hasCoords = lat != null && lng != null;
 
     sheet.appendChild(el('div', { class: 'handle' }));
-    sheet.appendChild(el('div', { class: 'sheet-nav' },
-      el('div', { class: 'sheet-nav-spacer' }),
-      el('div', { class: 'sheet-nav-actions' },
-        el('button', {
-          class: 'toolbar-btn',
-          'aria-label': 'Edit car rental',
-          onclick: () => openEditCarRentalSheet(cr, day)
-        }, tabIcon('edit')),
-        buildSheetCloseButton(closeSheet)
-      )
-    ));
+    
+    // Build navigation
+    const navChildren = [];
+    
+    // Left chevron or spacer
+    if (navContext && navContext.currentIndex > 0) {
+      navChildren.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        'aria-label': 'Previous booking',
+        onclick: () => {
+          const prev = navContext.bookings[navContext.currentIndex - 1];
+          const prevDay = D.days?.find(d => d.n === prev.dayNum);
+          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+        }
+      }, tabIcon('chev-left')));
+    } else {
+      navChildren.push(el('div', { class: 'sheet-nav-spacer' }));
+    }
+    
+    // Right side actions
+    const rightActions = [
+      el('button', {
+        class: 'toolbar-btn',
+        'aria-label': 'Edit car rental',
+        onclick: () => openEditCarRentalSheet(cr, day)
+      }, tabIcon('edit')),
+      buildSheetCloseButton(closeSheet)
+    ];
+    
+    // Right chevron or spacer
+    if (navContext && navContext.currentIndex < navContext.bookings.length - 1) {
+      rightActions.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        'aria-label': 'Next booking',
+        onclick: () => {
+          const next = navContext.bookings[navContext.currentIndex + 1];
+          const nextDay = D.days?.find(d => d.n === next.dayNum);
+          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
+        }
+      }, tabIcon('chev-right')));
+    } else if (navContext) {
+      rightActions.push(el('div', { class: 'sheet-nav-spacer' }));
+    }
+    
+    navChildren.push(el('div', { class: 'sheet-nav-actions' }, ...rightActions));
+    
+    sheet.appendChild(el('div', { class: 'sheet-nav' }, ...navChildren));
 
     const body = el('div', { class: 'sheet-body' });
 
