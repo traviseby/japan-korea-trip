@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.31';
+  const APP_VERSION = '2.55';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -2774,26 +2774,243 @@
     return card;
   }
 
-  function buildHotelCard(h, day){
+  const PLACE_ENRICH_CACHE_KEY = 'trip-place-enrich-v1';
+  const placeEnrichInflight = new Map();
+  const placeEnrichSessionMiss = new Set();
+
+  function placeEnrichRecordKey(kind, record) {
+    return `${kind}:${record?.id || record?.name || 'unknown'}`;
+  }
+
+  function readPlaceEnrichCacheStore() {
+    try {
+      return JSON.parse(localStorage.getItem(PLACE_ENRICH_CACHE_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  function writePlaceEnrichCacheStore(store) {
+    try {
+      localStorage.setItem(PLACE_ENRICH_CACHE_KEY, JSON.stringify(store));
+    } catch (e) {
+      console.warn('Failed to persist place enrich cache:', e);
+    }
+  }
+
+  function getCachedPlaceEnrichment(kind, record) {
+    const key = placeEnrichRecordKey(kind, record);
+    if (placeEnrichSessionMiss.has(key)) return { enriched: false };
+    const hit = readPlaceEnrichCacheStore()[key];
+    return hit || null;
+  }
+
+  function setCachedPlaceEnrichment(kind, record, data) {
+    const key = placeEnrichRecordKey(kind, record);
+    if (!data?.enriched) {
+      placeEnrichSessionMiss.add(key);
+      return;
+    }
+    const store = readPlaceEnrichCacheStore();
+    store[key] = data;
+    writePlaceEnrichCacheStore(store);
+  }
+
+  async function fetchPlaceEnrichmentFromApi(kind, record) {
+    const resp = await fetch('/api/places-enrich', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind,
+        name: record.name,
+        address: record.address || record.meetupAddress || '',
+        city: record.city || '',
+        lat: record.lat,
+        lng: record.lng
+      })
+    });
+    if (!resp.ok) return { enriched: false, reason: 'http_error' };
+    return resp.json();
+  }
+
+  function requestPlaceEnrichment(kind, record, onReady) {
+    const key = placeEnrichRecordKey(kind, record);
+    const cached = getCachedPlaceEnrichment(kind, record);
+    if (cached) {
+      onReady(cached);
+      return;
+    }
+    if (placeEnrichInflight.has(key)) {
+      placeEnrichInflight.get(key).then(onReady);
+      return;
+    }
+    const pending = fetchPlaceEnrichmentFromApi(kind, record)
+      .then(data => {
+        setCachedPlaceEnrichment(kind, record, data);
+        placeEnrichInflight.delete(key);
+        return data;
+      })
+      .catch(() => {
+        placeEnrichInflight.delete(key);
+        return { enriched: false, reason: 'network_error' };
+      });
+    placeEnrichInflight.set(key, pending);
+    pending.then(onReady);
+  }
+
+  function formatReviewCount(count) {
+    const n = Number(count);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+    return String(n);
+  }
+
+  function buildCardRating(enrichment) {
+    const rating = Number(enrichment?.rating);
+    if (!Number.isFinite(rating)) return null;
+    const countText = formatReviewCount(enrichment.reviewCount);
+    return el('div', { class: 'card-rating' },
+      el('span', { class: 'rating-star', 'aria-hidden': 'true' }, '★'),
+      el('span', null, rating.toFixed(1)),
+      countText ? el('span', { class: 'rating-count' }, `(${countText} reviews)`) : null
+    );
+  }
+
+  function fmtTicketDate(iso, time) {
+    if (!iso) return time || '';
+    const d = new Date(iso + 'T12:00:00');
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const dayMonth = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    const parts = [`${weekday} ${dayMonth}`];
+    if (time) parts.push(time);
+    return parts.join(' · ');
+  }
+
+  function hotelCardMetaParts(h) {
     const nightsText = h.nights === 1 ? '1 night' : `${h.nights} nights`;
-    const metaParts = [];
-    if (h.checkinDate) metaParts.push(fmtDate(h.checkinDate));
-    if (h.city) metaParts.push(h.city);
-    metaParts.push(nightsText);
+    const parts = [];
+    if (h.city) parts.push(h.city);
+    if (h.startDate) parts.push(`${nightsText} from ${fmtDate(h.startDate)}`);
+    else if (h.nights) parts.push(nightsText);
+    return parts;
+  }
+
+  function eventTicketSubtitle(ev) {
+    const parts = [];
+    if (ev.meetupAddress) {
+      const short = String(ev.meetupAddress).split(',')[0].trim();
+      if (short) parts.push(short);
+    }
+    if (ev.provider) parts.push(`Booked via ${ev.provider}`);
+    return parts.join(' · ') || eventCardMeta(ev);
+  }
+
+  function buildCardImage(photoUrl, alt, className) {
+    const img = el('img', {
+      class: className || 'card-image',
+      src: photoUrl,
+      alt: alt || '',
+      loading: 'lazy',
+      decoding: 'async'
+    });
+    return img;
+  }
+
+  function mountHotelCardContent(card, h, enrichment, onPhotoError) {
+    card.replaceChildren();
+    const metaText = hotelCardMetaParts(h).join(' · ');
+    const hasPhoto = !!enrichment?.photoUrl;
+
+    card.classList.toggle('hotel-card--airbnb', hasPhoto);
+    card.classList.toggle('hotel-card--fallback', !hasPhoto);
+
+    if (hasPhoto) {
+      const img = buildCardImage(enrichment.photoUrl, h.name);
+      if (onPhotoError) img.addEventListener('error', onPhotoError, { once: true });
+      card.appendChild(img);
+      const body = el('div', { class: 'card-content' },
+        el('div', { class: 'hc-name' }, h.name),
+        metaText ? el('div', { class: 'hc-meta hc-meta--plain' }, metaText) : null
+      );
+      const rating = buildCardRating(enrichment);
+      if (rating) body.appendChild(rating);
+      card.appendChild(body);
+      return;
+    }
+
+    const iconSlot = el('div', { class: 'card-icon-slot', 'aria-hidden': 'true' }, '🏨');
+    const body = el('div', { class: 'card-content' },
+      el('div', { class: 'hc-name' }, h.name),
+      metaText ? el('div', { class: 'hc-meta hc-meta--plain' }, metaText) : null
+    );
+    const rating = buildCardRating(enrichment);
+    if (rating) body.appendChild(rating);
+    card.appendChild(el('div', { class: 'card-fallback-row' }, iconSlot, body));
+  }
+
+  function mountEventCardContent(card, ev, enrichment, onPhotoError) {
+    card.replaceChildren();
+    const hasPhoto = !!enrichment?.photoUrl;
+    const ticketWhen = fmtTicketDate(ev.date, ev.time);
+
+    card.classList.toggle('event-card--ticket', true);
+    card.classList.toggle('event-card--fallback', !hasPhoto);
+    card.classList.toggle('event-card--with-image', hasPhoto);
+
+    if (hasPhoto) {
+      const img = buildCardImage(enrichment.photoUrl, ev.name);
+      if (onPhotoError) img.addEventListener('error', onPhotoError, { once: true });
+      card.appendChild(img);
+    }
+
+    const bodyChildren = [];
+    if (ticketWhen) {
+      bodyChildren.push(el('div', { class: 'ticket-date' },
+        el('span', { 'aria-hidden': 'true' }, '📅'),
+        el('span', null, ticketWhen)
+      ));
+    }
+    bodyChildren.push(el('div', { class: 'ec-name' }, ev.name));
+    bodyChildren.push(el('div', { class: 'ec-meta ec-meta--plain' }, eventTicketSubtitle(ev)));
+    const rating = buildCardRating(enrichment);
+    if (rating) bodyChildren.push(rating);
+
+    if (hasPhoto) {
+      card.appendChild(el('div', { class: 'card-content' }, ...bodyChildren));
+      return;
+    }
+
+    const iconSlot = el('div', { class: 'card-icon-slot', 'aria-hidden': 'true' }, '🎟️');
+    card.appendChild(el('div', { class: 'card-fallback-row' },
+      iconSlot,
+      el('div', { class: 'card-content' }, ...bodyChildren)
+    ));
+  }
+
+  function buildHotelCard(h, day){
+    const metaParts = hotelCardMetaParts(h);
+    const enrichment = getCachedPlaceEnrichment('hotel', h);
     const card = el('div', {
       class: 'hotel-card',
       role: 'button',
       tabindex: '0',
       'aria-label': `${h.name}, ${metaParts.join(', ')}`
-    },
-      el('div', { class: 'hc-header' },
-        el('div', { class: 'hc-emoji' }, '🏨'),
-        el('div', { class: 'hc-info' },
-          el('div', { class: 'hc-name' }, h.name),
-          el('div', { class: 'hc-meta' }, metaParts.join(' · '))
-        )
-      )
-    );
+    });
+
+    const onPhotoError = () => {
+      mountHotelCardContent(card, h, { ...enrichment, photoUrl: null });
+    };
+    mountHotelCardContent(card, h, enrichment, onPhotoError);
+
+    if (!enrichment?.photoUrl) {
+      requestPlaceEnrichment('hotel', h, data => {
+        if (!card.isConnected) return;
+        if (data?.photoUrl || (data?.enriched && data?.rating != null)) {
+          mountHotelCardContent(card, h, data, onPhotoError);
+        }
+      });
+    }
+
     attachScrollSafeTap(card, () => openHotelSheet(h, day));
     return card;
   }
@@ -2841,15 +3058,23 @@
       role: 'button',
       tabindex: '0',
       'aria-label': `${ev.name}, ${eventCardMeta(ev)}`
-    },
-      el('div', { class: 'ec-header' },
-        el('div', { class: 'ec-emoji' }, '🎟️'),
-        el('div', { class: 'ec-info' },
-          el('div', { class: 'ec-name' }, ev.name),
-          el('div', { class: 'ec-meta' }, eventCardMeta(ev))
-        )
-      )
-    );
+    });
+
+    const enrichment = getCachedPlaceEnrichment('event', ev);
+    const onPhotoError = () => {
+      mountEventCardContent(card, ev, { ...enrichment, photoUrl: null });
+    };
+    mountEventCardContent(card, ev, enrichment, onPhotoError);
+
+    if (!enrichment?.photoUrl) {
+      requestPlaceEnrichment('event', ev, data => {
+        if (!card.isConnected) return;
+        if (data?.photoUrl || (data?.enriched && data?.rating != null)) {
+          mountEventCardContent(card, ev, data, onPhotoError);
+        }
+      });
+    }
+
     attachScrollSafeTap(card, () => openEventSheet(ev, day));
     return card;
   }

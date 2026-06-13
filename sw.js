@@ -1,7 +1,7 @@
 // Supertrip — Service Worker
 // Caches the app shell + CartoCDN map tiles + Unsplash hero images so the
 // app works in airplane mode.
-const VERSION    = 'v22';
+const VERSION    = 'v23';
 const SHELL      = 'jk26-shell-' + VERSION;
 const TILES      = 'jk26-tiles-' + VERSION;
 const IMAGES     = 'jk26-images-' + VERSION;
@@ -102,6 +102,12 @@ self.addEventListener('fetch', e => {
   // shows the last fetched value rather than nothing).
   if (url.hostname.includes('open-meteo.com')){
     e.respondWith(networkWithCacheFallback(req, RUNTIME));
+    return;
+  }
+
+  // Proxied Google Places photos — cache-first for offline reuse.
+  if (url.origin === self.location.origin && url.pathname === '/api/places-photo') {
+    e.respondWith(cacheFirst(req, IMAGES));
     return;
   }
 
