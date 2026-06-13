@@ -6625,45 +6625,49 @@
       )
     ));
 
-    // Hero section - Google photo or map fallback
-    const heroWrap = el('div', { class: 'hero-wrap' });
-    
-    // Build date pill content
-    const dateParts = [];
-    if (h.startDate && h.endDate) {
-      dateParts.push(`${fmtDate(h.startDate).split(',')[0]} → ${fmtDate(h.endDate).split(',')[0]}`);
-    }
-    if (nightsText) dateParts.push(nightsText);
-    if (h.city) dateParts.push(h.city);
-    const datePill = dateParts.length ? el('div', { class: 'hero-meta-pill' }, dateParts.join(' · ')) : null;
-
-    if (hasGooglePhoto) {
-      // A ★ - Google photo hero with carousel
-      const photoUrls = cachedEnrichment.photoUrls || [cachedEnrichment.photoUrl];
-      const carousel = buildPhotoCarousel(photoUrls, h.name);
-      if (carousel) {
-        heroWrap.appendChild(carousel);
-      } else {
-        const heroImg = el('img', { class: 'hero-photo', src: cachedEnrichment.photoUrl, alt: h.name });
-        heroWrap.appendChild(heroImg);
-      }
-      if (datePill) heroWrap.appendChild(datePill);
-    } else if (hasCoords) {
-      // B - Map fallback hero
-      const mapHero = el('div', { class: 'hero-map', id: 'hotel-hero-map' });
-      heroWrap.appendChild(mapHero);
-      
-      // Walk chip on map
-      if (state.location) {
-        const km = haversine(state.location, { lat, lng });
-        const walkMin = Math.round(km / 5 * 60);
-        const walkChip = el('div', { class: 'hero-meta-pill' }, `${walkMin} min · ${km.toFixed(1)} km`);
-        heroWrap.appendChild(walkChip);
-      }
-    }
-
     const body = el('div', { class: 'sheet-body' });
-    body.appendChild(heroWrap);
+
+    // Hero section - Google photo or map fallback
+    if (hasGooglePhoto || hasCoords) {
+      const heroWrap = el('div', { class: 'hero-wrap' });
+      
+      // Build date pill content
+      const dateParts = [];
+      if (h.startDate && h.endDate) {
+        dateParts.push(`${fmtDate(h.startDate).split(',')[0]} → ${fmtDate(h.endDate).split(',')[0]}`);
+      }
+      if (nightsText) dateParts.push(nightsText);
+      if (h.city) dateParts.push(h.city);
+      const datePill = dateParts.length ? el('div', { class: 'hero-meta-pill' }, dateParts.join(' · ')) : null;
+
+      if (hasGooglePhoto) {
+        // A ★ - Google photo hero with carousel
+        const photoUrls = cachedEnrichment.photoUrls || [cachedEnrichment.photoUrl];
+        const carousel = buildPhotoCarousel(photoUrls, h.name);
+        if (carousel) {
+          heroWrap.appendChild(carousel);
+        } else {
+          const heroImg = el('img', { class: 'hero-photo', src: cachedEnrichment.photoUrl, alt: h.name });
+          heroWrap.appendChild(heroImg);
+        }
+        if (datePill) heroWrap.appendChild(datePill);
+      } else if (hasCoords) {
+        // B - Map fallback hero
+        const mapHero = el('div', { class: 'hero-map', id: 'hotel-hero-map' });
+        heroWrap.appendChild(mapHero);
+        
+        // Walk chip on map
+        if (state.location) {
+          const km = haversine(state.location, { lat, lng });
+          const walkMin = Math.round(km / 5 * 60);
+          const walkChip = el('div', { class: 'hero-meta-pill' }, `${walkMin} min · ${km.toFixed(1)} km`);
+          heroWrap.appendChild(walkChip);
+        }
+      }
+
+      body.appendChild(heroWrap);
+    }
+
     body.appendChild(el('h2', { class: 'sheet-title' }, h.name));
 
     // Google rating or fallback meta line
@@ -6865,44 +6869,48 @@
       )
     ));
 
-    // Hero section - Google photo or map fallback
-    const heroWrap = el('div', { class: 'hero-wrap' });
-    
-    // Build time pill content
-    const timeParts = [];
-    if (ev.date) timeParts.push(fmtDate(ev.date).split(',')[0]);
-    const timeRange = formatEventTimeRange(ev);
-    if (timeRange) timeParts.push(timeRange);
-    if (ev.provider) timeParts.push(ev.provider);
-    const timePill = timeParts.length ? el('div', { class: 'hero-meta-pill' }, timeParts.join(' · ')) : null;
+    const body = el('div', { class: 'sheet-body' });
 
-    if (hasGooglePhoto) {
-      // A ★ - Google photo hero with carousel
-      const photoUrls = cachedEnrichment.photoUrls || [cachedEnrichment.photoUrl];
-      const carousel = buildPhotoCarousel(photoUrls, ev.name);
-      if (carousel) {
-        heroWrap.appendChild(carousel);
-      } else {
-        const heroImg = el('img', { class: 'hero-photo', src: cachedEnrichment.photoUrl, alt: ev.name });
-        heroWrap.appendChild(heroImg);
-      }
-      if (timePill) heroWrap.appendChild(timePill);
-    } else if (hasCoords) {
-      // B - Map fallback hero
-      const mapHero = el('div', { class: 'hero-map', id: 'event-hero-map' });
-      heroWrap.appendChild(mapHero);
+    // Hero section - Google photo or map fallback
+    if (hasGooglePhoto || hasCoords) {
+      const heroWrap = el('div', { class: 'hero-wrap' });
       
-      // Walk chip on map
-      if (state.location) {
-        const km = haversine(state.location, { lat, lng });
-        const walkMin = Math.round(km / 5 * 60);
-        const walkChip = el('div', { class: 'hero-meta-pill' }, `${walkMin} min · ${km.toFixed(1)} km`);
-        heroWrap.appendChild(walkChip);
+      // Build time pill content
+      const timeParts = [];
+      if (ev.date) timeParts.push(fmtDate(ev.date).split(',')[0]);
+      const timeRange = formatEventTimeRange(ev);
+      if (timeRange) timeParts.push(timeRange);
+      if (ev.provider) timeParts.push(ev.provider);
+      const timePill = timeParts.length ? el('div', { class: 'hero-meta-pill' }, timeParts.join(' · ')) : null;
+
+      if (hasGooglePhoto) {
+        // A ★ - Google photo hero with carousel
+        const photoUrls = cachedEnrichment.photoUrls || [cachedEnrichment.photoUrl];
+        const carousel = buildPhotoCarousel(photoUrls, ev.name);
+        if (carousel) {
+          heroWrap.appendChild(carousel);
+        } else {
+          const heroImg = el('img', { class: 'hero-photo', src: cachedEnrichment.photoUrl, alt: ev.name });
+          heroWrap.appendChild(heroImg);
+        }
+        if (timePill) heroWrap.appendChild(timePill);
+      } else if (hasCoords) {
+        // B - Map fallback hero
+        const mapHero = el('div', { class: 'hero-map', id: 'event-hero-map' });
+        heroWrap.appendChild(mapHero);
+        
+        // Walk chip on map
+        if (state.location) {
+          const km = haversine(state.location, { lat, lng });
+          const walkMin = Math.round(km / 5 * 60);
+          const walkChip = el('div', { class: 'hero-meta-pill' }, `${walkMin} min · ${km.toFixed(1)} km`);
+          heroWrap.appendChild(walkChip);
+        }
       }
+
+      body.appendChild(heroWrap);
     }
 
-    const body = el('div', { class: 'sheet-body' });
-    body.appendChild(heroWrap);
     body.appendChild(el('h2', { class: 'sheet-title' }, ev.name));
 
     // Google rating or fallback meta line
