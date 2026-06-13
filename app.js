@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.55';
+  const APP_VERSION = '2.56';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -2774,7 +2774,7 @@
     return card;
   }
 
-  const PLACE_ENRICH_CACHE_KEY = 'trip-place-enrich-v1';
+  const PLACE_ENRICH_CACHE_KEY = 'trip-place-enrich-v2';
   const placeEnrichInflight = new Map();
   const placeEnrichSessionMiss = new Set();
 
@@ -2800,20 +2800,22 @@
 
   function getCachedPlaceEnrichment(kind, record) {
     const key = placeEnrichRecordKey(kind, record);
-    if (placeEnrichSessionMiss.has(key)) return { enriched: false };
     const hit = readPlaceEnrichCacheStore()[key];
-    return hit || null;
+    return hit?.enriched ? hit : null;
   }
 
   function setCachedPlaceEnrichment(kind, record, data) {
     const key = placeEnrichRecordKey(kind, record);
-    if (!data?.enriched) {
-      placeEnrichSessionMiss.add(key);
+    if (data?.enriched) {
+      placeEnrichSessionMiss.delete(key);
+      const store = readPlaceEnrichCacheStore();
+      store[key] = data;
+      writePlaceEnrichCacheStore(store);
       return;
     }
-    const store = readPlaceEnrichCacheStore();
-    store[key] = data;
-    writePlaceEnrichCacheStore(store);
+    if (data?.reason === 'not_found') {
+      placeEnrichSessionMiss.add(key);
+    }
   }
 
   async function fetchPlaceEnrichmentFromApi(kind, record) {
@@ -2838,6 +2840,10 @@
     const cached = getCachedPlaceEnrichment(kind, record);
     if (cached) {
       onReady(cached);
+      return;
+    }
+    if (placeEnrichSessionMiss.has(key)) {
+      onReady({ enriched: false, reason: 'not_found' });
       return;
     }
     if (placeEnrichInflight.has(key)) {
