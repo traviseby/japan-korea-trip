@@ -4317,13 +4317,14 @@
       ));
 
       // Cards
-      items.forEach((item, idx) => {
+      items.forEach((item) => {
         // Attach click handler with navigation context
         const day = D.days?.find(d => d.n === item.dayNum);
+        const allBookingsIndex = fb.indexOf(item);
         attachScrollSafeTap(item.card, () => {
           const navContext = {
-            bookings: items,
-            currentIndex: idx
+            bookings: fb,
+            currentIndex: allBookingsIndex
           };
           if (item.type === 'Flights') openFlightSheet(item.record, day, navContext);
           else if (item.type === 'Hotels') openHotelSheet(item.record, day, navContext);
@@ -6236,56 +6237,57 @@
 
     sheet.appendChild(el('div', { class: 'handle' }));
     
-    // Build navigation
+    // Build navigation - both chevrons on left like activity sheet
     const navChildren = [];
     
-    // Left chevron or spacer
-    if (navContext && navContext.currentIndex > 0) {
+    if (navContext) {
+      const hasPrev = navContext.currentIndex > 0;
+      const hasNext = navContext.currentIndex < navContext.bookings.length - 1;
+      
+      // Left chevron
       navChildren.push(el('button', {
         class: 'sheet-chev toolbar-btn',
+        disabled: hasPrev ? null : '',
         'aria-label': 'Previous booking',
         onclick: () => {
+          if (!hasPrev) return;
           const prev = navContext.bookings[navContext.currentIndex - 1];
           const prevDay = D.days?.find(d => d.n === prev.dayNum);
-          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          const newContext = { ...navContext, currentIndex: navContext.currentIndex - 1 };
+          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, newContext);
         }
       }, tabIcon('chev-left')));
-    } else {
-      navChildren.push(el('div', { class: 'sheet-nav-spacer' }));
+      
+      // Right chevron
+      navChildren.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        disabled: hasNext ? null : '',
+        'aria-label': 'Next booking',
+        onclick: () => {
+          if (!hasNext) return;
+          const next = navContext.bookings[navContext.currentIndex + 1];
+          const nextDay = D.days?.find(d => d.n === next.dayNum);
+          const newContext = { ...navContext, currentIndex: navContext.currentIndex + 1 };
+          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, newContext);
+        }
+      }, tabIcon('chev-right')));
     }
     
     // Right side actions
-    const rightActions = [
+    navChildren.push(el('div', { class: 'sheet-nav-actions' },
       el('button', {
         class: 'toolbar-btn',
         'aria-label': 'Edit flight',
         onclick: () => openEditFlightSheet(f, day)
       }, tabIcon('edit')),
       buildSheetCloseButton(closeSheet)
-    ];
-    
-    // Right chevron or spacer
-    if (navContext && navContext.currentIndex < navContext.bookings.length - 1) {
-      rightActions.push(el('button', {
-        class: 'sheet-chev toolbar-btn',
-        'aria-label': 'Next booking',
-        onclick: () => {
-          const next = navContext.bookings[navContext.currentIndex + 1];
-          const nextDay = D.days?.find(d => d.n === next.dayNum);
-          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-        }
-      }, tabIcon('chev-right')));
-    } else if (navContext) {
-      rightActions.push(el('div', { class: 'sheet-nav-spacer' }));
-    }
-    
-    navChildren.push(el('div', { class: 'sheet-nav-actions' }, ...rightActions));
+    ));
     
     sheet.appendChild(el('div', { class: 'sheet-nav' }, ...navChildren));
 
@@ -6717,56 +6719,57 @@
 
     sheet.appendChild(el('div', { class: 'handle' }));
     
-    // Build navigation
+    // Build navigation - both chevrons on left like activity sheet
     const navChildren = [];
     
-    // Left chevron or spacer
-    if (navContext && navContext.currentIndex > 0) {
+    if (navContext) {
+      const hasPrev = navContext.currentIndex > 0;
+      const hasNext = navContext.currentIndex < navContext.bookings.length - 1;
+      
+      // Left chevron
       navChildren.push(el('button', {
         class: 'sheet-chev toolbar-btn',
+        disabled: hasPrev ? null : '',
         'aria-label': 'Previous booking',
         onclick: () => {
+          if (!hasPrev) return;
           const prev = navContext.bookings[navContext.currentIndex - 1];
           const prevDay = D.days?.find(d => d.n === prev.dayNum);
-          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          const newContext = { ...navContext, currentIndex: navContext.currentIndex - 1 };
+          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, newContext);
         }
       }, tabIcon('chev-left')));
-    } else {
-      navChildren.push(el('div', { class: 'sheet-nav-spacer' }));
+      
+      // Right chevron
+      navChildren.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        disabled: hasNext ? null : '',
+        'aria-label': 'Next booking',
+        onclick: () => {
+          if (!hasNext) return;
+          const next = navContext.bookings[navContext.currentIndex + 1];
+          const nextDay = D.days?.find(d => d.n === next.dayNum);
+          const newContext = { ...navContext, currentIndex: navContext.currentIndex + 1 };
+          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, newContext);
+        }
+      }, tabIcon('chev-right')));
     }
     
     // Right side actions
-    const rightActions = [
+    navChildren.push(el('div', { class: 'sheet-nav-actions' },
       el('button', {
         class: 'toolbar-btn',
         'aria-label': 'Edit hotel',
         onclick: () => openEditHotelSheet(h, day)
       }, tabIcon('edit')),
       buildSheetCloseButton(closeSheet)
-    ];
-    
-    // Right chevron or spacer
-    if (navContext && navContext.currentIndex < navContext.bookings.length - 1) {
-      rightActions.push(el('button', {
-        class: 'sheet-chev toolbar-btn',
-        'aria-label': 'Next booking',
-        onclick: () => {
-          const next = navContext.bookings[navContext.currentIndex + 1];
-          const nextDay = D.days?.find(d => d.n === next.dayNum);
-          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-        }
-      }, tabIcon('chev-right')));
-    } else if (navContext) {
-      rightActions.push(el('div', { class: 'sheet-nav-spacer' }));
-    }
-    
-    navChildren.push(el('div', { class: 'sheet-nav-actions' }, ...rightActions));
+    ));
     
     sheet.appendChild(el('div', { class: 'sheet-nav' }, ...navChildren));
 
@@ -7003,56 +7006,57 @@
 
     sheet.appendChild(el('div', { class: 'handle' }));
     
-    // Build navigation
+    // Build navigation - both chevrons on left like activity sheet
     const navChildren = [];
     
-    // Left chevron or spacer
-    if (navContext && navContext.currentIndex > 0) {
+    if (navContext) {
+      const hasPrev = navContext.currentIndex > 0;
+      const hasNext = navContext.currentIndex < navContext.bookings.length - 1;
+      
+      // Left chevron
       navChildren.push(el('button', {
         class: 'sheet-chev toolbar-btn',
+        disabled: hasPrev ? null : '',
         'aria-label': 'Previous booking',
         onclick: () => {
+          if (!hasPrev) return;
           const prev = navContext.bookings[navContext.currentIndex - 1];
           const prevDay = D.days?.find(d => d.n === prev.dayNum);
-          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          const newContext = { ...navContext, currentIndex: navContext.currentIndex - 1 };
+          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, newContext);
         }
       }, tabIcon('chev-left')));
-    } else {
-      navChildren.push(el('div', { class: 'sheet-nav-spacer' }));
+      
+      // Right chevron
+      navChildren.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        disabled: hasNext ? null : '',
+        'aria-label': 'Next booking',
+        onclick: () => {
+          if (!hasNext) return;
+          const next = navContext.bookings[navContext.currentIndex + 1];
+          const nextDay = D.days?.find(d => d.n === next.dayNum);
+          const newContext = { ...navContext, currentIndex: navContext.currentIndex + 1 };
+          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, newContext);
+        }
+      }, tabIcon('chev-right')));
     }
     
     // Right side actions
-    const rightActions = [
+    navChildren.push(el('div', { class: 'sheet-nav-actions' },
       el('button', {
         class: 'toolbar-btn',
         'aria-label': 'Edit ticket',
         onclick: () => openEditEventSheet(ev, day)
       }, tabIcon('edit')),
       buildSheetCloseButton(closeSheet)
-    ];
-    
-    // Right chevron or spacer
-    if (navContext && navContext.currentIndex < navContext.bookings.length - 1) {
-      rightActions.push(el('button', {
-        class: 'sheet-chev toolbar-btn',
-        'aria-label': 'Next booking',
-        onclick: () => {
-          const next = navContext.bookings[navContext.currentIndex + 1];
-          const nextDay = D.days?.find(d => d.n === next.dayNum);
-          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-        }
-      }, tabIcon('chev-right')));
-    } else if (navContext) {
-      rightActions.push(el('div', { class: 'sheet-nav-spacer' }));
-    }
-    
-    navChildren.push(el('div', { class: 'sheet-nav-actions' }, ...rightActions));
+    ));
     
     sheet.appendChild(el('div', { class: 'sheet-nav' }, ...navChildren));
 
@@ -7585,56 +7589,57 @@
 
     sheet.appendChild(el('div', { class: 'handle' }));
     
-    // Build navigation
+    // Build navigation - both chevrons on left like activity sheet
     const navChildren = [];
     
-    // Left chevron or spacer
-    if (navContext && navContext.currentIndex > 0) {
+    if (navContext) {
+      const hasPrev = navContext.currentIndex > 0;
+      const hasNext = navContext.currentIndex < navContext.bookings.length - 1;
+      
+      // Left chevron
       navChildren.push(el('button', {
         class: 'sheet-chev toolbar-btn',
+        disabled: hasPrev ? null : '',
         'aria-label': 'Previous booking',
         onclick: () => {
+          if (!hasPrev) return;
           const prev = navContext.bookings[navContext.currentIndex - 1];
           const prevDay = D.days?.find(d => d.n === prev.dayNum);
-          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
-          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, { ...navContext, currentIndex: navContext.currentIndex - 1 });
+          const newContext = { ...navContext, currentIndex: navContext.currentIndex - 1 };
+          if (prev.type === 'Flights') openFlightSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Hotels') openHotelSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Tickets') openEventSheet(prev.record, prevDay, newContext);
+          else if (prev.type === 'Rental Cars') openCarRentalSheet(prev.record, prevDay, newContext);
         }
       }, tabIcon('chev-left')));
-    } else {
-      navChildren.push(el('div', { class: 'sheet-nav-spacer' }));
+      
+      // Right chevron
+      navChildren.push(el('button', {
+        class: 'sheet-chev toolbar-btn',
+        disabled: hasNext ? null : '',
+        'aria-label': 'Next booking',
+        onclick: () => {
+          if (!hasNext) return;
+          const next = navContext.bookings[navContext.currentIndex + 1];
+          const nextDay = D.days?.find(d => d.n === next.dayNum);
+          const newContext = { ...navContext, currentIndex: navContext.currentIndex + 1 };
+          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, newContext);
+          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, newContext);
+        }
+      }, tabIcon('chev-right')));
     }
     
     // Right side actions
-    const rightActions = [
+    navChildren.push(el('div', { class: 'sheet-nav-actions' },
       el('button', {
         class: 'toolbar-btn',
         'aria-label': 'Edit car rental',
         onclick: () => openEditCarRentalSheet(cr, day)
       }, tabIcon('edit')),
       buildSheetCloseButton(closeSheet)
-    ];
-    
-    // Right chevron or spacer
-    if (navContext && navContext.currentIndex < navContext.bookings.length - 1) {
-      rightActions.push(el('button', {
-        class: 'sheet-chev toolbar-btn',
-        'aria-label': 'Next booking',
-        onclick: () => {
-          const next = navContext.bookings[navContext.currentIndex + 1];
-          const nextDay = D.days?.find(d => d.n === next.dayNum);
-          if (next.type === 'Flights') openFlightSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Hotels') openHotelSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Tickets') openEventSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-          else if (next.type === 'Rental Cars') openCarRentalSheet(next.record, nextDay, { ...navContext, currentIndex: navContext.currentIndex + 1 });
-        }
-      }, tabIcon('chev-right')));
-    } else if (navContext) {
-      rightActions.push(el('div', { class: 'sheet-nav-spacer' }));
-    }
-    
-    navChildren.push(el('div', { class: 'sheet-nav-actions' }, ...rightActions));
+    ));
     
     sheet.appendChild(el('div', { class: 'sheet-nav' }, ...navChildren));
 
