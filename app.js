@@ -6293,8 +6293,14 @@
 
     const body = el('div', { class: 'sheet-body' });
 
-    // Flight route map hero
-    if (fromCoords && toCoords) {
+    // Flight route map hero - only show if we have valid coordinates
+    const hasValidCoords = fromCoords && toCoords && 
+                          typeof fromCoords[0] === 'number' && 
+                          typeof fromCoords[1] === 'number' &&
+                          typeof toCoords[0] === 'number' && 
+                          typeof toCoords[1] === 'number';
+    
+    if (hasValidCoords) {
       const heroWrap = el('div', { class: 'hero-wrap' });
       const mapHero = el('div', { class: 'flight-hero-map', id: 'flight-hero-map', 'aria-label': 'Flight route map' });
       heroWrap.appendChild(mapHero);
@@ -6351,7 +6357,7 @@
     requestAnimationFrame(() => sheet.classList.add('open'));
 
     // Initialize flight route map
-    if (fromCoords && toCoords) {
+    if (hasValidCoords) {
       setTimeout(() => {
         const mapNode = $('#flight-hero-map');
         if (!mapNode || leafletSheet) return;
