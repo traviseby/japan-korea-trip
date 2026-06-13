@@ -654,10 +654,6 @@ html.ios-standalone .tabbar {
   flex-direction: column;
   justify-content: center;
 }
-.event-card.event-card--fallback .ticket-date {
-  margin-top: 8px;
-  margin-bottom: 0;
-}
 
 /* Car rental card — matches hotel fallback layout */
 .car-rental-card {

@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.62';
+  const APP_VERSION = '2.63';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -2987,10 +2987,11 @@
     }
 
     const fallbackBody = [
-      el('div', { class: 'ec-name' }, ev.name),
-      el('div', { class: 'ec-meta ec-meta--plain' }, eventTicketSubtitle(ev))
+      el('div', { class: 'ec-name' }, ev.name)
     ];
-    if (ticketDateEl) fallbackBody.push(ticketDateEl);
+    if (ticketWhen) {
+      fallbackBody.push(el('div', { class: 'ec-meta ec-meta--plain' }, ticketWhen));
+    }
 
     const iconRail = el('div', { class: 'card-fallback-rail', 'aria-hidden': 'true' }, '🎟️');
     card.appendChild(el('div', { class: 'card-fallback-row' },
