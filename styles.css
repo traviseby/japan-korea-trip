@@ -458,7 +458,7 @@ html.ios-standalone .tabbar {
 }
 .hotel-card.hotel-card--fallback .card-fallback-rail {
   flex-shrink: 0;
-  width: 52px;
+  width: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -623,7 +623,7 @@ html.ios-standalone .tabbar {
 }
 .event-card.event-card--fallback .card-fallback-rail {
   flex-shrink: 0;
-  width: 52px;
+  width: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
