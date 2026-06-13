@@ -2985,23 +2985,18 @@
     const hasPhoto = !!enrichment?.photoUrl;
     const ticketWhen = fmtTicketDate(ev.date, ev.time);
 
-    card.classList.toggle('event-card--ticket', true);
+    card.classList.toggle('event-card--ticket', !hasPhoto);
     card.classList.toggle('event-card--fallback', !hasPhoto);
-    card.classList.toggle('event-card--with-image', hasPhoto);
-
-    const ticketDateEl = ticketWhen
-      ? el('div', { class: 'ticket-date' },
-          el('span', { class: 'ticket-date-icon', 'aria-hidden': 'true' }, svgIcon('calendar')),
-          el('span', { class: 'ticket-date-text' }, ticketWhen)
-        )
-      : null;
+    card.classList.toggle('event-card--airbnb', hasPhoto);
 
     if (hasPhoto) {
       const imageWrap = el('div', { class: 'card-image-wrap' });
       const img = buildCardImage(enrichment.photoUrl, ev.name);
       if (onPhotoError) img.addEventListener('error', onPhotoError, { once: true });
       imageWrap.appendChild(img);
-      if (ticketDateEl) imageWrap.appendChild(ticketDateEl);
+      if (ticketWhen) {
+        imageWrap.appendChild(el('div', { class: 'hotel-meta-overlay' }, ticketWhen));
+      }
       card.appendChild(imageWrap);
 
       const bodyChildren = [
