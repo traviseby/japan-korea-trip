@@ -2097,6 +2097,7 @@ html.ios-standalone .tabbar {
   color: var(--fg);
   padding: 9px 0;
   line-height: 1.5;
+  text-align: right;
 }
 .sheet .sheet-facts tr {
   border-top: 1px solid var(--border);
