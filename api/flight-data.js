@@ -51,8 +51,16 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // AirLabs returns { response: [...flights] }
-    if (!data.response || data.response.length === 0) {
+    // AirLabs returns { response: [...flights] } or { error: {...} }
+    if (data.error) {
+      console.error('AirLabs API returned error:', data.error);
+      return res.status(400).json({ 
+        error: 'Flight data error',
+        message: data.error.message || 'AirLabs API error'
+      });
+    }
+
+    if (!data.response || !Array.isArray(data.response) || data.response.length === 0) {
       return res.status(404).json({ 
         error: 'Flight not found',
         message: 'No matching flight data available. This flight may not be active yet or has already landed.'
@@ -61,6 +69,13 @@ export default async function handler(req, res) {
 
     // Return the first matching flight
     const flight = data.response[0];
+    
+    if (!flight) {
+      return res.status(404).json({ 
+        error: 'Flight not found',
+        message: 'No flight data in response'
+      });
+    }
 
     // Transform to a cleaner format
     const flightData = {
