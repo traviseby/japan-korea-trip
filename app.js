@@ -298,6 +298,17 @@
   // ─── Render: TODAY tab ────────────────────────────────────────────────────
   let leafletMini = null, leafletFull = null, leafletSheet = null, leafletFullscreen = null;
 
+  function syncHeroTitleLayout(hero){
+    if (!hero) return;
+    const nameEl = hero.querySelector('.day-num .name');
+    if (!nameEl) return;
+    hero.classList.remove('hero--long-title');
+    const lineHeight = parseFloat(getComputedStyle(nameEl).lineHeight);
+    if (!lineHeight) return;
+    const lines = Math.round(nameEl.scrollHeight / lineHeight);
+    if (lines >= 3) hero.classList.add('hero--long-title');
+  }
+
   function renderToday(){
     const day = D.byDay?.[state.todayDay] || D.days?.[0];
     if (!day) return;
@@ -342,6 +353,7 @@
       )
     );
     root.appendChild(hero);
+    requestAnimationFrame(() => syncHeroTitleLayout(hero));
 
     // Async weather
     fetchWeather(day).then(w => {
@@ -3123,7 +3135,7 @@
   }
 
   function carRentalTitle(cr){
-    return cr.carType || cr.provider || 'Car rental';
+    return cr.provider || cr.carType || 'Car rental';
   }
 
   function carRentalTimeRange(cr){
@@ -3142,7 +3154,7 @@
     const parts = [];
     if (cr.pickupDate) parts.push(fmtDate(cr.pickupDate));
     if (cr.pickupTime) parts.push(cr.pickupTime);
-    if (cr.provider) parts.push(cr.provider);
+    if (cr.carType) parts.push(cr.carType);
     return parts.join(' · ') || 'Car rental';
   }
 
