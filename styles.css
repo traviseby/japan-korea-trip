@@ -602,8 +602,12 @@ html.ios-standalone .tabbar {
   color: var(--fg-mid);
 }
 .event-card.event-card--ticket .ec-name {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
+  margin-bottom: 4px;
+}
+.event-card.event-card--ticket.event-card--with-image .ec-name {
+  font-size: 18px;
   margin-bottom: 6px;
 }
 .event-card.event-card--ticket .ec-meta--plain {
@@ -615,6 +619,13 @@ html.ios-standalone .tabbar {
 }
 .event-card.event-card--fallback {
   padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.event-card.event-card--ticket.event-card--fallback::before,
+.event-card.event-card--ticket.event-card--fallback::after {
+  display: none;
 }
 .event-card.event-card--fallback .card-fallback-row {
   display: flex;
