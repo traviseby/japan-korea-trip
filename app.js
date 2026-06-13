@@ -4590,15 +4590,16 @@
     const d = unscheduled ? null : D.byDay[a.day];
     const accent = dayAccent(a.day);
     const firstSentence = (a.desc || '').split(/(?<=[.!?])\s/)[0] || '';
-    const badges = el('div', { class: 'badges' });
+    
+    // Build meta parts as plain text
+    const metaParts = [];
     if (showDayBadge) {
-      badges.appendChild(el('span', {
-        class: 'badge day-badge',
-        style: { '--day-accent': accent, background: accent }
-      }, unscheduled ? 'Unscheduled' : 'Day ' + d.n));
+      metaParts.push(unscheduled ? 'Unscheduled' : 'Day ' + d.n);
     }
-    if (a.time) badges.appendChild(iconBadge('badge', todEmoji(a.time), a.time));
-    if (a.cat) badges.appendChild(iconBadge('badge', catEmoji(a.cat), a.cat));
+    if (a.time) metaParts.push(a.time);
+    if (a.cat) metaParts.push(a.cat);
+    
+    const badges = metaParts.length ? el('div', { class: 'meta' }, metaParts.join(' · ')) : null;
 
     const confirmDelete = async (e) => {
       e.preventDefault();
