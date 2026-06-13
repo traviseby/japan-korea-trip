@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.64';
+  const APP_VERSION = '2.70';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -2901,16 +2901,6 @@
     return parts;
   }
 
-  function eventTicketSubtitle(ev) {
-    const parts = [];
-    if (ev.meetupAddress) {
-      const short = String(ev.meetupAddress).split(',')[0].trim();
-      if (short) parts.push(short);
-    }
-    if (ev.provider) parts.push(`Booked via ${ev.provider}`);
-    return parts.join(' · ') || eventCardMeta(ev);
-  }
-
   function buildCardImage(photoUrl, alt, className) {
     const img = el('img', {
       class: className || 'card-image',
@@ -2931,12 +2921,16 @@
     card.classList.toggle('hotel-card--fallback', !hasPhoto);
 
     if (hasPhoto) {
+      const imageWrap = el('div', { class: 'card-image-wrap' });
       const img = buildCardImage(enrichment.photoUrl, h.name);
       if (onPhotoError) img.addEventListener('error', onPhotoError, { once: true });
-      card.appendChild(img);
+      imageWrap.appendChild(img);
+      if (metaText) {
+        imageWrap.appendChild(el('div', { class: 'hotel-meta-overlay' }, metaText));
+      }
+      card.appendChild(imageWrap);
       const body = el('div', { class: 'card-content' },
-        el('div', { class: 'hc-name' }, h.name),
-        metaText ? el('div', { class: 'hc-meta hc-meta--plain' }, metaText) : null
+        el('div', { class: 'hc-name' }, h.name)
       );
       const rating = buildCardRating(enrichment);
       if (rating) body.appendChild(rating);
@@ -2977,8 +2971,7 @@
       card.appendChild(imageWrap);
 
       const bodyChildren = [
-        el('div', { class: 'ec-name' }, ev.name),
-        el('div', { class: 'ec-meta ec-meta--plain' }, eventTicketSubtitle(ev))
+        el('div', { class: 'ec-name' }, ev.name)
       ];
       const rating = buildCardRating(enrichment);
       if (rating) bodyChildren.push(rating);

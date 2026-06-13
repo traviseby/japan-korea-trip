@@ -330,12 +330,6 @@ html.ios-standalone .tabbar {
 .flight-card:active {
   background: var(--surface-hover, rgba(0, 0, 0, 0.03));
 }
-.flight-card::before, .flight-card::after {
-  content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%;
-  background: var(--bg); top: 50%; transform: translateY(-50%);
-}
-.flight-card::before { left: -7px; }
-.flight-card::after { right: -7px; }
 .flight-card .fc-top {
   display: flex; justify-content: space-between; align-items: center;
   font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
@@ -345,21 +339,50 @@ html.ios-standalone .tabbar {
   gap: 12px;
 }
 .flight-card .fc-row {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
 }
-.flight-card .fc-airport { font-family: var(--serif); font-size: 32px; font-weight: 400; letter-spacing: 0.02em; line-height: 1; }
+.flight-card .fc-airport {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
 .flight-card .fc-airport.right { text-align: right; }
 .flight-card .fc-plane {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--fg-mute);
-  font-size: 18px;
+  font-size: 22px;
+  line-height: 1;
   position: relative;
+  flex-shrink: 0;
+}
+.flight-card .fc-plane > span:not(.line) {
+  display: block;
+  line-height: 1;
 }
 .flight-card .fc-plane .line {
-  position: absolute; top: 50%; height: 1px; background: var(--border-strong);
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  background: var(--border-strong);
   width: 30px;
+  transform: translateY(-50%);
 }
 .flight-card .fc-plane .line.l { right: 100%; margin-right: 6px; }
 .flight-card .fc-plane .line.r { left: 100%; margin-left: 6px; }
+@supports not (text-box-trim: trim-both) {
+  .flight-card .fc-plane {
+    transform: translateY(-3px);
+  }
+}
 .flight-card .fc-times {
   display: flex; justify-content: space-between;
   margin-top: 8px;
@@ -426,12 +449,32 @@ html.ios-standalone .tabbar {
   overflow: hidden;
   border-radius: 16px;
 }
+.hotel-card.hotel-card--airbnb .card-image-wrap {
+  position: relative;
+}
 .hotel-card.hotel-card--airbnb .card-image {
   width: 100%;
   height: 200px;
   object-fit: cover;
   display: block;
   border-radius: 16px 16px 0 0;
+}
+.hotel-card.hotel-card--airbnb .hotel-meta-overlay {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #000;
+  z-index: 1;
 }
 .hotel-card.hotel-card--airbnb .card-content {
   padding: 12px 16px 16px;
@@ -443,7 +486,6 @@ html.ios-standalone .tabbar {
   font-weight: 600;
   margin-bottom: 4px;
 }
-.hotel-card.hotel-card--airbnb .hc-meta--plain,
 .hotel-card.hotel-card--fallback .hc-meta--plain {
   font-size: 14px;
   color: var(--fg-mid);
@@ -466,7 +508,7 @@ html.ios-standalone .tabbar {
   justify-content: center;
   align-self: stretch;
   background: rgba(255,255,255,0.06);
-  font-size: 28px;
+  font-size: 32px;
   line-height: 1;
 }
 .hotel-card.hotel-card--fallback .card-content,
@@ -583,9 +625,9 @@ html.ios-standalone .tabbar {
   left: 12px;
   bottom: 12px;
   margin: 0;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: #000;
   z-index: 1;
   align-items: center;
@@ -662,7 +704,7 @@ html.ios-standalone .tabbar {
   justify-content: center;
   align-self: stretch;
   background: rgba(255,255,255,0.06);
-  font-size: 28px;
+  font-size: 32px;
   line-height: 1;
 }
 .event-card.event-card--fallback .card-content {
