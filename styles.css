@@ -588,6 +588,25 @@ html.ios-standalone .tabbar {
   -webkit-backdrop-filter: blur(10px);
   color: #000;
   z-index: 1;
+  align-items: center;
+  line-height: 1.2;
+}
+.event-card.event-card--ticket.event-card--with-image .ticket-date-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #000;
+}
+.event-card.event-card--ticket.event-card--with-image .ticket-date-icon svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+.event-card.event-card--ticket.event-card--with-image .ticket-date-text {
+  line-height: 1.2;
 }
 .event-card.event-card--ticket .card-content {
   padding: 14px 18px 16px;

@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.63';
+  const APP_VERSION = '2.64';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -2963,8 +2963,8 @@
 
     const ticketDateEl = ticketWhen
       ? el('div', { class: 'ticket-date' },
-          el('span', { 'aria-hidden': 'true' }, '📅'),
-          el('span', null, ticketWhen)
+          el('span', { class: 'ticket-date-icon', 'aria-hidden': 'true' }, svgIcon('calendar')),
+          el('span', { class: 'ticket-date-text' }, ticketWhen)
         )
       : null;
 
@@ -3720,6 +3720,25 @@
     } else if (name === 'chevron-down'){
       svg.setAttribute('width', '11'); svg.setAttribute('height', '11');
       const p = document.createElementNS(ns,'polyline'); p.setAttribute('points', '6 9 12 15 18 9'); svg.appendChild(p);
+    } else if (name === 'calendar'){
+      svg.setAttribute('width', '14'); svg.setAttribute('height', '14');
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('x', '3'); rect.setAttribute('y', '4');
+      rect.setAttribute('width', '18'); rect.setAttribute('height', '18');
+      rect.setAttribute('rx', '2');
+      svg.appendChild(rect);
+      const line1 = document.createElementNS(ns, 'line');
+      line1.setAttribute('x1', '16'); line1.setAttribute('y1', '2');
+      line1.setAttribute('x2', '16'); line1.setAttribute('y2', '6');
+      svg.appendChild(line1);
+      const line2 = document.createElementNS(ns, 'line');
+      line2.setAttribute('x1', '8'); line2.setAttribute('y1', '2');
+      line2.setAttribute('x2', '8'); line2.setAttribute('y2', '6');
+      svg.appendChild(line2);
+      const line3 = document.createElementNS(ns, 'line');
+      line3.setAttribute('x1', '3'); line3.setAttribute('y1', '10');
+      line3.setAttribute('x2', '21'); line3.setAttribute('y2', '10');
+      svg.appendChild(line3);
     }
     return svg;
   }
