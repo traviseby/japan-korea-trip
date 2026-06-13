@@ -7705,15 +7705,18 @@
     sheet.appendChild(body);
 
     // Action buttons - Directions always on right
-    const actions = el('div', { class: 'sheet-actions double' });
+    const actionButtons = [];
     if (receiptUrl) {
-      actions.appendChild(buildReceiptActionButton(receiptUrl, cr.receipt, { secondary: true }));
+      actionButtons.push(buildReceiptActionButton(receiptUrl, cr.receipt, { secondary: true }));
     }
     if (directionsUrl) {
-      actions.appendChild(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+      actionButtons.push(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
     }
     
-    if (actions.children.length) sheet.appendChild(actions);
+    if (actionButtons.length) {
+      const actions = el('div', { class: sheetActionsClass(actionButtons.length) }, ...actionButtons);
+      sheet.appendChild(actions);
+    }
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
