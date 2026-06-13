@@ -275,7 +275,11 @@ html.ios-standalone .tabbar {
   .hero .weather { transition: none; }
 }
 .hero .weather .temp { font-variant-numeric: tabular-nums; }
-.hero .weather .ico { width: 14px; height: 14px; }
+.hero .weather .ico { 
+  width: 14px; 
+  height: 14px; 
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.6), 0 0 8px rgba(0, 0, 0, 0.4);
+}
 .hero .label-block {
   position: absolute; left: var(--pad); right: var(--pad); bottom: 22px;
 }
