@@ -248,6 +248,14 @@ html.ios-standalone .tabbar {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   color: #000;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.hero .weather.weather--ready {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero .weather { transition: none; }
 }
 .hero .weather .temp { font-variant-numeric: tabular-nums; }
 .hero .weather .ico { width: 14px; height: 14px; }

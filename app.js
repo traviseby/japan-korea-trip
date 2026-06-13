@@ -339,10 +339,7 @@
       el('div', { class: 'day-color-bar', style: { background: day.color } }),
       el('div', { class: 'top' },
         el('div', { class: 'flag' }, day.flag),
-        el('div', { class: 'weather', id: 'weather-' + day.n },
-          el('span', { class: 'ico' }, '·'),
-          el('span', { class: 'temp' }, '—')
-        )
+        el('div', { class: 'weather', id: 'weather-' + day.n })
       ),
       el('div', { class: 'label-block' },
         el('div', { class: 'meta' }, fmtDate(day.date) + ' · ' + day.loc),
@@ -361,6 +358,7 @@
       if (!wEl) return;
       if (!w) { wEl.style.display = 'none'; return; }
       wEl.innerHTML = `<span class="ico">${weatherIcon(w.code)}</span><span class="temp">${w.temp}°F</span>`;
+      requestAnimationFrame(() => wEl.classList.add('weather--ready'));
     });
 
     // Description (expandable)
