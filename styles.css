@@ -575,15 +575,15 @@ html.ios-standalone .tabbar {
   display: block;
   opacity: 0.9;
 }
-.event-card.event-card--with-image .ticket-date {
+.event-card.event-card--ticket.event-card--with-image .ticket-date {
   position: absolute;
   left: 12px;
   bottom: 12px;
-  margin-bottom: 0;
-  background: rgba(0,0,0,0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--fg);
+  margin: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #000;
   z-index: 1;
 }
 .event-card.event-card--ticket .card-content {
