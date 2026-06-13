@@ -467,7 +467,7 @@ html.ios-standalone .tabbar {
 .hotel-card.hotel-card--airbnb .card-image,
 .event-card.event-card--airbnb .card-image {
   width: 100%;
-  height: 140px;
+  height: 160px;
   object-fit: cover;
   display: block;
   border-radius: 16px 16px 0 0;
@@ -553,9 +553,10 @@ html.ios-standalone .tabbar {
   color: #FFB800;
 }
 .card-rating .rating-count {
-  color: var(--fg-mute);
+  color: var(--fg-mid);
   font-weight: 400;
-  font-size: 13px;
+  font-size: 14px;
+  letter-spacing: 0;
 }
 
 /* Booking cards — consistent title → subtext spacing */
