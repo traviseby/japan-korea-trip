@@ -5,5 +5,9 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "scripts": {
+    "build": "echo 'No build step needed - static files'",
+    "vercel-build": "echo 'No build step needed - static files'"
+  },
   "dependencies": {}
 }
