@@ -2802,7 +2802,6 @@
         onclick: () => openExternalReceipt(url)
       }, 'Open in Browser')
     ));
-    sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     sheet.__receiptZoomCleanup = attachReceiptPinchZoom(viewport, stage, img);
 
@@ -5937,7 +5936,7 @@
     return body;
   }
 
-  function mountActivitySheetHero(sheet, a, d, unscheduled, enrichment) {
+  function mountActivitySheetHero(a, d, unscheduled, enrichment) {
     const hasPhoto = !!enrichment?.photoUrl;
     const itineraryParts = activityItineraryParts(a, d, unscheduled);
 
@@ -5959,8 +5958,7 @@
         heroWrap.appendChild(categoryPill);
       }
       
-      sheet.appendChild(heroWrap);
-      return 'photo';
+      return { heroWrap, mode: 'photo' };
     }
 
     // B - Map fallback hero with walk chip
@@ -5975,8 +5973,7 @@
         heroWrap.appendChild(walkChip);
       }
       
-      sheet.appendChild(heroWrap);
-      return 'map';
+      return { heroWrap, mode: 'map' };
     }
 
     return null;
@@ -6061,8 +6058,14 @@
 
     const cachedEnrichment = getCachedPlaceEnrichment('activity', a);
     const hasGooglePhoto = !!cachedEnrichment?.photoUrl;
-    const heroMode = mountActivitySheetHero(sheet, a, d, unscheduled, cachedEnrichment);
-    sheet.appendChild(buildActivitySheetBody(a, d, unscheduled, cachedEnrichment, hasGooglePhoto));
+    const heroResult = mountActivitySheetHero(a, d, unscheduled, cachedEnrichment);
+    const body = buildActivitySheetBody(a, d, unscheduled, cachedEnrichment, hasGooglePhoto);
+    
+    if (heroResult) {
+      body.insertBefore(heroResult.heroWrap, body.firstChild);
+    }
+    
+    sheet.appendChild(body);
 
     const infoUrl = isHttpUrl(a.url) ? a.url.trim() : '';
     const actionButtons = [];
@@ -6078,7 +6081,6 @@
     
     const actions = el('div', { class: sheetActionsClass(actionButtons.length) }, ...actionButtons);
     sheet.appendChild(actions);
-    sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
@@ -6184,15 +6186,16 @@
       )
     ));
 
+    const body = el('div', { class: 'sheet-body' });
+
     // Flight route map hero
     if (fromCoords && toCoords) {
       const heroWrap = el('div', { class: 'hero-wrap' });
       const mapHero = el('div', { class: 'flight-hero-map', id: 'flight-hero-map', 'aria-label': 'Flight route map' });
       heroWrap.appendChild(mapHero);
-      sheet.appendChild(heroWrap);
+      body.appendChild(heroWrap);
     }
 
-    const body = el('div', { class: 'sheet-body' });
     body.appendChild(el('h2', { class: 'sheet-title' }, `${f.from} → ${f.to}`));
     
     // Airline and flight number meta
@@ -6238,7 +6241,6 @@
         buildReceiptActionButton(receiptUrl, f.receipt)
       ));
     }
-    sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
@@ -6658,10 +6660,9 @@
         heroWrap.appendChild(walkChip);
       }
     }
-    
-    sheet.appendChild(heroWrap);
 
     const body = el('div', { class: 'sheet-body' });
+    body.appendChild(heroWrap);
     body.appendChild(el('h2', { class: 'sheet-title' }, h.name));
 
     // Google rating or fallback meta line
@@ -6898,10 +6899,9 @@
         heroWrap.appendChild(walkChip);
       }
     }
-    
-    sheet.appendChild(heroWrap);
 
     const body = el('div', { class: 'sheet-body' });
+    body.appendChild(heroWrap);
     body.appendChild(el('h2', { class: 'sheet-title' }, ev.name));
 
     // Google rating or fallback meta line
@@ -7399,6 +7399,8 @@
       )
     ));
 
+    const body = el('div', { class: 'sheet-body' });
+
     // Map hero with walk chip
     if (hasCoords) {
       const heroWrap = el('div', { class: 'hero-wrap' });
@@ -7413,10 +7415,9 @@
         heroWrap.appendChild(walkChip);
       }
       
-      sheet.appendChild(heroWrap);
+      body.appendChild(heroWrap);
     }
 
-    const body = el('div', { class: 'sheet-body' });
     body.appendChild(el('h2', { class: 'sheet-title' }, carRentalTitle(cr)));
     
     // Build time meta line
@@ -7474,7 +7475,6 @@
     }
     
     if (actions.children.length) sheet.appendChild(actions);
-    sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));

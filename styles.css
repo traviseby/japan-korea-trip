@@ -1885,13 +1885,15 @@ html.ios-standalone .tabbar {
   font-weight: 500;
 }
 
-/* Sheet navigation row — prev/next chevrons + close, pinned above the map */
+/* Sheet navigation row — prev/next chevrons + close, pinned above scrolling content */
 .sheet-nav {
   display: flex;
   align-items: center;
   gap: 0;
   padding: 4px 6px 0;
-  position: relative;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
   z-index: 10;
 }
 .sheet-nav-actions {
@@ -1952,6 +1954,7 @@ html.ios-standalone .tabbar {
   width: 100%;
   height: 200px;
   overflow: hidden;
+  margin: -14px calc(var(--pad) * -1) 14px;
 }
 .sheet .hero-photo {
   width: 100%;
