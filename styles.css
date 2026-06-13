@@ -1780,14 +1780,6 @@ html.ios-standalone .tabbar {
   border-top: 1px solid var(--border);
   touch-action: pan-y;
 }
-.sheet > *:not(.sheet-actions):not(.handle):not(.sheet-nav) {
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-}
-.sheet > *:not(.sheet-actions):not(.handle):not(.sheet-nav)::-webkit-scrollbar {
-  display: none;
-}
 .sheet.open { transform: translateY(0); }
 /* iOS WebKit: inputs inside transformed layers don't accept paste reliably */
 .sheet.open:focus-within { transform: none; }
@@ -1928,7 +1920,17 @@ html.ios-standalone .tabbar {
 .sheet .distance .dist-pill { display: flex; align-items: center; gap: 6px; }
 .sheet .distance .dist-pill .v { font-weight: 600; color: var(--fg); }
 
-.sheet .sheet-body { padding: 14px var(--pad) 20px; }
+.sheet .sheet-body {
+  padding: 14px var(--pad) 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+}
+.sheet .sheet-body::-webkit-scrollbar {
+  display: none;
+}
 .sheet .sheet-title {
   font-family: var(--serif);
   font-size: 28px; font-weight: 400; line-height: 1.15;
