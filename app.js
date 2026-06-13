@@ -6871,16 +6871,16 @@
 
     const body = el('div', { class: 'sheet-body' });
 
+    // Build time pill content (used in hero and fallback meta)
+    const timeParts = [];
+    if (ev.date) timeParts.push(fmtDate(ev.date).split(',')[0]);
+    const timeRange = formatEventTimeRange(ev);
+    if (timeRange) timeParts.push(timeRange);
+    if (ev.provider) timeParts.push(ev.provider);
+
     // Hero section - Google photo or map fallback
     if (hasGooglePhoto || hasCoords) {
       const heroWrap = el('div', { class: 'hero-wrap' });
-      
-      // Build time pill content
-      const timeParts = [];
-      if (ev.date) timeParts.push(fmtDate(ev.date).split(',')[0]);
-      const timeRange = formatEventTimeRange(ev);
-      if (timeRange) timeParts.push(timeRange);
-      if (ev.provider) timeParts.push(ev.provider);
       const timePill = timeParts.length ? el('div', { class: 'hero-meta-pill' }, timeParts.join(' · ')) : null;
 
       if (hasGooglePhoto) {
