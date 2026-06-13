@@ -3005,14 +3005,6 @@
     
     if (photoUrls.length > 1) {
       const indicators = el('div', { class: 'photo-indicators' });
-      photoUrls.forEach((_, i) => {
-        const dot = el('div', { 
-          class: 'photo-dot' + (i === 0 ? ' active' : ''),
-          'data-index': i
-        });
-        indicators.appendChild(dot);
-      });
-      carousel.appendChild(indicators);
       
       let touchStartX = 0;
       let touchCurrentX = 0;
@@ -3025,6 +3017,19 @@
           dot.classList.toggle('active', i === index);
         });
       };
+      
+      photoUrls.forEach((_, i) => {
+        const dot = el('div', { 
+          class: 'photo-dot' + (i === 0 ? ' active' : ''),
+          'data-index': i
+        });
+        dot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          updateCarousel(i);
+        });
+        indicators.appendChild(dot);
+      });
+      carousel.appendChild(indicators);
       
       carousel.addEventListener('touchstart', (e) => {
         touchStartX = e.touches[0].clientX;
