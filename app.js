@@ -5999,6 +5999,7 @@
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       subdomains: 'abcd'
     }).addTo(leafletSheet);
+    L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, accent) }).addTo(leafletSheet);
   }
 
   function hydrateActivitySheetEnrichment(sheet, a, enrichment) {
@@ -6761,6 +6762,7 @@
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
               subdomains: 'abcd'
             }).addTo(leafletSheet);
+            L.marker([lat, lng], { icon: pinIcon('Hotel', accent) }).addTo(leafletSheet);
           }
         } else {
           // Hero map for fallback variant
@@ -6998,6 +7000,7 @@
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
               subdomains: 'abcd'
             }).addTo(leafletSheet);
+            L.marker([lat, lng], { icon: pinIcon('Ticket', accent) }).addTo(leafletSheet);
           }
         } else {
           // Hero map for fallback variant
