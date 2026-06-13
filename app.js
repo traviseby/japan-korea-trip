@@ -5316,6 +5316,8 @@
     ));
 
     const form = el('div', { class: 'edit-activity-container' },
+      buildEditPickerField('Date', 'edit-day-label', dayFilterLabel(draft.day), openEditDayPicker),
+      buildEditPickerField('Time of day', 'edit-time-label', editTimeLabel(draft.time), openEditTimePicker, editTimeEmoji(draft.time)),
       el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-activity-name' }, 'Name'),
         el('input', {
@@ -5334,9 +5336,6 @@
           oninput: (e) => { draft.desc = e.target.value; }
         }, draft.desc)
       ),
-      buildEditPickerField('Date', 'edit-day-label', dayFilterLabel(draft.day), openEditDayPicker),
-      buildEditPickerField('Time of day', 'edit-time-label', editTimeLabel(draft.time), openEditTimePicker, editTimeEmoji(draft.time)),
-      buildEditPickerField('Type', 'edit-type-label', editCatLabel(draft.cat), openEditTypePicker, editCatEmoji(draft.cat)),
       el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-activity-url' }, 'More info URL'),
         el('input', {
@@ -5348,6 +5347,7 @@
           oninput: (e) => { draft.url = e.target.value; }
         })
       ),
+      buildEditPickerField('Type', 'edit-type-label', editCatLabel(draft.cat), openEditTypePicker, editCatEmoji(draft.cat)),
       el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-activity-lat' }, 'Latitude'),
         el('input', {
@@ -5548,6 +5548,9 @@
       startDate: h.startDate || '',
       endDate: h.endDate || '',
       roomType: h.roomType || '',
+      address: h.address || '',
+      bookingCode: h.bookingCode || '',
+      cost: h.cost || '',
       lat: h.lat != null && !isNaN(h.lat) ? String(h.lat) : '',
       lng: h.lng != null && !isNaN(h.lng) ? String(h.lng) : ''
     };
@@ -5692,6 +5695,37 @@
         })
       ),
       el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-hotel-address' }, 'Address'),
+        el('input', {
+          type: 'text',
+          id: 'edit-hotel-address',
+          class: 'edit-input',
+          value: draft.address,
+          oninput: (e) => { draft.address = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-hotel-booking-code' }, 'Booking code'),
+        el('input', {
+          type: 'text',
+          id: 'edit-hotel-booking-code',
+          class: 'edit-input',
+          value: draft.bookingCode,
+          oninput: (e) => { draft.bookingCode = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-hotel-cost' }, 'Cost (USD)'),
+        el('input', {
+          type: 'text',
+          id: 'edit-hotel-cost',
+          class: 'edit-input',
+          value: draft.cost,
+          placeholder: '150',
+          oninput: (e) => { draft.cost = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-hotel-lat' }, 'Latitude'),
         el('input', {
           type: 'text',
@@ -5774,6 +5808,9 @@
       endDate: draft.endDate || '',
       nights,
       roomType: draft.roomType.trim(),
+      address: draft.address.trim(),
+      bookingCode: draft.bookingCode.trim(),
+      cost: draft.cost.trim(),
       lat,
       lng
     };
@@ -7181,17 +7218,6 @@
         })
       ),
       el('div', { class: 'edit-field' },
-        el('label', { class: 'edit-label', for: 'edit-event-end-time' }, 'End time'),
-        el('input', {
-          type: 'text',
-          id: 'edit-event-end-time',
-          class: 'edit-input',
-          value: draft.endTime,
-          placeholder: '1:30 PM',
-          oninput: (e) => { draft.endTime = e.target.value; }
-        })
-      ),
-      el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-event-meetup' }, 'Address'),
         el('input', {
           type: 'text',
@@ -7229,6 +7255,17 @@
           class: 'edit-input',
           value: draft.moreInfo,
           oninput: (e) => { draft.moreInfo = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-end-time' }, 'End time'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-end-time',
+          class: 'edit-input',
+          value: draft.endTime,
+          placeholder: '1:30 PM',
+          oninput: (e) => { draft.endTime = e.target.value; }
         })
       ),
       el('button', {
