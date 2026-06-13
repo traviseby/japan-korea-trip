@@ -6723,7 +6723,7 @@
     // Action buttons
     const actionButtons = [];
     if (h.receiptUrl && isHttpUrl(h.receiptUrl)) {
-      actionButtons.push(buildReceiptActionButton(h.receiptUrl, h.receipt));
+      actionButtons.push(buildReceiptActionButton(h.receiptUrl, h.receipt, { secondary: true }));
     } else if (h.receipt) {
       actionButtons.push(el('div', { class: 'btn secondary disabled' }, 'View Receipt'));
     }
@@ -6967,7 +6967,7 @@
     // Action buttons - Directions always on right
     const actionButtons = [];
     if (receiptUrl) {
-      actionButtons.push(buildReceiptActionButton(receiptUrl, ev.receipt));
+      actionButtons.push(buildReceiptActionButton(receiptUrl, ev.receipt, { secondary: true }));
     }
     if (infoUrl) {
       actionButtons.push(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
@@ -7469,7 +7469,7 @@
     // Action buttons - Directions always on right
     const actions = el('div', { class: 'sheet-actions double' });
     if (receiptUrl) {
-      actions.appendChild(buildReceiptActionButton(receiptUrl, cr.receipt));
+      actions.appendChild(buildReceiptActionButton(receiptUrl, cr.receipt, { secondary: true }));
     }
     if (directionsUrl) {
       actions.appendChild(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
