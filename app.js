@@ -3239,7 +3239,7 @@
   }
 
   function carRentalTitle(cr){
-    return cr.provider || cr.carType || 'Car rental';
+    return cr.name || cr.provider || cr.carType || 'Car rental';
   }
 
   function carRentalTimeRange(cr){

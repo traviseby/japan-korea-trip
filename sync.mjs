@@ -163,6 +163,7 @@ const EVT = {
 
 // Car rental column IDs
 const CAR = {
+  name:          'c-y9EpaknLhZ',
   provider:      'c-PS-TKGxgsQ',
   bookingCode:   'c-lrtyYT4qXg',
   pickupDate:    'c-orqKRPUA30',
@@ -753,6 +754,7 @@ const carRentals = carRentalRows.map(r => {
   const receipt = cellReceipt(v[CAR.receipt]);
   return {
     id:            r.id,
+    name:          cellText(v[CAR.name]),
     provider:      v[CAR.provider]?.name || v[CAR.provider] || '',
     bookingCode:   cellText(v[CAR.bookingCode]),
     pickupDate,
