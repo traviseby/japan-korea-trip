@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.61';
+  const APP_VERSION = '2.62';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -3130,11 +3130,11 @@
       tabindex: '0',
       'aria-label': `${carRentalTitle(cr)}, ${carRentalCardMeta(cr)}`
     },
-      el('div', { class: 'crc-header' },
-        el('div', { class: 'crc-emoji' }, '🚗'),
-        el('div', { class: 'crc-info' },
+      el('div', { class: 'card-fallback-row' },
+        el('div', { class: 'card-fallback-rail', 'aria-hidden': 'true' }, '🚗'),
+        el('div', { class: 'card-content' },
           el('div', { class: 'crc-name' }, carRentalTitle(cr)),
-          el('div', { class: 'crc-meta' }, carRentalCardMeta(cr))
+          el('div', { class: 'crc-meta crc-meta--plain' }, carRentalCardMeta(cr))
         )
       )
     );
