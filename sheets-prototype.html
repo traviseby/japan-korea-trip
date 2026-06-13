@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sheets Prototype — Detail Panel Design Exploration</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #0d0d0d;
+  --surface: #1a1a1a;
+  --surface-2: #222;
+  --border: #2a2a2a;
+  --border-strong: #3a3a3a;
+  --fg: #f4f3f0;
+  --fg-mid: #d4d1c8;
+  --fg-mute: #9a978f;
+  --serif: 'Noto Serif JP', Georgia, serif;
+  --r: 12px;
+  --r-pill: 999px;
+  --pad: 20px;
+  --accent-hotel: #8b5cf6;
+  --accent-ticket: #f59e0b;
+  --accent-flight: #3b82f6;
+  --accent-car: #10b981;
+  --accent-activity: #1e6a9a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 40px 20px 80px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Manrope', -apple-system, system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+h1 {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 400;
+  margin: 0 0 8px;
+}
+
+.subtitle {
+  color: var(--fg-mute);
+  font-size: 13px;
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
+  max-width: 720px;
+  line-height: 1.6;
+}
+
+.note-box {
+  max-width: 720px;
+  margin-bottom: 40px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: rgba(255,255,255,0.02);
+  font-size: 13px;
+  color: var(--fg-mid);
+  line-height: 1.55;
+}
+
+.section { margin-bottom: 64px; }
+
+.section-title {
+  margin: 0 0 8px;
+  color: var(--fg-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.section-desc {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: var(--fg-mute);
+  line-height: 1.55;
+  max-width: 720px;
+}
+
+.variants {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.variant {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 20px;
+  background: rgba(255,255,255,0.02);
+}
+
+.variant-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-mid);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Phone frame + sheet shell */
+.phone-stage {
+  display: flex;
+  justify-content: center;
+}
+
+.phone-shell {
+  width: 394px;
+  background: #181818;
+  border: 1px solid #333;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+}
+
+.sheet-preview {
+  background: var(--bg);
+  border-radius: 20px 20px 0 0;
+  overflow: hidden;
+  margin-top: 120px;
+}
+
+.sheet-preview .handle {
+  width: 36px;
+  height: 4px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 2px;
+  margin: 10px auto 6px;
+}
+
+.sheet-preview .sheet-nav {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px 6px 0;
+  position: relative;
+  z-index: 10;
+}
+
+.sheet-preview .sheet-nav-spacer {
+  flex: 1;
+}
+
+.sheet-preview .sheet-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: -6px;
+}
+
+.sheet-preview .toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  flex-shrink: 0;
+  cursor: default;
+  font-family: inherit;
+}
+
+.sheet-preview .tab-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sheet-preview .tab-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.sheet-preview .tab-icon--edit {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.sheet-preview .hero-photo {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.sheet-preview .hero-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.sheet-preview .hero-wrap .map-placeholder {
+  height: 200px;
+  margin: 0;
+  border-bottom: none;
+}
+
+.sheet-preview .sheet-body.activity-stack .sheet-facts {
+  margin-bottom: 16px;
+}
+
+.sheet-preview .sheet-body.activity-stack .facts-summary {
+  color: var(--fg-mute);
+  font-weight: 400;
+}
+
+.sheet-preview .facts-line.under-title {
+  margin-top: -2px;
+  margin-bottom: 12px;
+}
+
+.sheet-preview .hero-wrap .flight-hero-map {
+  height: 200px;
+  width: 100%;
+}
+
+.sheet-preview .hero-wrap .flight-hero-map .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+  font-family: inherit;
+}
+
+.sheet-preview .hero-wrap .flight-hero-map .leaflet-control-container {
+  display: none;
+}
+
+.sheet-preview .flight-airport-marker {
+  background: none;
+  border: none;
+}
+
+.sheet-preview .flight-airport-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  font-weight: 700;
+  color: #000;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+.sheet-preview .flight-airport-city {
+  font-size: 10px;
+  font-weight: 500;
+  color: #444;
+}
+
+.sheet-preview .hero-wrap .hero-photo {
+  border-radius: 0;
+}
+
+.sheet-preview .hero-meta-overlay {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #000;
+  z-index: 600;
+}
+
+.sheet-preview .sheet-body.activity-stack .sheet-title {
+  margin-bottom: 10px;
+}
+
+.sheet-preview .sheet-body.activity-stack .google-rating {
+  margin-bottom: 12px;
+}
+
+.sheet-preview .sheet-body.activity-stack .sheet-desc {
+  margin-bottom: 12px;
+}
+
+.sheet-preview .sheet-body.activity-fallback .sheet-desc {
+  margin-bottom: 20px;
+}
+
+.sheet-preview .facts-line {
+  font-size: 14px;
+  color: var(--fg-mute);
+  font-weight: 400;
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+
+.sheet-preview .facts-line--pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #000;
+}
+
+.sheet-preview .hero-wrap .facts-line--pill {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1;
+  margin-bottom: 0;
+}
+
+.sheet-preview .map-placeholder {
+  height: 140px;
+  background:
+    linear-gradient(135deg, rgba(30,106,154,0.25), rgba(30,106,154,0.05)),
+    repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(255,255,255,0.03) 24px),
+    repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(255,255,255,0.03) 24px);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.sheet-preview .map-placeholder::after {
+  content: '📍';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+}
+
+.sheet-preview .distance {
+  display: flex;
+  gap: 8px;
+  padding: 10px var(--pad);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.sheet-preview .dist-pill {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--fg-mute);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 6px 10px;
+}
+
+.sheet-preview .dist-pill strong { color: var(--fg); font-weight: 600; }
+
+.sheet-preview .sheet-body { padding: 14px var(--pad) 0; }
+
+.sheet-preview .sheet-title {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 0 0 10px;
+}
+
+.sheet-preview .sheet-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.sheet-preview .b {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--fg-mid);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sheet-preview .b.accent { color: #fff; border-color: transparent; }
+
+.sheet-preview .google-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.sheet-preview .google-rating .star { color: #ffb800; }
+.sheet-preview .google-rating .count { color: var(--fg-mute); font-weight: 400; font-size: 14px; }
+
+.sheet-preview .sheet-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--fg-mid);
+  margin-bottom: 16px;
+}
+
+.sheet-preview .sheet-desc p { margin: 0 0 10px; }
+
+.sheet-preview .section-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.sheet-preview .section-label.tight {
+  margin-bottom: 4px;
+}
+
+.sheet-preview .meta-line {
+  font-size: 14px;
+  color: var(--fg-mute);
+  line-height: 1.45;
+  margin-bottom: 8px;
+}
+
+.sheet-preview .sheet-body.tight-block .sheet-title {
+  margin-bottom: 6px;
+}
+
+.sheet-preview .sheet-body.tight-block .google-rating {
+  margin-bottom: 6px;
+}
+
+.sheet-preview .sheet-facts {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.sheet-preview .sheet-facts.plain tr { border-bottom: none; }
+.sheet-preview .sheet-facts.plain th,
+.sheet-preview .sheet-facts.plain td { padding: 5px 0; }
+
+.sheet-preview .sheet-facts.tight {
+  margin-top: 2px;
+  margin-bottom: 10px;
+}
+
+.sheet-preview .sheet-facts.tight th,
+.sheet-preview .sheet-facts.tight td { padding: 3px 0; }
+
+.sheet-preview .sheet-facts.flush {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.sheet-preview .sheet-desc.flush {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.sheet-preview .sheet-desc.flush p:last-child { margin-bottom: 0; }
+
+.sheet-preview .detail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.sheet-preview .detail-stack .detail-labeled {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--fg);
+}
+
+.sheet-preview .detail-stack .detail-labeled .k {
+  color: var(--fg-mute);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.sheet-preview .detail-stack .detail-plain {
+  color: var(--fg-mid);
+  line-height: 1.5;
+}
+
+.sheet-preview .variant-subsection {
+  margin: 8px 0 20px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border);
+}
+
+.sheet-preview .variant-subsection-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-mid);
+  margin-bottom: 16px;
+}
+
+.sheet-preview .sheet-facts tr { border-bottom: 1px solid var(--border); }
+.sheet-preview .sheet-facts tr:last-child { border-bottom: none; }
+.sheet-preview .sheet-facts th {
+  text-align: left;
+  color: var(--fg-mute);
+  font-weight: 500;
+  padding: 10px 0;
+  width: 42%;
+  vertical-align: top;
+}
+.sheet-preview .sheet-facts td {
+  text-align: right;
+  color: var(--fg);
+  padding: 10px 0;
+  vertical-align: top;
+}
+
+.sheet-preview .notes-block {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-mid);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+/* In-sheet location map — mirrors Today tab .mini-map card */
+.sheet-preview .sheet-map-card {
+  height: 180px;
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  position: relative;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.sheet-preview .sheet-map-card .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+  font-family: inherit;
+}
+
+.sheet-preview .sheet-map-card > div:first-child {
+  width: 100%;
+  height: 100%;
+}
+
+.sheet-preview .sheet-map-card .leaflet-control-container {
+  display: none;
+}
+
+.sheet-preview .sheet-map-card .hero-meta-overlay {
+  z-index: 600;
+}
+
+.sheet-preview .sheet-map-pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -100%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50% 50% 50% 0;
+  background: #8b5cf6;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+  rotate: -45deg;
+  z-index: 500;
+  pointer-events: none;
+}
+
+.sheet-preview .sheet-map-pin::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+}
+
+.sheet-preview .sheet-map-pin--ticket {
+  background: var(--accent-ticket);
+}
+
+.sheet-preview .sheet-map-pin--activity {
+  background: var(--accent-activity);
+}
+
+.sheet-preview .notes-block ul {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.sheet-preview .notes-block ul li {
+  margin-bottom: 6px;
+}
+
+.sheet-preview .notes-block ul li:last-child { margin-bottom: 0; }
+
+.sheet-preview .notes-block .notes-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.sheet-preview .facts-summary {
+  font-size: 14px;
+  color: var(--fg-mid);
+  line-height: 1.45;
+  margin: 0 0 10px;
+}
+
+.sheet-preview .sheet-actions {
+  display: grid;
+  gap: 8px;
+  padding: 8px var(--pad) 24px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.sheet-preview .sheet-actions.single { grid-template-columns: 1fr; }
+.sheet-preview .sheet-actions.triple { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.sheet-preview .btn {
+  padding: 13px 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 12px;
+  background: var(--fg);
+  color: var(--bg);
+  border: none;
+}
+
+.sheet-preview .btn.secondary {
+  background: var(--surface-2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+/* Flight boarding pass */
+.flight-pass {
+  margin: 0 var(--pad) 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.flight-pass .fp-top {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+  border-bottom: 1px solid var(--border);
+}
+
+.flight-pass .fp-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px 8px;
+}
+
+.flight-pass .fp-code {
+  font-family: var(--serif);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.flight-pass .fp-code.right { text-align: right; }
+.flight-pass .fp-plane { color: var(--fg-mute); font-size: 20px; text-align: center; }
+.flight-pass .fp-times {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 14px 14px;
+  font-size: 12px;
+  color: var(--fg-mute);
+}
+
+.flight-pass .fp-times strong { color: var(--fg); font-size: 14px; display: block; }
+
+/* Ticket stub */
+.ticket-stub {
+  margin: 0 var(--pad) 16px;
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(255,255,255,0.02) 100%);
+}
+
+/* Car rental pass */
+.car-pass {
+  margin: 0 var(--pad) 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.car-pass .cp-top {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+  border-bottom: 1px solid var(--border);
+}
+
+.car-pass .cp-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+}
+
+.car-pass .cp-date { font-family: var(--serif); font-size: 22px; }
+.car-pass .cp-date.right { text-align: right; }
+.car-pass .cp-car { text-align: center; font-size: 22px; }
+
+.footer-notes {
+  color: var(--fg-mute);
+  font-size: 12px;
+  margin-top: 60px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  max-width: 720px;
+  line-height: 1.8;
+}
+
+.footer-notes ul { margin: 0; padding-left: 18px; }
+.footer-notes strong { color: var(--fg); }
+</style>
+</head>
+<body>
+
+<h1>Detail Sheets Prototype</h1>
+<p class="subtitle">Final detail-sheet designs — one extended layout per booking type, plus activity primary and fallback.</p>
+
+<div class="note-box">
+  <strong style="color: var(--fg);">Chosen layouts:</strong> Hotels, tickets, and activities each have a Google photo primary (A ★) and map fallback (B). Flights and cars use single extended variants.
+</div>
+
+<!-- nav: handle + sheet-nav with edit/close toolbar buttons (same on every mockup) -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ HOTELS -->
+<div class="section">
+  <div class="section-title">🏨 Hotels</div>
+  <p class="section-desc">Extended layout — Google photo (A ★) and map fallback (B).</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">A ★ — Google photo</div>
+      <div class="phone-stage"><div class="phone-shell"><div class="sheet-preview">
+        <div class="handle"></div>
+        <div class="sheet-nav"><div class="sheet-nav-spacer"></div><div class="sheet-nav-actions"><button type="button" class="toolbar-btn" aria-label="Edit"><span class="tab-icon tab-icon--edit" aria-hidden="true">✎</span></button><button type="button" class="close icon-close toolbar-btn" aria-label="Close"><span class="tab-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></div>
+        <div class="hero-wrap">
+          <img class="hero-photo" src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=400&fit=crop" alt="Hotel">
+          <div class="facts-line facts-line--pill">Jul 29 → Jul 31 · 2 nights · Hakone</div>
+        </div>
+        <div class="sheet-body activity-stack">
+          <h2 class="sheet-title">Hakone Kowakien TEN-YU</h2>
+          <div class="google-rating"><span class="star">★</span> 4.3 <span class="count">(2,340 reviews)</span></div>
+          <div class="sheet-desc"><p>Ryokan with open-air bath overlooking the valley — Japanese-style rooms and kaiseki dinner.</p></div>
+          <table class="sheet-facts">
+            <tr><th>Room</th><td>Japanese-style, open-air bath</td></tr>
+            <tr><th>Address</th><td>1400 Ninotaira, Hakone-machi</td></tr>
+            <tr><th>Booking Code</th><td>RYK-88421</td></tr>
+            <tr><th>Cost</th><td>¥84,000</td></tr>
+          </table>
+          <div class="sheet-map-card" aria-label="Hotel location map">
+            <div id="hotel-sheet-map"></div>
+            <div class="sheet-map-pin" aria-hidden="true"></div>
+            <div class="hero-meta-overlay">12 min · 0.8 km</div>
+          </div>
+          <div class="notes-block">
+            <div class="notes-head">Notes</div>
+            <ul>
+              <li>Check-in from 3 PM · dinner included</li>
+              <li>Notify front desk of dietary restrictions</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sheet-actions triple"><div class="btn secondary">View Receipt</div><div class="btn secondary">Open in Maps</div><div class="btn">Get Directions</div></div>
+      </div></div></div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — Fallback (map, meta under title)</div>
+      <div class="phone-stage"><div class="phone-shell"><div class="sheet-preview">
+        <div class="handle"></div>
+        <div class="sheet-nav"><div class="sheet-nav-spacer"></div><div class="sheet-nav-actions"><button type="button" class="toolbar-btn" aria-label="Edit"><span class="tab-icon tab-icon--edit" aria-hidden="true">✎</span></button><button type="button" class="close icon-close toolbar-btn" aria-label="Close"><span class="tab-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></div>
+        <div class="hero-wrap">
+          <div class="flight-hero-map" id="hotel-sheet-map-fallback" aria-label="Hotel location map"></div>
+          <div class="hero-meta-overlay">12 min · 0.8 km</div>
+        </div>
+        <div class="sheet-body activity-stack activity-fallback">
+          <h2 class="sheet-title">Hakone Kowakien TEN-YU</h2>
+          <div class="facts-line under-title">Jul 29 → Jul 31 · 2 nights · Hakone</div>
+          <div class="sheet-desc"><p>Ryokan with open-air bath overlooking the valley — Japanese-style rooms and kaiseki dinner.</p></div>
+          <table class="sheet-facts">
+            <tr><th>Room</th><td>Japanese-style, open-air bath</td></tr>
+            <tr><th>Address</th><td>1400 Ninotaira, Hakone-machi</td></tr>
+            <tr><th>Booking Code</th><td>RYK-88421</td></tr>
+            <tr><th>Cost</th><td>¥84,000</td></tr>
+          </table>
+          <div class="notes-block">
+            <div class="notes-head">Notes</div>
+            <ul>
+              <li>Check-in from 3 PM · dinner included</li>
+              <li>Notify front desk of dietary restrictions</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sheet-actions triple"><div class="btn secondary">View Receipt</div><div class="btn secondary">Open in Maps</div><div class="btn">Get Directions</div></div>
+      </div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ TICKETS -->
+<div class="section">
+  <div class="section-title">🎟️ Tickets / Events</div>
+  <p class="section-desc">Extended layout — Google photo (A ★) and map fallback (B).</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">A ★ — Google photo</div>
+      <div class="phone-stage"><div class="phone-shell"><div class="sheet-preview">
+        <div class="handle"></div>
+        <div class="sheet-nav"><div class="sheet-nav-spacer"></div><div class="sheet-nav-actions"><button type="button" class="toolbar-btn" aria-label="Edit"><span class="tab-icon tab-icon--edit" aria-hidden="true">✎</span></button><button type="button" class="close icon-close toolbar-btn" aria-label="Close"><span class="tab-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></div>
+        <div class="hero-wrap">
+          <img class="hero-photo" src="https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=800&h=400&fit=crop" alt="TeamLab">
+          <div class="facts-line facts-line--pill">Thu Jul 24 · 1:00 – 1:30 PM</div>
+        </div>
+        <div class="sheet-body activity-stack">
+          <h2 class="sheet-title">TeamLab Planets</h2>
+          <div class="google-rating"><span class="star">★</span> 4.5 <span class="count">(52.9k reviews)</span></div>
+          <div class="sheet-desc"><p>Immersive digital art museum — barefoot walk through water and light installations in Toyosu.</p></div>
+          <table class="sheet-facts">
+            <tr><th>Provider</th><td>Direct</td></tr>
+            <tr><th>Booking Ref</th><td>c52db6a28e32db930c</td></tr>
+            <tr><th>Entry</th><td>QR · My Tickets app</td></tr>
+            <tr><th>Meet-up</th><td>Main entrance, Toyosu</td></tr>
+            <tr><th>Cost</th><td>¥3,800 × 2</td></tr>
+          </table>
+          <div class="sheet-map-card" aria-label="Event location map">
+            <div id="ticket-sheet-map"></div>
+            <div class="sheet-map-pin sheet-map-pin--ticket" aria-hidden="true"></div>
+            <div class="hero-meta-overlay">18 min · 1.2 km</div>
+          </div>
+          <div class="notes-block">
+            <div class="notes-head">Notes</div>
+            <ul>
+              <li>Opens day-of — screenshot QR as backup</li>
+              <li>No re-entry after exit</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sheet-actions triple">
+          <div class="btn secondary">View Receipt</div>
+          <div class="btn secondary">More Info</div>
+          <div class="btn">Directions</div>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — Fallback (map, meta under title)</div>
+      <div class="phone-stage"><div class="phone-shell"><div class="sheet-preview">
+        <div class="handle"></div>
+        <div class="sheet-nav"><div class="sheet-nav-spacer"></div><div class="sheet-nav-actions"><button type="button" class="toolbar-btn" aria-label="Edit"><span class="tab-icon tab-icon--edit" aria-hidden="true">✎</span></button><button type="button" class="close icon-close toolbar-btn" aria-label="Close"><span class="tab-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></div>
+        <div class="hero-wrap">
+          <div class="flight-hero-map" id="ticket-sheet-map-fallback" aria-label="Event location map"></div>
+          <div class="hero-meta-overlay">18 min · 1.2 km</div>
+        </div>
+        <div class="sheet-body activity-stack activity-fallback">
+          <h2 class="sheet-title">TeamLab Planets</h2>
+          <div class="facts-line under-title">Thu Jul 24 · 1:00 – 1:30 PM</div>
+          <div class="sheet-desc"><p>Immersive digital art museum — barefoot walk through water and light installations in Toyosu.</p></div>
+          <table class="sheet-facts">
+            <tr><th>Provider</th><td>Direct</td></tr>
+            <tr><th>Booking Ref</th><td>c52db6a28e32db930c</td></tr>
+            <tr><th>Entry</th><td>QR · My Tickets app</td></tr>
+            <tr><th>Meet-up</th><td>Main entrance, Toyosu</td></tr>
+            <tr><th>Cost</th><td>¥3,800 × 2</td></tr>
+          </table>
+          <div class="notes-block">
+            <div class="notes-head">Notes</div>
+            <ul>
+              <li>Opens day-of — screenshot QR as backup</li>
+              <li>No re-entry after exit</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sheet-actions triple">
+          <div class="btn secondary">View Receipt</div>
+          <div class="btn secondary">More Info</div>
+          <div class="btn">Directions</div>
+        </div>
+      </div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ FLIGHTS -->
+<div class="section">
+  <div class="section-title">✈️ Flights</div>
+  <p class="section-desc">Extended layout — route map hero with airport markers.</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">Extended (labeled table + notes)</div>
+      <div class="phone-stage"><div class="phone-shell"><div class="sheet-preview">
+        <div class="handle"></div>
+        <div class="sheet-nav"><div class="sheet-nav-spacer"></div><div class="sheet-nav-actions"><button type="button" class="toolbar-btn" aria-label="Edit"><span class="tab-icon tab-icon--edit" aria-hidden="true">✎</span></button><button type="button" class="close icon-close toolbar-btn" aria-label="Close"><span class="tab-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></div>
+        <div class="hero-wrap">
+          <div class="flight-hero-map" id="flight-sheet-map" aria-label="Flight route map"></div>
+        </div>
+        <div class="sheet-body activity-stack">
+          <h2 class="sheet-title">Seattle → Tokyo</h2>
+          <div class="facts-line">Asiana OZ1035</div>
+          <table class="sheet-facts">
+            <tr><th>Depart</th><td>1:05 PM · Seattle (SEA) · Jul 22</td></tr>
+            <tr><th>Arrive</th><td>4:30 PM · Tokyo (NRT) · Jul 23</td></tr>
+            <tr><th>Booking Code</th><td>ABC123</td></tr>
+            <tr><th>Cost</th><td>$842 × 2</td></tr>
+          </table>
+          <div class="notes-block">
+            <div class="notes-head">Notes</div>
+            <ul>
+              <li>International terminal — arrive 3 hrs early</li>
+              <li>Check in online 24 hrs before</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sheet-actions single"><div class="btn secondary">View Receipt</div></div>
+      </div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ CAR RENTALS -->
+<div class="section">
+  <div class="section-title">🚗 Rental Cars</div>
+  <p class="section-desc">Extended layout — map hero, no Google enrichment.</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">Extended (labeled table + notes)</div>
+      <div class="phone-stage"><div class="phone-shell"><div class="sheet-preview">
+        <div class="handle"></div>
+        <div class="sheet-nav"><div class="sheet-nav-spacer"></div><div class="sheet-nav-actions"><button type="button" class="toolbar-btn" aria-label="Edit"><span class="tab-icon tab-icon--edit" aria-hidden="true">✎</span></button><button type="button" class="close icon-close toolbar-btn" aria-label="Close"><span class="tab-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></div>
+        <div class="hero-wrap">
+          <div class="map-placeholder"></div>
+          <div class="hero-meta-overlay">8 min · 0.5 km</div>
+        </div>
+        <div class="sheet-body activity-stack">
+          <h2 class="sheet-title">Priceline Car Rental</h2>
+          <div class="sheet-desc"><p>Compact car for Hakone day trip — pick up near Tokyo Station rental center.</p></div>
+          <div class="facts-line">Jul 31 · 9:00 AM → Aug 1 · 5:00 PM</div>
+          <table class="sheet-facts">
+            <tr><th>Pick-up</th><td>Jul 31 · 9:00 AM</td></tr>
+            <tr><th>Return</th><td>Aug 1 · 5:00 PM</td></tr>
+            <tr><th>Location</th><td>123 Rental Center, Tokyo</td></tr>
+            <tr><th>Return Address</th><td>456 Drop-off Center, Tokyo</td></tr>
+            <tr><th>Type</th><td>Compact / Intermediate</td></tr>
+            <tr><th>Booking Code</th><td>B789012</td></tr>
+            <tr><th>Cost</th><td>$186</td></tr>
+          </table>
+          <div class="notes-block">
+            <div class="notes-head">Notes</div>
+            <ul>
+              <li>Bring physical credit card used at booking</li>
+              <li>International driving permit required</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sheet-actions"><div class="btn secondary">View Receipt</div><div class="btn">Directions</div></div>
+      </div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ ACTIVITIES -->
+<div class="section">
+  <div class="section-title">📍 Activities</div>
+  <p class="section-desc">Activity reference — Google photo (A ★) and map fallback (B).</p>
+  <div class="variants">
+
+    <div class="variant">
+      <div class="variant-label">A ★ — Google photo</div>
+      <div class="phone-stage"><div class="phone-shell"><div class="sheet-preview">
+        <div class="handle"></div>
+        <div class="sheet-nav"><div class="sheet-nav-spacer"></div><div class="sheet-nav-actions"><button type="button" class="toolbar-btn" aria-label="Edit"><span class="tab-icon tab-icon--edit" aria-hidden="true">✎</span></button><button type="button" class="close icon-close toolbar-btn" aria-label="Close"><span class="tab-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></div>
+        <div class="hero-wrap">
+          <img class="hero-photo" src="https://images.unsplash.com/photo-1553621042-f6e147245754?w=800&h=400&fit=crop" alt="Tsukiji">
+          <div class="facts-line facts-line--pill">🍜 Food · Day 3 · Morning</div>
+        </div>
+        <div class="sheet-body activity-stack">
+          <h2 class="sheet-title">Tsukiji Outer Market</h2>
+          <div class="google-rating"><span class="star">★</span> 4.4 <span class="count">(18.2k reviews)</span></div>
+          <div class="sheet-desc"><p>Street food breakfast — try tamagoyaki, fresh sushi, and melon pan at one of Tokyo's most famous morning markets.</p></div>
+          <div class="sheet-map-card" aria-label="Activity location map">
+            <div id="activity-sheet-map"></div>
+            <div class="sheet-map-pin sheet-map-pin--activity" aria-hidden="true"></div>
+            <div class="hero-meta-overlay">6 min · 0.4 km</div>
+          </div>
+          <div class="notes-block">
+            <div class="notes-head">Notes</div>
+            <ul>
+              <li>Arrive before 9 AM before crowds</li>
+              <li>Cash helps at smaller stalls</li>
+              <li>Try tamagoyaki and fresh tuna skewers</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sheet-actions"><div class="btn secondary">More Info</div><div class="btn">Directions</div></div>
+      </div></div></div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — Fallback (map, meta under title)</div>
+      <div class="phone-stage"><div class="phone-shell"><div class="sheet-preview">
+        <div class="handle"></div>
+        <div class="sheet-nav"><div class="sheet-nav-spacer"></div><div class="sheet-nav-actions"><button type="button" class="toolbar-btn" aria-label="Edit"><span class="tab-icon tab-icon--edit" aria-hidden="true">✎</span></button><button type="button" class="close icon-close toolbar-btn" aria-label="Close"><span class="tab-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></button></div></div>
+        <div class="hero-wrap">
+          <div class="map-placeholder"></div>
+          <div class="hero-meta-overlay">6 min · 0.4 km</div>
+        </div>
+        <div class="sheet-body activity-stack activity-fallback">
+          <h2 class="sheet-title">Tsukiji Outer Market</h2>
+          <div class="facts-line under-title">🍜 Food · Day 3 · Morning</div>
+          <div class="sheet-desc"><p>Street food breakfast — try tamagoyaki, fresh sushi, and melon pan at one of Tokyo's most famous morning markets.</p></div>
+          <div class="notes-block">
+            <div class="notes-head">Notes</div>
+            <ul>
+              <li>Arrive before 9 AM before crowds</li>
+              <li>Cash helps at smaller stalls</li>
+              <li>Try tamagoyaki and fresh tuna skewers</li>
+            </ul>
+          </div>
+        </div>
+        <div class="sheet-actions"><div class="btn secondary">More Info</div><div class="btn">Directions</div></div>
+      </div></div></div>
+    </div>
+
+  </div>
+</div>
+<div class="footer-notes">
+  <strong>Final layouts kept</strong>
+  <ul>
+    <li><strong>Hotels:</strong> Booking Code + Cost fields added to Coda · A ★ has 3 buttons (View Receipt, Open in Maps, Directions) · B has map hero</li>
+    <li><strong>Tickets:</strong> Booking Ref + time range in schedule · 3 buttons (View Receipt, More Info, Directions) · A ★ / B pattern</li>
+    <li><strong>Flights:</strong> Booking Code (renamed from Confirmation) · route map hero · View Receipt button · cost last row</li>
+    <li><strong>Cars:</strong> Return Address added · Booking Code (renamed) · View Receipt + Directions buttons · cost last row</li>
+    <li><strong>Activities:</strong> More Info + Directions buttons · location map card · A ★ (Google photo) / B (map hero) pattern</li>
+  </ul>
+  <p style="margin-top: 12px;"><strong>All types:</strong> Cost/Price always last row in labeled tables · Receipt buttons where applicable</p>
+  <p style="margin-top: 8px;">Safe prototype file — open <code>sheets-prototype.html</code> in a browser; does not affect production.</p>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function () {
+  if (typeof L === 'undefined') return;
+
+  function staticMap(node, options) {
+    if (!node) return null;
+    const map = L.map(node, {
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      tap: false,
+      touchZoom: false
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19
+    }).addTo(map);
+    if (options.onReady) options.onReady(map);
+    requestAnimationFrame(() => map.invalidateSize({ animate: false }));
+    return map;
+  }
+
+  function airportIcon(code, city) {
+    return L.divIcon({
+      className: 'flight-airport-marker',
+      html: `<span class="flight-airport-label"><span>${code}</span><span class="flight-airport-city">${city}</span></span>`,
+      iconSize: [68, 36],
+      iconAnchor: [34, 18]
+    });
+  }
+
+  function westRouteLng(fromLng, toLng) {
+    let lng = toLng;
+    if (lng > fromLng) lng -= 360;
+    return lng;
+  }
+
+  function flightArcPoints(from, to, segments) {
+    const [lat1, lng1] = from;
+    const [lat2, lng2] = to;
+    let endLng = lng2;
+    if (endLng > lng1) endLng -= 360;
+    const points = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const lat = lat1 + (lat2 - lat1) * t;
+      const lng = lng1 + (endLng - lng1) * t;
+      const bulge = Math.sin(Math.PI * t) * 14;
+      points.push([lat + bulge, lng]);
+    }
+    return points;
+  }
+
+  staticMap(document.getElementById('hotel-sheet-map'), {
+    onReady(map) {
+      map.setView([35.2444, 139.0531], 13);
+    }
+  });
+
+  staticMap(document.getElementById('hotel-sheet-map-fallback'), {
+    onReady(map) {
+      map.setView([35.2444, 139.0531], 13);
+    }
+  });
+
+  staticMap(document.getElementById('ticket-sheet-map'), {
+    onReady(map) {
+      map.setView([35.6498, 139.7933], 14);
+    }
+  });
+
+  staticMap(document.getElementById('ticket-sheet-map-fallback'), {
+    onReady(map) {
+      map.setView([35.6498, 139.7933], 14);
+    }
+  });
+
+  staticMap(document.getElementById('activity-sheet-map'), {
+    onReady(map) {
+      map.setView([35.6654, 139.7707], 15);
+    }
+  });
+
+  staticMap(document.getElementById('flight-sheet-map'), {
+    onReady(map) {
+      const sea = [47.4502, -122.3088];
+      const nrt = [35.772, 140.3929];
+      const arc = flightArcPoints(sea, nrt, 72);
+
+      L.polyline(arc, {
+        color: '#3b82f6',
+        weight: 2.5,
+        opacity: 0.95,
+        dashArray: '7 9',
+        lineCap: 'round'
+      }).addTo(map);
+
+      L.marker(sea, { icon: airportIcon('SEA', 'Seattle') }).addTo(map);
+      L.marker([nrt[0], westRouteLng(sea[1], nrt[1])], { icon: airportIcon('NRT', 'Tokyo') }).addTo(map);
+
+      map.fitBounds(L.latLngBounds(arc), { padding: [28, 28], maxZoom: 4 });
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -6584,6 +6584,10 @@
     state.hotelSheet = h;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
+    if (!backdrop || !sheet) {
+      console.error('Sheet elements not found');
+      return;
+    }
     sheet.innerHTML = '';
 
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
@@ -6812,6 +6816,10 @@
     state.eventSheet = ev;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
+    if (!backdrop || !sheet) {
+      console.error('Sheet elements not found');
+      return;
+    }
     sheet.innerHTML = '';
 
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
