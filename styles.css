@@ -2191,6 +2191,8 @@ html.ios-standalone .tabbar {
   left: 0;
   right: 0;
   background: linear-gradient(to bottom, transparent 0%, var(--surface) 20%, var(--surface) 100%);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 12px -8px var(--bg);
   z-index: 10;
   flex-shrink: 0;
   margin-top: auto;
