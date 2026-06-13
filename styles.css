@@ -385,14 +385,14 @@ html.ios-standalone .tabbar {
 }
 .flight-card .fc-times {
   display: flex; justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 11px; color: var(--fg-mute);
 }
 .flight-card .fc-times .time { font-variant-numeric: tabular-nums; color: var(--fg); font-size: 14px; font-weight: 600; letter-spacing: 0.03em; }
 .flight-card .fc-times .time.muted { color: var(--fg-mute); font-weight: 500; font-size: 12px; }
 .flight-card .fc-cities {
   display: flex; justify-content: space-between;
-  font-size: 11px; color: var(--fg-mute); margin-top: 2px;
+  font-size: 11px; color: var(--fg-mute); margin-top: 0;
 }
 
 /* Hotel card */
@@ -494,7 +494,6 @@ html.ios-standalone .tabbar {
   font-family: 'Manrope', -apple-system, system-ui, sans-serif;
   font-size: 16px;
   font-weight: 600;
-  margin-bottom: 4px;
 }
 .hotel-card.hotel-card--fallback .hc-meta--plain {
   font-size: 14px;
@@ -545,6 +544,15 @@ html.ios-standalone .tabbar {
   color: var(--fg-mute);
   font-weight: 400;
   font-size: 13px;
+}
+
+/* Booking cards — consistent title → subtext spacing */
+.hotel-card.hotel-card--airbnb .hc-name,
+.hotel-card.hotel-card--fallback .hc-name,
+.event-card.event-card--airbnb .ec-name,
+.event-card.event-card--ticket .ec-name,
+.car-rental-card .crc-name {
+  margin-bottom: 2px;
 }
 
 /* Event card */
@@ -641,7 +649,6 @@ html.ios-standalone .tabbar {
   font-size: 16px;
   font-weight: 600;
   line-height: 1.3;
-  margin-bottom: 4px;
 }
 .event-card.event-card--ticket .ec-meta--plain,
 .car-rental-card .crc-meta--plain {

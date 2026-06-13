@@ -4185,7 +4185,7 @@
     // Group by type
     const types = ['Flights', 'Hotels', 'Tickets', 'Rental Cars'];
     types.forEach(type => {
-      const items = fb.filter(b => b.type === type);
+      const items = fb.filter(b => b.type === type).sort(compareBookings);
       if (!items.length) return;
 
       // Type header
@@ -4294,15 +4294,30 @@
     return result;
   }
 
+  function bookingDayNum(date, explicitDay){
+    if (explicitDay != null) return explicitDay;
+    if (!date || !D.days) return null;
+    return D.days.find(d => d.date === date)?.n ?? null;
+  }
+
+  function compareBookings(a, b){
+    const dateCmp = (a.sortDate || '').localeCompare(b.sortDate || '');
+    if (dateCmp) return dateCmp;
+    const timeCmp = eventTimeOrder(a.sortTime) - eventTimeOrder(b.sortTime);
+    if (timeCmp) return timeCmp;
+    return (a.name || '').localeCompare(b.name || '');
+  }
+
   function getAllBookings(){
     const bookings = [];
 
     // Flights
     (D.flights || []).forEach(f => {
-      const day = f.departDay;
       bookings.push({
         type: 'Flights',
-        dayNum: day,
+        dayNum: bookingDayNum(f.date, f.day),
+        sortDate: f.date || '',
+        sortTime: f.depart || '',
         card: buildFlightCard(f),
         searchText: `${f.from} ${f.to} ${f.airline} ${f.flightNum}`,
         name: `${f.from} → ${f.to}`
@@ -4311,10 +4326,11 @@
 
     // Hotels
     (D.hotels || []).forEach(h => {
-      const day = h.checkinDay;
       bookings.push({
         type: 'Hotels',
-        dayNum: day,
+        dayNum: bookingDayNum(h.startDate, h.day),
+        sortDate: h.startDate || '',
+        sortTime: '',
         card: buildHotelCard(h),
         searchText: `${h.name} ${h.location}`,
         name: h.name
@@ -4323,10 +4339,11 @@
 
     // Events/Tickets
     (D.events || []).forEach(e => {
-      const day = e.day;
       bookings.push({
         type: 'Tickets',
-        dayNum: day,
+        dayNum: bookingDayNum(e.date, e.day),
+        sortDate: e.date || '',
+        sortTime: e.time || '',
         card: buildEventCard(e),
         searchText: `${e.name} ${e.location}`,
         name: e.name
@@ -4335,10 +4352,11 @@
 
     // Car Rentals
     (D.carRentals || []).forEach(cr => {
-      const day = cr.pickupDay;
       bookings.push({
         type: 'Rental Cars',
-        dayNum: day,
+        dayNum: bookingDayNum(cr.pickupDate, cr.day),
+        sortDate: cr.pickupDate || '',
+        sortTime: cr.pickupTime || '',
         card: buildCarRentalCard(cr),
         searchText: `${cr.provider} ${cr.pickupLocation} ${cr.returnLocation}`,
         name: `${cr.pickupLocation} → ${cr.returnLocation}`
