@@ -1780,6 +1780,14 @@ html.ios-standalone .tabbar {
   border-top: 1px solid var(--border);
   touch-action: pan-y;
 }
+.sheet > *:not(.sheet-actions):not(.handle):not(.sheet-nav) {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.sheet > *:not(.sheet-actions):not(.handle):not(.sheet-nav)::-webkit-scrollbar {
+  display: none;
+}
 .sheet.open { transform: translateY(0); }
 /* iOS WebKit: inputs inside transformed layers don't accept paste reliably */
 .sheet.open:focus-within { transform: none; }
@@ -1920,7 +1928,7 @@ html.ios-standalone .tabbar {
 .sheet .distance .dist-pill { display: flex; align-items: center; gap: 6px; }
 .sheet .distance .dist-pill .v { font-weight: 600; color: var(--fg); }
 
-.sheet .sheet-body { padding: 14px var(--pad) 0; }
+.sheet .sheet-body { padding: 14px var(--pad) 20px; }
 .sheet .sheet-title {
   font-family: var(--serif);
   font-size: 28px; font-weight: 400; line-height: 1.15;
@@ -2166,7 +2174,20 @@ html.ios-standalone .tabbar {
   margin-bottom: 0;
 }
 
-.sheet .sheet-actions { display: grid; gap: 8px; padding: 0 var(--pad) calc(var(--sab) + 20px); grid-template-columns: 1fr 1fr; }
+.sheet .sheet-actions {
+  display: grid;
+  gap: 8px;
+  padding: 16px var(--pad) calc(var(--sab) + 20px);
+  grid-template-columns: 1fr 1fr;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to bottom, transparent 0%, var(--surface) 20%, var(--surface) 100%);
+  z-index: 10;
+  flex-shrink: 0;
+  margin-top: auto;
+}
 .sheet .sheet-actions.double { grid-template-columns: 1fr 1fr; }
 .sheet .sheet-actions.single { grid-template-columns: 1fr; }
 .sheet .sheet-actions.single .btn { width: 100%; }

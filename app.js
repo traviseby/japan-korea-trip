@@ -6741,7 +6741,6 @@
       const actions = el('div', { class: sheetActionsClass(actionButtons.length) }, ...actionButtons);
       sheet.appendChild(actions);
     }
-    sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
@@ -6979,7 +6978,6 @@
       const actions = el('div', { class: sheetActionsClass(actionButtons.length) }, ...actionButtons);
       sheet.appendChild(actions);
     }
-    sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
