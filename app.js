@@ -6666,7 +6666,7 @@
       const ratingEl = el('div', { class: 'sheet-rating' },
         el('span', { class: 'star' }, '★'),
         ` ${cachedEnrichment.rating} `,
-        cachedEnrichment.reviewCount ? el('span', { class: 'count' }, `(${formatNumber(cachedEnrichment.reviewCount)} reviews)`) : null
+        cachedEnrichment.reviewCount ? el('span', { class: 'count' }, `(${formatReviewCount(cachedEnrichment.reviewCount)} reviews)`) : null
       );
       body.appendChild(ratingEl);
     } else if (!hasGooglePhoto && dateParts.length) {
@@ -6903,7 +6903,7 @@
       const ratingEl = el('div', { class: 'sheet-rating' },
         el('span', { class: 'star' }, '★'),
         ` ${cachedEnrichment.rating} `,
-        cachedEnrichment.reviewCount ? el('span', { class: 'count' }, `(${formatNumber(cachedEnrichment.reviewCount)} reviews)`) : null
+        cachedEnrichment.reviewCount ? el('span', { class: 'count' }, `(${formatReviewCount(cachedEnrichment.reviewCount)} reviews)`) : null
       );
       body.appendChild(ratingEl);
     } else if (!hasGooglePhoto && timeParts.length) {
