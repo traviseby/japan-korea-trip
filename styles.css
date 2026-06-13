@@ -2207,6 +2207,72 @@ html.ios-standalone .tabbar {
   margin-bottom: 0;
 }
 
+/* Flight Status */
+.flight-status-container {
+  margin: 16px 0;
+}
+.flight-live-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.flight-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  width: fit-content;
+}
+.flight-status-badge.status-scheduled {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+.flight-status-badge.status-active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+.flight-status-badge.status-landed {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+.flight-status-badge.status-cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+.flight-status-badge.status-incident,
+.flight-status-badge.status-diverted {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+.flight-aircraft {
+  color: var(--fg-dim);
+  font-size: 13px;
+}
+.flight-live-position {
+  color: #10b981;
+  font-weight: 500;
+}
+.flight-delays {
+  color: #f59e0b;
+  font-weight: 500;
+}
+.flight-gates {
+  color: var(--fg-dim);
+  font-size: 13px;
+}
+.flight-live-marker {
+  font-size: 24px;
+  text-align: center;
+  line-height: 1;
+}
+
 .sheet .sheet-actions {
   display: grid;
   gap: 8px;

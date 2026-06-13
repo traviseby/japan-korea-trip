@@ -787,6 +787,126 @@
     return AIRPORT_COORDS[c] || null;
   }
 
+  async function fetchFlightStatus(flight) {
+    if (!flight.number && !flight.airline) return null;
+    
+    try {
+      const params = new URLSearchParams();
+      
+      // Try to build flight IATA code (e.g., "OZ1035" from airline + number)
+      if (flight.airline && flight.number) {
+        const airlineCode = flight.airline.match(/^[A-Z]{2,3}/)?.[0] || flight.airline.slice(0, 2).toUpperCase();
+        params.append('flightIata', `${airlineCode}${flight.number}`);
+      } else if (flight.number) {
+        params.append('flightNumber', flight.number);
+      }
+      
+      if (flight.from) params.append('depIata', flight.from);
+      if (flight.to) params.append('arrIata', flight.to);
+      
+      const response = await fetch(`/api/flight-status?${params.toString()}`);
+      
+      if (!response.ok) {
+        console.log('Flight status not available:', response.status);
+        return null;
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching flight status:', error);
+      return null;
+    }
+  }
+
+  function buildFlightStatusBadge(status) {
+    if (!status) return null;
+    
+    const statusMap = {
+      'scheduled': { label: 'Scheduled', class: 'status-scheduled', emoji: '🕐' },
+      'active': { label: 'In Flight', class: 'status-active', emoji: '✈️' },
+      'landed': { label: 'Landed', class: 'status-landed', emoji: '✅' },
+      'cancelled': { label: 'Cancelled', class: 'status-cancelled', emoji: '❌' },
+      'incident': { label: 'Incident', class: 'status-incident', emoji: '⚠️' },
+      'diverted': { label: 'Diverted', class: 'status-diverted', emoji: '🔄' }
+    };
+    
+    const statusInfo = statusMap[status.toLowerCase()] || { label: status, class: 'status-unknown', emoji: '' };
+    
+    return el('span', { class: `flight-status-badge ${statusInfo.class}` }, 
+      `${statusInfo.emoji} ${statusInfo.label}`
+    );
+  }
+
+  function buildFlightLiveInfo(flightData) {
+    if (!flightData) return null;
+    
+    const container = el('div', { class: 'flight-live-info' });
+    
+    // Status badge
+    if (flightData.status) {
+      container.appendChild(buildFlightStatusBadge(flightData.status));
+    }
+    
+    // Aircraft info
+    if (flightData.aircraft?.modelText || flightData.aircraft?.registration) {
+      const parts = [];
+      if (flightData.aircraft.modelText) parts.push(flightData.aircraft.modelText);
+      if (flightData.aircraft.registration) parts.push(`(${flightData.aircraft.registration})`);
+      container.appendChild(el('div', { class: 'flight-aircraft' }, parts.join(' ')));
+    }
+    
+    // Live position (if in flight)
+    if (flightData.live && flightData.status === 'active') {
+      const liveDiv = el('div', { class: 'flight-live-position' });
+      const parts = [];
+      
+      if (flightData.live.altitude) {
+        parts.push(`${(flightData.live.altitude / 1000).toFixed(1)}k ft`);
+      }
+      if (flightData.live.speed) {
+        parts.push(`${flightData.live.speed} mph`);
+      }
+      
+      if (parts.length) {
+        liveDiv.textContent = `📍 ${parts.join(' · ')}`;
+        container.appendChild(liveDiv);
+      }
+    }
+    
+    // Delays
+    const delays = [];
+    if (flightData.departure?.delay && flightData.departure.delay > 0) {
+      delays.push(`Dep: +${flightData.departure.delay} min`);
+    }
+    if (flightData.arrival?.delay && flightData.arrival.delay > 0) {
+      delays.push(`Arr: +${flightData.arrival.delay} min`);
+    }
+    if (delays.length) {
+      container.appendChild(el('div', { class: 'flight-delays' }, `⏱️ Delayed: ${delays.join(' · ')}`));
+    }
+    
+    // Gates and terminals
+    const gateInfo = [];
+    if (flightData.departure?.gate) {
+      gateInfo.push(`Dep Gate: ${flightData.departure.gate}`);
+    }
+    if (flightData.departure?.terminal) {
+      gateInfo.push(`Terminal: ${flightData.departure.terminal}`);
+    }
+    if (flightData.arrival?.gate) {
+      gateInfo.push(`Arr Gate: ${flightData.arrival.gate}`);
+    }
+    if (flightData.arrival?.terminal && !flightData.departure?.terminal) {
+      gateInfo.push(`Terminal: ${flightData.arrival.terminal}`);
+    }
+    if (gateInfo.length) {
+      container.appendChild(el('div', { class: 'flight-gates' }, gateInfo.join(' · ')));
+    }
+    
+    return container.children.length > 0 ? container : null;
+  }
+
   function hasMapCoordinates(a){
     return normalizeCoord(a.lat) != null && normalizeCoord(a.lng) != null;
   }
@@ -6316,6 +6436,36 @@
     if (airlineParts.length) {
       body.appendChild(el('div', { class: 'sheet-meta-line' }, airlineParts.join(' ')));
     }
+
+    // Flight status (async - will populate when available)
+    const flightStatusContainer = el('div', { class: 'flight-status-container' });
+    body.appendChild(flightStatusContainer);
+    
+    // Fetch live flight status
+    fetchFlightStatus(f).then(flightData => {
+      if (flightData) {
+        const liveInfo = buildFlightLiveInfo(flightData);
+        if (liveInfo) {
+          flightStatusContainer.appendChild(liveInfo);
+          
+          // Update map with live position if available
+          if (flightData.live && leafletSheet) {
+            const liveMarker = L.marker([flightData.live.latitude, flightData.live.longitude], {
+              icon: L.divIcon({
+                className: 'flight-live-marker',
+                html: '✈️',
+                iconSize: [24, 24]
+              })
+            }).addTo(leafletSheet);
+            
+            // Pan map to show live position
+            leafletSheet.panTo([flightData.live.latitude, flightData.live.longitude]);
+          }
+        }
+      }
+    }).catch(err => {
+      console.error('Failed to fetch flight status:', err);
+    });
 
     // Labeled table
     const table = el('table', { class: 'sheet-facts' });
