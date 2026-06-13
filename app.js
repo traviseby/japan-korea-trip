@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.56';
+  const APP_VERSION = '2.57';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -2944,14 +2944,12 @@
       return;
     }
 
-    const iconSlot = el('div', { class: 'card-icon-slot', 'aria-hidden': 'true' }, '🏨');
+    const iconRail = el('div', { class: 'card-fallback-rail', 'aria-hidden': 'true' }, '🏨');
     const body = el('div', { class: 'card-content' },
       el('div', { class: 'hc-name' }, h.name),
       metaText ? el('div', { class: 'hc-meta hc-meta--plain' }, metaText) : null
     );
-    const rating = buildCardRating(enrichment);
-    if (rating) body.appendChild(rating);
-    card.appendChild(el('div', { class: 'card-fallback-row' }, iconSlot, body));
+    card.appendChild(el('div', { class: 'card-fallback-row' }, iconRail, body));
   }
 
   function mountEventCardContent(card, ev, enrichment, onPhotoError) {
@@ -2963,33 +2961,41 @@
     card.classList.toggle('event-card--fallback', !hasPhoto);
     card.classList.toggle('event-card--with-image', hasPhoto);
 
+    const ticketDateEl = ticketWhen
+      ? el('div', { class: 'ticket-date' },
+          el('span', { 'aria-hidden': 'true' }, '📅'),
+          el('span', null, ticketWhen)
+        )
+      : null;
+
     if (hasPhoto) {
+      const imageWrap = el('div', { class: 'card-image-wrap' });
       const img = buildCardImage(enrichment.photoUrl, ev.name);
       if (onPhotoError) img.addEventListener('error', onPhotoError, { once: true });
-      card.appendChild(img);
-    }
+      imageWrap.appendChild(img);
+      if (ticketDateEl) imageWrap.appendChild(ticketDateEl);
+      card.appendChild(imageWrap);
 
-    const bodyChildren = [];
-    if (ticketWhen) {
-      bodyChildren.push(el('div', { class: 'ticket-date' },
-        el('span', { 'aria-hidden': 'true' }, '📅'),
-        el('span', null, ticketWhen)
-      ));
-    }
-    bodyChildren.push(el('div', { class: 'ec-name' }, ev.name));
-    bodyChildren.push(el('div', { class: 'ec-meta ec-meta--plain' }, eventTicketSubtitle(ev)));
-    const rating = buildCardRating(enrichment);
-    if (rating) bodyChildren.push(rating);
-
-    if (hasPhoto) {
+      const bodyChildren = [
+        el('div', { class: 'ec-name' }, ev.name),
+        el('div', { class: 'ec-meta ec-meta--plain' }, eventTicketSubtitle(ev))
+      ];
+      const rating = buildCardRating(enrichment);
+      if (rating) bodyChildren.push(rating);
       card.appendChild(el('div', { class: 'card-content' }, ...bodyChildren));
       return;
     }
 
-    const iconSlot = el('div', { class: 'card-icon-slot', 'aria-hidden': 'true' }, '🎟️');
+    const fallbackBody = [
+      el('div', { class: 'ec-name' }, ev.name),
+      el('div', { class: 'ec-meta ec-meta--plain' }, eventTicketSubtitle(ev))
+    ];
+    if (ticketDateEl) fallbackBody.push(ticketDateEl);
+
+    const iconRail = el('div', { class: 'card-fallback-rail', 'aria-hidden': 'true' }, '🎟️');
     card.appendChild(el('div', { class: 'card-fallback-row' },
-      iconSlot,
-      el('div', { class: 'card-content' }, ...bodyChildren)
+      iconRail,
+      el('div', { class: 'card-content' }, ...fallbackBody)
     ));
   }
 
@@ -3011,7 +3017,7 @@
     if (!enrichment?.photoUrl) {
       requestPlaceEnrichment('hotel', h, data => {
         if (!card.isConnected) return;
-        if (data?.photoUrl || (data?.enriched && data?.rating != null)) {
+        if (data?.photoUrl) {
           mountHotelCardContent(card, h, data, onPhotoError);
         }
       });
@@ -3075,7 +3081,7 @@
     if (!enrichment?.photoUrl) {
       requestPlaceEnrichment('event', ev, data => {
         if (!card.isConnected) return;
-        if (data?.photoUrl || (data?.enriched && data?.rating != null)) {
+        if (data?.photoUrl) {
           mountEventCardContent(card, ev, data, onPhotoError);
         }
       });

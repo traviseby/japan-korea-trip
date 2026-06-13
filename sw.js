@@ -1,7 +1,7 @@
 // Supertrip — Service Worker
 // Caches the app shell + CartoCDN map tiles + Unsplash hero images so the
 // app works in airplane mode.
-const VERSION    = 'v24';
+const VERSION    = 'v25';
 const SHELL      = 'jk26-shell-' + VERSION;
 const TILES      = 'jk26-tiles-' + VERSION;
 const IMAGES     = 'jk26-images-' + VERSION;
