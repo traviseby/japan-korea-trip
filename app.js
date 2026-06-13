@@ -5369,15 +5369,16 @@
           placeholder: '139.6917',
           oninput: (e) => { draft.lng = e.target.value; }
         })
-      ),
+      )
+    );
+    sheet.appendChild(form);
+    sheet.appendChild(el('div', { class: 'edit-sheet-actions' },
       el('button', {
         id: 'edit-activity-submit',
         class: 'oc-btn',
-        style: { marginTop: '8px', marginBottom: '24px' },
         onclick: submitUpdateActivity
       }, isNew ? 'Add' : 'Update')
-    );
-    sheet.appendChild(form);
+    ));
 
     backdrop.classList.add('open');
     backdrop.onclick = hideEditActivitySheet;
@@ -5746,15 +5747,16 @@
           placeholder: '139.6917',
           oninput: (e) => { draft.lng = e.target.value; }
         })
-      ),
+      )
+    );
+    sheet.appendChild(form);
+    sheet.appendChild(el('div', { class: 'edit-sheet-actions' },
       el('button', {
         id: 'edit-hotel-submit',
         class: 'oc-btn',
-        style: { marginTop: '8px', marginBottom: '24px' },
         onclick: submitUpdateHotel
       }, 'Update')
-    );
-    sheet.appendChild(form);
+    ));
 
     backdrop.classList.add('open');
     backdrop.onclick = hideEditHotelSheet;
@@ -6533,15 +6535,16 @@
           value: draft.cost,
           oninput: (e) => { draft.cost = e.target.value; }
         })
-      ),
+      )
+    );
+    sheet.appendChild(form);
+    sheet.appendChild(el('div', { class: 'edit-sheet-actions' },
       el('button', {
         id: 'edit-flight-submit',
         class: 'oc-btn',
-        style: { marginTop: '8px', marginBottom: '24px' },
         onclick: submitUpdateFlight
       }, 'Update')
-    );
-    sheet.appendChild(form);
+    ));
 
     backdrop.classList.add('open');
     backdrop.onclick = hideEditFlightSheet;
@@ -7267,15 +7270,16 @@
           placeholder: '1:30 PM',
           oninput: (e) => { draft.endTime = e.target.value; }
         })
-      ),
+      )
+    );
+    sheet.appendChild(form);
+    sheet.appendChild(el('div', { class: 'edit-sheet-actions' },
       el('button', {
         id: 'edit-event-submit',
         class: 'oc-btn',
-        style: { marginTop: '8px', marginBottom: '24px' },
         onclick: submitUpdateEvent
       }, 'Update')
-    );
-    sheet.appendChild(form);
+    ));
 
     backdrop.classList.add('open');
     backdrop.onclick = hideEditEventSheet;
@@ -7761,15 +7765,16 @@
           placeholder: '139.1547',
           oninput: (e) => { draft.lng = e.target.value; }
         })
-      ),
+      )
+    );
+    sheet.appendChild(form);
+    sheet.appendChild(el('div', { class: 'edit-sheet-actions' },
       el('button', {
         id: 'edit-car-rental-submit',
         class: 'oc-btn',
-        style: { marginTop: '8px', marginBottom: '24px' },
         onclick: submitUpdateCarRental
       }, 'Update')
-    );
-    sheet.appendChild(form);
+    ));
 
     backdrop.classList.add('open');
     backdrop.onclick = hideEditCarRentalSheet;
