@@ -1669,6 +1669,7 @@ html.ios-standalone .tabbar {
   color: var(--fg-mute);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  text-align: left;
 }
 .act-list .full-row .badge {
   font-size: 10px;
@@ -2519,6 +2520,7 @@ html.ios-standalone .tabbar {
   color: var(--fg-mute);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  text-align: left;
 }
 .act-swipe-container .full-row .badge {
   font-size: 10px;
