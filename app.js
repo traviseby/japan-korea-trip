@@ -2380,7 +2380,6 @@
 
     btn.disabled = true;
     btn.textContent = 'Syncing...';
-    status.textContent = 'Fetching latest data...';
 
     try {
       // Clear cached data for this trip to force fresh fetch
@@ -2389,7 +2388,6 @@
       // Fetch fresh data from Coda (pass token if available)
       await loadTripData(docUrl, false, activeTrip.token || null, { preserveUi: true });
 
-      status.textContent = 'Synced!';
       toast('Syncing\u2026');
       
       // Reload the app to display fresh data
