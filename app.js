@@ -6667,17 +6667,17 @@
 
     const body = el('div', { class: 'sheet-body' });
 
+    // Build date pill content (used in hero and fallback meta)
+    const dateParts = [];
+    if (h.startDate && h.endDate) {
+      dateParts.push(`${fmtDate(h.startDate).split(',')[0]} → ${fmtDate(h.endDate).split(',')[0]}`);
+    }
+    if (nightsText) dateParts.push(nightsText);
+    if (h.city) dateParts.push(h.city);
+
     // Hero section - Google photo or map fallback
     if (hasGooglePhoto || hasCoords) {
       const heroWrap = el('div', { class: 'hero-wrap' });
-      
-      // Build date pill content
-      const dateParts = [];
-      if (h.startDate && h.endDate) {
-        dateParts.push(`${fmtDate(h.startDate).split(',')[0]} → ${fmtDate(h.endDate).split(',')[0]}`);
-      }
-      if (nightsText) dateParts.push(nightsText);
-      if (h.city) dateParts.push(h.city);
       const datePill = dateParts.length ? el('div', { class: 'hero-meta-pill' }, dateParts.join(' · ')) : null;
 
       if (hasGooglePhoto) {
