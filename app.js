@@ -6063,17 +6063,18 @@
     sheet.appendChild(buildActivitySheetBody(a, d, unscheduled, cachedEnrichment, hasGooglePhoto));
 
     const infoUrl = isHttpUrl(a.url) ? a.url.trim() : '';
-    const actions = el('div', { class: 'sheet-actions' + (infoUrl ? ' double' : ' single') });
+    const actionButtons = [];
     
     if (infoUrl){
-      actions.appendChild(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
+      actionButtons.push(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
     }
-    actions.appendChild(el('a', {
+    actionButtons.push(el('a', {
       class: 'btn',
       href: buildDirectionsUrl(a),
       target: '_blank', rel: 'noopener'
     }, 'Get Directions'));
     
+    const actions = el('div', { class: sheetActionsClass(actionButtons.length) }, ...actionButtons);
     sheet.appendChild(actions);
     sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
@@ -6716,11 +6717,11 @@
     sheet.appendChild(body);
 
     // Action buttons
-    const actions = el('div', { class: 'sheet-actions triple' });
+    const actionButtons = [];
     if (h.receiptUrl && isHttpUrl(h.receiptUrl)) {
-      actions.appendChild(buildReceiptActionButton(h.receiptUrl, h.receipt));
+      actionButtons.push(buildReceiptActionButton(h.receiptUrl, h.receipt));
     } else if (h.receipt) {
-      actions.appendChild(el('div', { class: 'btn secondary disabled' }, 'View Receipt'));
+      actionButtons.push(el('div', { class: 'btn secondary disabled' }, 'View Receipt'));
     }
     
     const mapsUrl = hasCoords ? (isHotelInKorea(h, day)
@@ -6728,14 +6729,17 @@
       : `https://maps.google.com/?q=${encodeURIComponent(h.name)}`)
       : null;
     if (mapsUrl) {
-      actions.appendChild(el('a', { class: 'btn secondary', href: mapsUrl, target: '_blank', rel: 'noopener' }, 'Open in Maps'));
+      actionButtons.push(el('a', { class: 'btn secondary', href: mapsUrl, target: '_blank', rel: 'noopener' }, 'Open in Maps'));
     }
     
     if (directionsUrl) {
-      actions.appendChild(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+      actionButtons.push(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
     }
     
-    if (actions.children.length) sheet.appendChild(actions);
+    if (actionButtons.length) {
+      const actions = el('div', { class: sheetActionsClass(actionButtons.length) }, ...actionButtons);
+      sheet.appendChild(actions);
+    }
     sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
@@ -6958,18 +6962,21 @@
     sheet.appendChild(body);
 
     // Action buttons - Directions always on right
-    const actions = el('div', { class: 'sheet-actions triple' });
+    const actionButtons = [];
     if (receiptUrl) {
-      actions.appendChild(buildReceiptActionButton(receiptUrl, ev.receipt));
+      actionButtons.push(buildReceiptActionButton(receiptUrl, ev.receipt));
     }
     if (infoUrl) {
-      actions.appendChild(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
+      actionButtons.push(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
     }
     if (directionsUrl) {
-      actions.appendChild(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+      actionButtons.push(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
     }
     
-    if (actions.children.length) sheet.appendChild(actions);
+    if (actionButtons.length) {
+      const actions = el('div', { class: sheetActionsClass(actionButtons.length) }, ...actionButtons);
+      sheet.appendChild(actions);
+    }
     sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
