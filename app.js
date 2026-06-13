@@ -804,7 +804,7 @@
       if (flight.from) params.append('depIata', flight.from);
       if (flight.to) params.append('arrIata', flight.to);
       
-      const response = await fetch(`/api/flight-status?${params.toString()}`);
+      const response = await fetch(`/api/flight-data?${params.toString()}`);
       
       if (!response.ok) {
         console.log('Flight status not available:', response.status);
