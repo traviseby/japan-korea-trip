@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.70';
+  const APP_VERSION = '2.72';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -256,17 +256,23 @@
 
   // ─── Weather (Open-Meteo) ─────────────────────────────────────────────────
   const weatherCache = {};
+  function weatherCoords(day){
+    if (day.lat != null && day.lng != null && !isNaN(day.lat) && !isNaN(day.lng)) {
+      return { lat: day.lat, lng: day.lng };
+    }
+    return activityCenter(day.n);
+  }
   async function fetchWeather(day){
     if (weatherCache[day.n] !== undefined) return weatherCache[day.n];
-    
-    // Skip if day doesn't have valid coordinates
-    if (day.lat == null || day.lng == null || isNaN(day.lat) || isNaN(day.lng)) {
+
+    const coords = weatherCoords(day);
+    if (!coords) {
       weatherCache[day.n] = null;
       return null;
     }
-    
+
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${day.lat}&longitude=${day.lng}&current_weather=true&temperature_unit=fahrenheit`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&current_weather=true&temperature_unit=fahrenheit`;
       const res = await fetch(url, { mode: 'cors' });
       if (!res.ok) throw 0;
       const j = await res.json();
@@ -451,7 +457,7 @@
     // Notes card
     if (day.notes){
       const notes = el('div', { class: 'notes' },
-        el('div', { class: 'notes-head' }, '📝 Notes'),
+        el('div', { class: 'notes-head' }, 'Notes'),
         el('div', { class: 'body' }, day.notes)
       );
       root.appendChild(el('div', { class: 'section tight' }));
@@ -947,6 +953,33 @@
     return from || to || '';
   }
 
+  function averageCoords(items){
+    const valid = (items || []).filter(x =>
+      x?.lat != null && x?.lng != null && !isNaN(x.lat) && !isNaN(x.lng)
+    );
+    if (!valid.length) return null;
+    return {
+      lat: valid.reduce((sum, x) => sum + x.lat, 0) / valid.length,
+      lng: valid.reduce((sum, x) => sum + x.lng, 0) / valid.length
+    };
+  }
+
+  function backfillDayCoords(data){
+    (data.days || []).forEach(d => {
+      if (d.lat != null && d.lng != null && !isNaN(d.lat) && !isNaN(d.lng)) return;
+      const dayNum = d.n;
+      const coords =
+        averageCoords((data.activities || []).filter(a => a.day === dayNum)) ||
+        averageCoords((data.hotels || []).filter(h => h.day === dayNum)) ||
+        averageCoords((data.events || []).filter(e => e.day === dayNum)) ||
+        averageCoords((data.carRentals || []).filter(cr => cr.day === dayNum));
+      if (coords) {
+        d.lat = coords.lat;
+        d.lng = coords.lng;
+      }
+    });
+  }
+
   function enrichTripData(data){
     if (!Array.isArray(data.events)) data.events = [];
     if (!Array.isArray(data.carRentals)) data.carRentals = [];
@@ -967,6 +1000,7 @@
         cr.day = data.days?.find(d => d.date === cr.pickupDate)?.n ?? null;
       }
     });
+    backfillDayCoords(data);
   }
 
   function refreshVisibleTab() {

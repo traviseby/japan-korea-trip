@@ -706,6 +706,29 @@ export default async function handler(req, res) {
       };
     });
 
+    function averageCoords(items) {
+      const valid = items.filter(x => x.lat != null && x.lng != null);
+      if (!valid.length) return null;
+      return {
+        lat: valid.reduce((sum, x) => sum + x.lat, 0) / valid.length,
+        lng: valid.reduce((sum, x) => sum + x.lng, 0) / valid.length
+      };
+    }
+
+    days.forEach(d => {
+      if (d.lat != null && d.lng != null) return;
+      const dayNum = d.n;
+      const coords =
+        averageCoords(activities.filter(a => a.day === dayNum)) ||
+        averageCoords(hotels.filter(h => h.day === dayNum)) ||
+        averageCoords(events.filter(e => e.day === dayNum)) ||
+        averageCoords(carRentals.filter(cr => cr.day === dayNum));
+      if (coords) {
+        d.lat = coords.lat;
+        d.lng = coords.lng;
+      }
+    });
+
     // Calculate trip metadata
     const allDates = days.map(d => d.date).filter(Boolean);
     const tripStart = allDates.length > 0 ? allDates[0] : '';
