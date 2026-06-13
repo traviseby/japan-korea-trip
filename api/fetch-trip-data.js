@@ -638,6 +638,7 @@ export default async function handler(req, res) {
 
     const hotels = htlRows.map(row => {
       const v = row.values;
+      const receipt = cellReceipt(v[HTL_MAP['Receipt']]);
       return {
         id: row.id,
         name: cellText(v[HTL_MAP['Name'] ?? HTL_MAP['Hotel Name']]),
@@ -647,6 +648,10 @@ export default async function handler(req, res) {
         nights: cellNumber(v[HTL_MAP['Nights']]) ?? 0,
         roomType: String(v[HTL_MAP['Room Type']] || ''),
         address: String(v[HTL_MAP['Address']] || ''),
+        bookingCode: cellText(v[HTL_MAP['Booking Code'] ?? HTL_MAP['Confirmation']]),
+        cost: cellCost(v[HTL_MAP['Cost'] ?? HTL_MAP['Price']]),
+        receipt: receipt.name,
+        receiptUrl: receipt.url,
         lat: cellCoord(v[HTL_MAP['Latitude']] ?? v[HTL_MAP['Lat']]),
         lng: cellCoord(v[HTL_MAP['Longitude']] ?? v[HTL_MAP['Lng']])
       };

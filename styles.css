@@ -22,6 +22,11 @@
   --p-important: #d68910;
   --p-helpful: #b7950b;
 
+  /* accents */
+  --accent-purple: #8b5cf6;
+  --accent-blue: #3b82f6;
+  --accent-green: #10b981;
+
   /* type */
   --serif: 'Noto Serif JP', 'Cormorant Garamond', 'Georgia', serif;
   --sans:  'Manrope', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
@@ -185,7 +190,19 @@ html.ios-standalone .tabbar {
 }
 .tabbar button.active { color: var(--fg); }
 .tabbar .tab-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.tab-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 .tab-icon svg { display: block; width: 22px; height: 22px; }
+.tab-icon--edit {
+  font-size: 22px;
+  line-height: 1;
+}
 .iti-chev,
 .sheet-chev,
 .sheet .close,
@@ -1789,6 +1806,85 @@ html.ios-standalone .tabbar {
   margin-top: 8px;
 }
 
+.sheet .sheet-hero-wrap {
+  position: relative;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.sheet .sheet-hero-wrap--map .map-wrap {
+  margin-top: 0;
+}
+
+.sheet .sheet-hero-photo {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.sheet .sheet-hero-overlay {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #000;
+  z-index: 2;
+}
+
+.sheet .sheet-body--activity .sheet-title { margin-bottom: 10px; }
+.sheet .sheet-rating { margin-bottom: 12px; }
+.sheet .sheet-rating.card-rating .rating-count {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--fg-mute);
+}
+.sheet .sheet-body--activity .sheet-desc { margin-bottom: 12px; }
+.sheet .sheet-facts-line {
+  font-size: 14px;
+  color: var(--fg-mute);
+  font-weight: 400;
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+.sheet .sheet-notes-block {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-mid);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.sheet .sheet-notes-block ul {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+.sheet .sheet-notes-block li { margin-bottom: 6px; }
+.sheet .sheet-notes-block li:last-child { margin-bottom: 0; }
+.sheet .sheet-notes-block .notes-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
 /* Sheet navigation row — prev/next chevrons + close, pinned above the map */
 .sheet-nav {
   display: flex;
@@ -1839,7 +1935,239 @@ html.ios-standalone .tabbar {
   display: inline-flex; align-items: center; gap: 6px;
 }
 .sheet .sheet-desc { font-size: 14.5px; line-height: 1.6; color: var(--fg-mid); margin-bottom: 22px; }
+
+/* Hero section with photo or map */
+.sheet .hero-wrap {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+.sheet .hero-photo {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+.sheet .hero-map {
+  width: 100%;
+  height: 200px;
+  position: relative;
+}
+
+/* Photo carousel */
+.sheet .photo-carousel {
+  width: 100%;
+  height: 200px;
+  position: relative;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sheet .photo-carousel-track {
+  display: flex;
+  height: 100%;
+  transition: transform 0.3s ease-out;
+  will-change: transform;
+}
+.sheet .photo-carousel-track .hero-photo {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+.sheet .photo-indicators {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--r-pill);
+}
+.sheet .photo-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+.sheet .photo-dot.active {
+  background: rgba(255, 255, 255, 0.95);
+  width: 18px;
+  border-radius: 3px;
+}
+.sheet .hero-meta-pill {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #1a1a1a;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  white-space: nowrap;
+}
+
+/* Flight route map */
+.sheet .flight-hero-map {
+  width: 100%;
+  height: 200px;
+  position: relative;
+}
+.sheet .flight-airport-marker {
+  position: relative;
+  text-align: center;
+}
+.sheet .flight-airport-code {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+.sheet .flight-airport-label {
+  font-size: 9px;
+  color: var(--fg-mute);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Sheet metadata line (fallback variant) */
+.sheet .sheet-meta-line {
+  font-size: 12px;
+  color: var(--fg-mute);
+  margin-bottom: 12px;
+}
+
+/* Sheet rating */
+.sheet .sheet-rating {
+  font-size: 13px;
+  color: var(--fg-mid);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sheet .sheet-rating .star {
+  color: #f5a623;
+  font-size: 14px;
+}
+.sheet .sheet-rating .count {
+  color: var(--fg-mute);
+}
+
+/* Labeled facts table */
+.sheet .sheet-facts {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+  font-size: 13px;
+}
+.sheet .sheet-facts th {
+  text-align: left;
+  color: var(--fg-mute);
+  font-weight: 500;
+  padding: 9px 12px 9px 0;
+  width: 100px;
+  vertical-align: top;
+}
+.sheet .sheet-facts td {
+  color: var(--fg);
+  padding: 9px 0;
+  line-height: 1.5;
+}
+.sheet .sheet-facts tr {
+  border-top: 1px solid var(--border);
+}
+.sheet .sheet-facts tr:first-child {
+  border-top: none;
+}
+
+/* Location map card */
+.sheet .sheet-map-card {
+  height: 180px;
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  position: relative;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.sheet .sheet-map-card > div:first-child {
+  position: absolute;
+  inset: 0;
+}
+.sheet .sheet-map-pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-purple);
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  pointer-events: none;
+}
+.sheet .sheet-map-pin--ticket {
+  background: var(--accent-blue);
+}
+.sheet .sheet-map-pin--activity {
+  background: var(--accent-green);
+}
+.sheet .sheet-map-overlay {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #1a1a1a;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  pointer-events: none;
+}
+
+/* Notes block */
+.sheet .sheet-notes {
+  margin-bottom: 20px;
+}
+.sheet .sheet-notes .notes-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--fg-mute);
+  margin-bottom: 8px;
+}
+.sheet .sheet-notes p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-mid);
+  margin: 0 0 8px 0;
+}
+.sheet .sheet-notes p:last-child {
+  margin-bottom: 0;
+}
+
 .sheet .sheet-actions { display: grid; gap: 8px; padding: 0 var(--pad) calc(var(--sab) + 20px); grid-template-columns: 1fr 1fr; }
+.sheet .sheet-actions.double { grid-template-columns: 1fr 1fr; }
 .sheet .sheet-actions.single { grid-template-columns: 1fr; }
 .sheet .sheet-actions.single .btn { width: 100%; }
 .sheet .sheet-actions.triple { grid-template-columns: repeat(3, minmax(0, 1fr)); }

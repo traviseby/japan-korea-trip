@@ -130,15 +130,18 @@ const FL = {
 
 // Hotel column IDs
 const HTL = {
-  startDate:  'c-HB-7dqei9S',
-  endDate:    'c-tHkoPDa5gh',
-  city:       'c-_2f664Cq79',
-  nights:     'c-p3K68bZodo',
-  name:       'c-kfe-fQQW2t',
-  roomType:   'c-74-Y0AFSNV',
-  address:    'c-ly0cgzSx8F',
-  latitude:   'c-u-FBqV6NuK',
-  longitude:  'c-8OjXlM0iKN'
+  startDate:   'c-HB-7dqei9S',
+  endDate:     'c-tHkoPDa5gh',
+  city:        'c-_2f664Cq79',
+  nights:      'c-p3K68bZodo',
+  name:        'c-kfe-fQQW2t',
+  roomType:    'c-74-Y0AFSNV',
+  address:     'c-ly0cgzSx8F',
+  bookingCode: 'c-PLACEHOLDER1',
+  cost:        'c-PLACEHOLDER2',
+  receipt:     'c-PLACEHOLDER3',
+  latitude:    'c-u-FBqV6NuK',
+  longitude:   'c-8OjXlM0iKN'
 };
 
 // Events column IDs
@@ -534,6 +537,9 @@ HTL.nights = HTL_MAP['Nights'] || HTL.nights;
 HTL.name = HTL_MAP['Name'] || HTL_MAP['Hotel Name'] || HTL.name;
 HTL.roomType = HTL_MAP['Room Type'] || HTL.roomType;
 HTL.address = HTL_MAP['Address'] || HTL.address;
+HTL.bookingCode = HTL_MAP['Booking Code'] || HTL_MAP['Confirmation'] || HTL.bookingCode;
+HTL.cost = HTL_MAP['Cost'] || HTL_MAP['Price'] || HTL.cost;
+HTL.receipt = HTL_MAP['Receipt'] || HTL.receipt;
 HTL.latitude = HTL_MAP['Latitude'] || HTL_MAP['Lat'] || HTL.latitude;
 HTL.longitude = HTL_MAP['Longitude'] || HTL_MAP['Lng'] || HTL.longitude;
 
@@ -696,17 +702,22 @@ const flights = flightRows.map(r => {
 
 const hotels = hotelRows.map(r => {
   const v = r.values;
+  const receipt = cellReceipt(v[HTL.receipt]);
   return {
-    id:        r.id,
-    name:      v[HTL.name]?.name || v[HTL.name] || '',
-    city:      v[HTL.city]?.name || v[HTL.city] || '',
-    startDate: cellToDate(v[HTL.startDate]) || '',
-    endDate:   cellToDate(v[HTL.endDate]) || '',
-    nights:    cellNumber(v[HTL.nights]) ?? 0,
-    roomType:  v[HTL.roomType] || '',
-    address:   v[HTL.address] || '',
-    lat:       cellCoord(v[HTL.latitude]),
-    lng:       cellCoord(v[HTL.longitude])
+    id:          r.id,
+    name:        v[HTL.name]?.name || v[HTL.name] || '',
+    city:        v[HTL.city]?.name || v[HTL.city] || '',
+    startDate:   cellToDate(v[HTL.startDate]) || '',
+    endDate:     cellToDate(v[HTL.endDate]) || '',
+    nights:      cellNumber(v[HTL.nights]) ?? 0,
+    roomType:    v[HTL.roomType] || '',
+    address:     v[HTL.address] || '',
+    bookingCode: cellText(v[HTL.bookingCode]),
+    cost:        cellCost(v[HTL.cost]),
+    receipt:     receipt.name,
+    receiptUrl:  receipt.url,
+    lat:         cellCoord(v[HTL.latitude]),
+    lng:         cellCoord(v[HTL.longitude])
   };
 });
 

@@ -1,9 +1,9 @@
 // Resolve hotel/event venue photos and ratings via Google Places API (New).
 // Requires GOOGLE_PLACES_API_KEY in the server environment.
 
-function pickPhotoName(photos) {
-  if (!Array.isArray(photos) || !photos.length) return null;
-  return photos[0]?.name || null;
+function extractPhotoNames(photos) {
+  if (!Array.isArray(photos) || !photos.length) return [];
+  return photos.slice(0, 5).map(p => p?.name).filter(Boolean);
 }
 
 export default async function handler(req, res) {
@@ -62,14 +62,17 @@ export default async function handler(req, res) {
       return res.status(200).json({ enriched: false, reason: 'not_found' });
     }
 
-    const photoName = pickPhotoName(place.photos);
+    const photoNames = extractPhotoNames(place.photos);
     const payload = {
       enriched: true,
       rating: place.rating ?? null,
       reviewCount: place.userRatingCount ?? null,
-      photoUrl: photoName
-        ? `/api/places-photo?photo=${encodeURIComponent(photoName)}&maxHeight=480`
-        : null
+      photoUrl: photoNames.length
+        ? `/api/places-photo?photo=${encodeURIComponent(photoNames[0])}&maxHeight=480`
+        : null,
+      photoUrls: photoNames.map(name => 
+        `/api/places-photo?photo=${encodeURIComponent(name)}&maxHeight=480`
+      )
     };
 
     return res.status(200).json(payload);

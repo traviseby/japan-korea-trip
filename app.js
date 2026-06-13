@@ -757,6 +757,35 @@
     return isNaN(n) ? null : n;
   }
 
+  // Major airport coordinates for flight route maps
+  const AIRPORT_COORDS = {
+    'SEA': [47.4502, -122.3088],
+    'NRT': [35.7648, 139.7966],
+    'HND': [35.5494, 139.7798],
+    'ICN': [37.4602, 126.4407],
+    'LAX': [33.9416, -118.4085],
+    'SFO': [37.6213, -122.3790],
+    'ORD': [41.9742, -87.9073],
+    'JFK': [40.6413, -73.7781],
+    'LHR': [51.4700, -0.4543],
+    'CDG': [49.0097, 2.5479],
+    'FRA': [50.0379, 8.5622],
+    'SIN': [1.3644, 103.9915],
+    'HKG': [22.3080, 113.9185],
+    'PVG': [31.1443, 121.8083],
+    'TPE': [25.0797, 121.2342],
+    'BKK': [13.6900, 100.7501],
+    'SYD': [-33.9461, 151.1772],
+    'YVR': [49.1967, -123.1815],
+    'YYZ': [43.6777, -79.6248]
+  };
+
+  function getAirportCoords(code){
+    if (!code) return null;
+    const c = String(code).trim().toUpperCase();
+    return AIRPORT_COORDS[c] || null;
+  }
+
   function hasMapCoordinates(a){
     return normalizeCoord(a.lat) != null && normalizeCoord(a.lng) != null;
   }
@@ -2954,6 +2983,85 @@
     return img;
   }
 
+  function buildPhotoCarousel(photoUrls, alt) {
+    if (!Array.isArray(photoUrls) || photoUrls.length === 0) return null;
+    
+    const state = { currentIndex: 0 };
+    const carousel = el('div', { class: 'photo-carousel' });
+    const track = el('div', { class: 'photo-carousel-track' });
+    
+    photoUrls.forEach((url, i) => {
+      const img = el('img', {
+        class: 'hero-photo',
+        src: url,
+        alt: alt || '',
+        loading: i === 0 ? 'eager' : 'lazy',
+        decoding: 'async'
+      });
+      track.appendChild(img);
+    });
+    
+    carousel.appendChild(track);
+    
+    if (photoUrls.length > 1) {
+      const indicators = el('div', { class: 'photo-indicators' });
+      photoUrls.forEach((_, i) => {
+        const dot = el('div', { 
+          class: 'photo-dot' + (i === 0 ? ' active' : ''),
+          'data-index': i
+        });
+        indicators.appendChild(dot);
+      });
+      carousel.appendChild(indicators);
+      
+      let touchStartX = 0;
+      let touchCurrentX = 0;
+      let isDragging = false;
+      
+      const updateCarousel = (index) => {
+        state.currentIndex = index;
+        track.style.transform = `translateX(-${index * 100}%)`;
+        indicators.querySelectorAll('.photo-dot').forEach((dot, i) => {
+          dot.classList.toggle('active', i === index);
+        });
+      };
+      
+      carousel.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchCurrentX = touchStartX;
+        isDragging = true;
+        track.style.transition = 'none';
+      });
+      
+      carousel.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        touchCurrentX = e.touches[0].clientX;
+        const diff = touchCurrentX - touchStartX;
+        const currentOffset = -state.currentIndex * carousel.offsetWidth;
+        track.style.transform = `translateX(${currentOffset + diff}px)`;
+      });
+      
+      carousel.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        track.style.transition = 'transform 0.3s ease-out';
+        
+        const diff = touchCurrentX - touchStartX;
+        const threshold = carousel.offsetWidth * 0.2;
+        
+        if (diff < -threshold && state.currentIndex < photoUrls.length - 1) {
+          updateCarousel(state.currentIndex + 1);
+        } else if (diff > threshold && state.currentIndex > 0) {
+          updateCarousel(state.currentIndex - 1);
+        } else {
+          updateCarousel(state.currentIndex);
+        }
+      });
+    }
+    
+    return carousel;
+  }
+
   function mountHotelCardContent(card, h, enrichment, onPhotoError) {
     card.replaceChildren();
     const metaText = hotelCardMetaParts(h).join(' · ');
@@ -3725,12 +3833,14 @@
     return c;
   }
   function tabIcon(name){
+    if (name === 'edit') {
+      return el('span', { class: 'tab-icon tab-icon--edit', 'aria-hidden': 'true' }, '✎');
+    }
     const icons = {
       'chev-left': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
       'chev-right': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
       'close': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-      'plus': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
-      'edit': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'
+      'plus': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
     };
     const wrap = el('span', { class: 'tab-icon', 'aria-hidden': 'true' });
     wrap.innerHTML = icons[name] || '';
@@ -5754,6 +5864,169 @@
     return D.byId[ids[j]];
   }
 
+  function activityWalkOverlayText(a) {
+    if (!state.location || a.lat == null || a.lng == null) return null;
+    const km = haversine(state.location, { lat: a.lat, lng: a.lng });
+    const walkMin = Math.round(km / 5 * 60);
+    return `${walkMin} min · ${km.toFixed(1)} km`;
+  }
+
+  function splitActivityDesc(desc) {
+    const lines = String(desc || '').split(/\n+/).map(s => s.trim()).filter(Boolean);
+    if (lines.length <= 1) return { summary: lines[0] || '', notes: [] };
+    return { summary: lines[0], notes: lines.slice(1) };
+  }
+
+  function activityItineraryParts(a, d, unscheduled) {
+    const parts = [];
+    // Category and icon first
+    if (a.cat) parts.push(`${a.icon || ''} ${a.cat}`.trim());
+    // Then day and time
+    if (unscheduled) parts.push('Unscheduled');
+    else if (d) parts.push('Day ' + d.n);
+    if (a.time) parts.push(a.time);
+    return parts;
+  }
+
+  function buildActivitySheetBody(a, d, unscheduled, enrichment, hasGooglePhoto) {
+    const body = el('div', { class: 'sheet-body sheet-body--activity' });
+    body.appendChild(el('h2', { class: 'sheet-title' }, a.name));
+
+    const rating = buildCardRating(enrichment);
+    const itineraryParts = activityItineraryParts(a, d, unscheduled);
+    
+    // Google rating or fallback meta line
+    if (hasGooglePhoto && rating) {
+      rating.classList.add('sheet-rating');
+      body.appendChild(rating);
+    } else if (!hasGooglePhoto && itineraryParts.length) {
+      // Fallback: show category/time meta under title
+      body.appendChild(el('div', { class: 'sheet-meta-line' }, itineraryParts.join(' · ')));
+    }
+
+    const { summary, notes } = splitActivityDesc(a.desc);
+    if (summary) {
+      body.appendChild(el('div', { class: 'sheet-desc' }, el('p', null, summary)));
+    }
+
+    // Location map card (only for A ★ variant with Google photo)
+    if (hasGooglePhoto && hasMapCoordinates(a)) {
+      const mapCard = el('div', { class: 'sheet-map-card sheet-map-card--activity', 'aria-label': 'Activity location map' },
+        el('div', { id: 'activity-sheet-map' }),
+        el('div', { class: 'sheet-map-pin sheet-map-pin--activity' })
+      );
+      
+      const overlayText = activityWalkOverlayText(a);
+      if (overlayText) {
+        const walkChip = el('div', { class: 'sheet-map-overlay' }, overlayText);
+        mapCard.appendChild(walkChip);
+      }
+      
+      body.appendChild(mapCard);
+    }
+
+    if (notes.length) {
+      const notesBlock = el('div', { class: 'sheet-notes' },
+        el('div', { class: 'notes-label' }, 'NOTES'),
+        ...notes.map(note => el('p', null, note))
+      );
+      body.appendChild(notesBlock);
+    }
+
+    return body;
+  }
+
+  function mountActivitySheetHero(sheet, a, d, unscheduled, enrichment) {
+    const hasPhoto = !!enrichment?.photoUrl;
+    const itineraryParts = activityItineraryParts(a, d, unscheduled);
+
+    if (hasPhoto) {
+      // A ★ - Google photo hero with carousel and category pill
+      const heroWrap = el('div', { class: 'hero-wrap' });
+      const photoUrls = enrichment.photoUrls || [enrichment.photoUrl];
+      const carousel = buildPhotoCarousel(photoUrls, a.name);
+      
+      if (carousel) {
+        heroWrap.appendChild(carousel);
+      } else {
+        const heroImg = el('img', { class: 'hero-photo', src: enrichment.photoUrl, alt: a.name });
+        heroWrap.appendChild(heroImg);
+      }
+      
+      if (itineraryParts.length) {
+        const categoryPill = el('div', { class: 'hero-meta-pill' }, itineraryParts.join(' · '));
+        heroWrap.appendChild(categoryPill);
+      }
+      
+      sheet.appendChild(heroWrap);
+      return 'photo';
+    }
+
+    // B - Map fallback hero with walk chip
+    if (hasMapCoordinates(a)) {
+      const heroWrap = el('div', { class: 'hero-wrap' });
+      const mapHero = el('div', { class: 'hero-map', id: 'activity-hero-map' });
+      heroWrap.appendChild(mapHero);
+      
+      const overlayText = activityWalkOverlayText(a);
+      if (overlayText) {
+        const walkChip = el('div', { class: 'hero-meta-pill' }, overlayText);
+        heroWrap.appendChild(walkChip);
+      }
+      
+      sheet.appendChild(heroWrap);
+      return 'map';
+    }
+
+    return null;
+  }
+
+  function initActivitySheetMap(a, accent, hasGooglePhoto) {
+    if (leafletSheet) { leafletSheet.remove(); leafletSheet = null; }
+    
+    // Check for location map card (A ★ variant) or hero map (B fallback)
+    const mapCardNode = $('#activity-sheet-map');
+    const heroMapNode = $('#activity-hero-map');
+    const node = mapCardNode || heroMapNode;
+    if (!node) return;
+    
+    leafletSheet = L.map(node, {
+      center: [a.lat, a.lng], zoom: hasGooglePhoto ? 14 : 13,
+      zoomControl: false, attributionControl: false,
+      dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+      touchZoom: false, boxZoom: false, keyboard: false, tap: false
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd'
+    }).addTo(leafletSheet);
+  }
+
+  function hydrateActivitySheetEnrichment(sheet, a, enrichment) {
+    if (state.sheet !== a.id) return;
+    const heroWrap = sheet.querySelector('.sheet-hero-wrap');
+    const body = sheet.querySelector('.sheet-body--activity');
+    if (!heroWrap || !body || !enrichment?.photoUrl) return;
+
+    if (heroWrap.classList.contains('sheet-hero-wrap--map')) {
+      if (leafletSheet) { leafletSheet.remove(); leafletSheet = null; }
+      const overlay = heroWrap.querySelector('.sheet-hero-overlay');
+      const overlayText = overlay?.textContent || '';
+      heroWrap.replaceChildren();
+      heroWrap.classList.remove('sheet-hero-wrap--map');
+      heroWrap.appendChild(buildCardImage(enrichment.photoUrl, a.name, 'sheet-hero-photo'));
+      if (overlayText) heroWrap.appendChild(el('div', { class: 'sheet-hero-overlay' }, overlayText));
+    }
+
+    if (!body.querySelector('.sheet-rating')) {
+      const rating = buildCardRating(enrichment);
+      if (rating) {
+        rating.classList.add('sheet-rating');
+        const title = body.querySelector('.sheet-title');
+        title?.insertAdjacentElement('afterend', rating);
+      }
+    }
+  }
+
   function openSheet(a){
     state.hotelSheet = null;
     state.flightSheet = null;
@@ -5784,78 +6057,39 @@
       )
     ));
 
-    // map at top
-    const mapWrap = el('div', { class: 'map-wrap' }, el('div', { id: 'map-sheet' }));
-    sheet.appendChild(mapWrap);
-
-    // distance / walk / transit (if we have geolocation, compute straight-line)
-    const distRow = el('div', { class: 'distance' });
-    if (state.location){
-      const km = haversine(state.location, { lat: a.lat, lng: a.lng });
-      const walkMin = Math.round(km / 5 * 60); // 5 km/h
-      const transitMin = Math.round(km / 25 * 60); // 25 km/h avg
-      distRow.appendChild(el('div', { class: 'dist-pill' }, '🚶 ', el('span', { class: 'v' }, walkMin + ' min')));
-      distRow.appendChild(el('div', { class: 'dist-pill' }, '🚇 ', el('span', { class: 'v' }, transitMin + ' min')));
-      distRow.appendChild(el('div', { class: 'dist-pill' }, '↔ ', el('span', { class: 'v' }, km.toFixed(1) + ' km')));
-    } else {
-      distRow.appendChild(el('div', { class: 'dist-pill', style: { color: 'var(--fg-mute)' } }, 'Enable location for travel times'));
-    }
-    sheet.appendChild(distRow);
-
-    const body = el('div', { class: 'sheet-body' });
-    body.appendChild(el('h2', { class: 'sheet-title' }, a.name));
-    const badges = el('div', { class: 'sheet-badges' },
-      el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, unscheduled ? 'Unscheduled' : 'Day ' + d.n),
-      a.time ? iconBadge('b', todEmoji(a.time), a.time) : null,
-      a.cat ? iconBadge('b', catEmoji(a.cat), a.cat) : null
-    );
-    body.appendChild(badges);
-    body.appendChild(el('div', { class: 'sheet-desc' }, a.desc || ''));
-    sheet.appendChild(body);
+    const cachedEnrichment = getCachedPlaceEnrichment('activity', a);
+    const hasGooglePhoto = !!cachedEnrichment?.photoUrl;
+    const heroMode = mountActivitySheetHero(sheet, a, d, unscheduled, cachedEnrichment);
+    sheet.appendChild(buildActivitySheetBody(a, d, unscheduled, cachedEnrichment, hasGooglePhoto));
 
     const infoUrl = isHttpUrl(a.url) ? a.url.trim() : '';
-    const actions = el('div', { class: 'sheet-actions' + (infoUrl ? '' : ' single') },
-      el('a', {
-        class: 'btn',
-        href: buildDirectionsUrl(a),
-        target: '_blank', rel: 'noopener'
-      }, 'Get Directions')
-    );
+    const actions = el('div', { class: 'sheet-actions' + (infoUrl ? ' double' : ' single') });
+    
     if (infoUrl){
       actions.appendChild(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
     }
+    actions.appendChild(el('a', {
+      class: 'btn',
+      href: buildDirectionsUrl(a),
+      target: '_blank', rel: 'noopener'
+    }, 'Get Directions'));
+    
     sheet.appendChild(actions);
     sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
 
-    // Build mini map after slide-up
+    // Initialize maps
     setTimeout(() => {
-      if (leafletSheet) { leafletSheet.remove(); leafletSheet = null; }
-      const node = $('#map-sheet');
-      leafletSheet = L.map(node, {
-        center: [a.lat, a.lng], zoom: 14,
-        zoomControl: false, attributionControl: false,
-        dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
-        touchZoom: false, boxZoom: false, keyboard: false, tap: false
-      });
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd'
-      }).addTo(leafletSheet);
-      L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, accent) }).addTo(leafletSheet);
-      const kmFromUser = state.location
-        ? haversine(state.location, { lat: a.lat, lng: a.lng })
-        : null;
-      const showUserOnSheetMap = kmFromUser != null && kmFromUser <= 100 * 1.60934;
-      if (showUserOnSheetMap){
-        L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletSheet);
-        const dashed = L.polyline([[state.location.lat, state.location.lng], [a.lat, a.lng]], {
-          color: '#bfb', weight: 1.5, dashArray: '4 4', opacity: 0.6
-        }).addTo(leafletSheet);
-        leafletSheet.fitBounds(dashed.getBounds(), { padding: [30,30] });
+      if (hasMapCoordinates(a)) {
+        initActivitySheetMap(a, accent, hasGooglePhoto);
       }
-    }, 380);
+    }, 100);
+
+    requestPlaceEnrichment('activity', a, (data) => {
+      if (data?.enriched) hydrateActivitySheetEnrichment(sheet, a, data);
+    });
   }
 
   function resolveFlightRecord(f){
@@ -5920,7 +6154,7 @@
     const sheet = $('#sheet');
     sheet.innerHTML = '';
 
-    const accent = day?.color || dayAccent(day?.n) || '#1e6a9a';
+    const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
     let receiptUrl = isHttpUrl(f.receiptUrl) ? f.receiptUrl.trim() : '';
     if (!receiptUrl && f.receipt && f.id) {
       receiptUrl = await fetchFlightReceiptUrl(f.id);
@@ -5929,6 +6163,10 @@
     const costText = formatFlightCost(f.cost);
     const depart = formatFlightTime(f.depart);
     const arrive = formatFlightTime(f.arrive);
+
+    // Get airport coords
+    const fromCoords = getAirportCoords(f.from);
+    const toCoords = getAirportCoords(f.to);
 
     sheet.appendChild(el('div', { class: 'handle' }));
     sheet.appendChild(el('div', { class: 'sheet-nav' },
@@ -5943,30 +6181,55 @@
       )
     ));
 
-    const body = el('div', { class: 'sheet-body' });
-    body.appendChild(el('h2', { class: 'sheet-title' }, f.trip || `${f.from} → ${f.to}`));
-    body.appendChild(el('div', { class: 'sheet-badges' },
-      f.airline ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, f.airline) : null,
-      iconBadge('b', '✈️', 'Flight'),
-      f.number ? el('span', { class: 'b' }, f.number) : null
-    ));
+    // Flight route map hero
+    if (fromCoords && toCoords) {
+      const heroWrap = el('div', { class: 'hero-wrap' });
+      const mapHero = el('div', { class: 'flight-hero-map', id: 'flight-hero-map', 'aria-label': 'Flight route map' });
+      heroWrap.appendChild(mapHero);
+      sheet.appendChild(heroWrap);
+    }
 
-    const details = el('div', { class: 'sheet-desc' });
-    if (f.date) details.appendChild(el('p', { class: 'sheet-detail-line' }, fmtDate(f.date)));
-    details.appendChild(el('p', { class: 'sheet-detail-line' }, `${f.from} → ${f.to}`));
-    if (f.fromCity || f.toCity) {
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, `${f.fromCity || '—'} → ${f.toCity || '—'}`));
+    const body = el('div', { class: 'sheet-body' });
+    body.appendChild(el('h2', { class: 'sheet-title' }, `${f.from} → ${f.to}`));
+    
+    // Airline and flight number meta
+    const airlineParts = [];
+    if (f.airline) airlineParts.push(f.airline);
+    if (f.number) airlineParts.push(f.number);
+    if (airlineParts.length) {
+      body.appendChild(el('div', { class: 'sheet-meta-line' }, airlineParts.join(' ')));
     }
-    if (depart || arrive) {
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Depart ${depart || '—'} · Arrive ${arrive || '—'}`));
+
+    // Labeled table
+    const table = el('table', { class: 'sheet-facts' });
+    if (depart && f.date) {
+      const departFull = `${depart} · ${f.from}${f.fromCity ? ' · ' + f.fromCity : ''} · ${fmtDate(f.date).split(',')[0]}`;
+      table.appendChild(el('tr', null, el('th', null, 'Depart'), el('td', null, departFull)));
     }
-    if (costText) details.appendChild(el('p', { class: 'sheet-detail-line' }, costText));
-    if (f.receipt && !receiptUrl) {
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Receipt: ${f.receipt}`));
+    if (arrive) {
+      const arriveDate = f.arriveDate || f.date;
+      const arriveFull = `${arrive} · ${f.to}${f.toCity ? ' · ' + f.toCity : ''}${arriveDate ? ' · ' + fmtDate(arriveDate).split(',')[0] : ''}`;
+      table.appendChild(el('tr', null, el('th', null, 'Arrive'), el('td', null, arriveFull)));
     }
-    body.appendChild(details);
+    if (f.bookingCode) {
+      table.appendChild(el('tr', null, el('th', null, 'Booking Code'), el('td', null, f.bookingCode)));
+    }
+    if (costText) {
+      table.appendChild(el('tr', null, el('th', null, 'Cost'), el('td', null, costText)));
+    }
+    if (table.children.length) body.appendChild(table);
+
+    // Notes
+    if (f.notes) {
+      body.appendChild(el('div', { class: 'sheet-notes' },
+        el('div', { class: 'notes-label' }, 'NOTES'),
+        el('p', null, f.notes)
+      ));
+    }
+
     sheet.appendChild(body);
 
+    // Single View Receipt button
     if (receiptUrl) {
       sheet.appendChild(el('div', { class: 'sheet-actions single' },
         buildReceiptActionButton(receiptUrl, f.receipt)
@@ -5976,6 +6239,83 @@
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
+
+    // Initialize flight route map
+    if (fromCoords && toCoords) {
+      setTimeout(() => {
+        const mapNode = $('#flight-hero-map');
+        if (!mapNode || leafletSheet) return;
+
+        // Adjust dest longitude for westbound routes
+        let toLng = toCoords[1];
+        if (toCoords[1] > fromCoords[1]) {
+          toLng = toCoords[1] - 360;
+        }
+
+        leafletSheet = L.map(mapNode, {
+          center: [(fromCoords[0] + toCoords[0]) / 2, (fromCoords[1] + toLng) / 2],
+          zoom: 3,
+          zoomControl: false,
+          attributionControl: false,
+          dragging: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false,
+          boxZoom: false,
+          keyboard: false,
+          tap: false
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          subdomains: 'abcd'
+        }).addTo(leafletSheet);
+
+        // Arc path
+        const arcPoints = [];
+        const steps = 50;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const lat = fromCoords[0] + (toCoords[0] - fromCoords[0]) * t;
+          const lng = fromCoords[1] + (toLng - fromCoords[1]) * t;
+          const arcHeight = 15;
+          const latOffset = Math.sin(t * Math.PI) * arcHeight;
+          arcPoints.push([lat + latOffset, lng]);
+        }
+        
+        L.polyline(arcPoints, {
+          color: accent,
+          weight: 2,
+          dashArray: '6 4',
+          opacity: 0.8
+        }).addTo(leafletSheet);
+
+        // Airport markers
+        const fromIcon = L.divIcon({
+          html: `<div class="flight-airport-marker">
+            <div class="flight-airport-code">${f.from}</div>
+            <div class="flight-airport-label">${f.fromCity || f.from}</div>
+          </div>`,
+          className: '',
+          iconSize: [60, 40],
+          iconAnchor: [30, 20]
+        });
+        const toIcon = L.divIcon({
+          html: `<div class="flight-airport-marker">
+            <div class="flight-airport-code">${f.to}</div>
+            <div class="flight-airport-label">${f.toCity || f.to}</div>
+          </div>`,
+          className: '',
+          iconSize: [60, 40],
+          iconAnchor: [30, 20]
+        });
+        
+        L.marker(fromCoords, { icon: fromIcon }).addTo(leafletSheet);
+        L.marker([toCoords[0], toLng], { icon: toIcon }).addTo(leafletSheet);
+
+        // Fit bounds
+        const bounds = L.latLngBounds([fromCoords, [toCoords[0], toLng]]);
+        leafletSheet.fitBounds(bounds, { padding: [60, 80] });
+      }, 100);
+    }
   }
 
   // ─── Edit Flight Sheet ──────────────────────────────────────────────────────
@@ -6235,7 +6575,7 @@
     });
   }
 
-  function openHotelSheet(h, day){
+  async function openHotelSheet(h, day){
     state.sheet = null;
     state.flightSheet = null;
     state.eventSheet = null;
@@ -6246,12 +6586,21 @@
     const sheet = $('#sheet');
     sheet.innerHTML = '';
 
-    const accent = day?.color || dayAccent(day?.n) || '#1e6a9a';
+    const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
     const nightsText = h.nights === 1 ? '1 night' : `${h.nights} nights`;
     const lat = normalizeCoord(h.lat);
     const lng = normalizeCoord(h.lng);
     const hasCoords = lat != null && lng != null;
     const directionsUrl = buildHotelDirectionsUrl(h, day);
+
+    // Try to get Google photo
+    const cachedEnrichment = getCachedPlaceEnrichment('hotel', h);
+    const hasGooglePhoto = cachedEnrichment?.photoUrl;
+
+    // Request enrichment if not cached
+    if (!cachedEnrichment && h.name) {
+      requestPlaceEnrichment('hotel', h);
+    }
 
     sheet.appendChild(el('div', { class: 'handle' }));
     sheet.appendChild(el('div', { class: 'sheet-nav' },
@@ -6266,84 +6615,161 @@
       )
     ));
 
-    if (hasCoords){
-      const mapWrap = el('div', { class: 'map-wrap' }, el('div', { id: 'map-sheet' }));
-      sheet.appendChild(mapWrap);
+    // Hero section - Google photo or map fallback
+    const heroWrap = el('div', { class: 'hero-wrap' });
+    
+    // Build date pill content
+    const dateParts = [];
+    if (h.startDate && h.endDate) {
+      dateParts.push(`${fmtDate(h.startDate).split(',')[0]} → ${fmtDate(h.endDate).split(',')[0]}`);
+    }
+    if (nightsText) dateParts.push(nightsText);
+    if (h.city) dateParts.push(h.city);
+    const datePill = dateParts.length ? el('div', { class: 'hero-meta-pill' }, dateParts.join(' · ')) : null;
 
-      const distRow = el('div', { class: 'distance' });
-      if (state.location){
+    if (hasGooglePhoto) {
+      // A ★ - Google photo hero with carousel
+      const photoUrls = cachedEnrichment.photoUrls || [cachedEnrichment.photoUrl];
+      const carousel = buildPhotoCarousel(photoUrls, h.name);
+      if (carousel) {
+        heroWrap.appendChild(carousel);
+      } else {
+        const heroImg = el('img', { class: 'hero-photo', src: cachedEnrichment.photoUrl, alt: h.name });
+        heroWrap.appendChild(heroImg);
+      }
+      if (datePill) heroWrap.appendChild(datePill);
+    } else if (hasCoords) {
+      // B - Map fallback hero
+      const mapHero = el('div', { class: 'hero-map', id: 'hotel-hero-map' });
+      heroWrap.appendChild(mapHero);
+      
+      // Walk chip on map
+      if (state.location) {
         const km = haversine(state.location, { lat, lng });
         const walkMin = Math.round(km / 5 * 60);
-        const transitMin = Math.round(km / 25 * 60);
-        distRow.appendChild(el('div', { class: 'dist-pill' }, '🚶 ', el('span', { class: 'v' }, walkMin + ' min')));
-        distRow.appendChild(el('div', { class: 'dist-pill' }, '🚇 ', el('span', { class: 'v' }, transitMin + ' min')));
-        distRow.appendChild(el('div', { class: 'dist-pill' }, '↔ ', el('span', { class: 'v' }, km.toFixed(1) + ' km')));
-      } else {
-        distRow.appendChild(el('div', { class: 'dist-pill', style: { color: 'var(--fg-mute)' } }, 'Enable location for travel times'));
+        const walkChip = el('div', { class: 'hero-meta-pill' }, `${walkMin} min · ${km.toFixed(1)} km`);
+        heroWrap.appendChild(walkChip);
       }
-      sheet.appendChild(distRow);
     }
+    
+    sheet.appendChild(heroWrap);
 
     const body = el('div', { class: 'sheet-body' });
     body.appendChild(el('h2', { class: 'sheet-title' }, h.name));
-    body.appendChild(el('div', { class: 'sheet-badges' },
-      h.city ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, h.city) : null,
-      iconBadge('b', '🏨', 'Hotel'),
-      el('span', { class: 'b' }, nightsText)
-    ));
 
-    const details = el('div', { class: 'sheet-desc' });
-    if (h.startDate && h.endDate) {
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Check-in ${fmtDate(h.startDate)} · Check-out ${fmtDate(h.endDate)}`));
-    } else if (h.startDate) {
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Check-in ${fmtDate(h.startDate)}`));
+    // Google rating or fallback meta line
+    if (hasGooglePhoto && cachedEnrichment.rating) {
+      const ratingEl = el('div', { class: 'sheet-rating' },
+        el('span', { class: 'star' }, '★'),
+        ` ${cachedEnrichment.rating} `,
+        cachedEnrichment.reviewCount ? el('span', { class: 'count' }, `(${formatNumber(cachedEnrichment.reviewCount)} reviews)`) : null
+      );
+      body.appendChild(ratingEl);
+    } else if (!hasGooglePhoto && dateParts.length) {
+      // Fallback: show date meta under title
+      body.appendChild(el('div', { class: 'sheet-meta-line' }, dateParts.join(' · ')));
     }
-    if (h.roomType) details.appendChild(el('p', { class: 'sheet-detail-line' }, h.roomType));
-    if (h.address) details.appendChild(el('p', { class: 'sheet-detail-line' }, h.address));
-    body.appendChild(details);
+
+    // Description (if from Google or notes)
+    if (cachedEnrichment?.description) {
+      body.appendChild(el('div', { class: 'sheet-desc' }, el('p', null, cachedEnrichment.description)));
+    }
+
+    // Labeled table
+    const table = el('table', { class: 'sheet-facts' });
+    if (h.roomType) {
+      table.appendChild(el('tr', null, el('th', null, 'Room'), el('td', null, h.roomType)));
+    }
+    if (h.address) {
+      table.appendChild(el('tr', null, el('th', null, 'Address'), el('td', null, h.address)));
+    }
+    if (h.bookingCode) {
+      table.appendChild(el('tr', null, el('th', null, 'Booking Code'), el('td', null, h.bookingCode)));
+    }
+    if (h.cost != null) {
+      const costText = typeof h.cost === 'number' ? `$${h.cost.toFixed(0)}` : String(h.cost);
+      table.appendChild(el('tr', null, el('th', null, 'Cost'), el('td', null, costText)));
+    }
+    if (table.children.length) body.appendChild(table);
+
+    // Location map card (only for A ★ variant)
+    if (hasGooglePhoto && hasCoords) {
+      const mapCard = el('div', { class: 'sheet-map-card', 'aria-label': 'Hotel location map' },
+        el('div', { id: 'hotel-sheet-map' }),
+        el('div', { class: 'sheet-map-pin' })
+      );
+      
+      if (state.location) {
+        const km = haversine(state.location, { lat, lng });
+        const walkMin = Math.round(km / 5 * 60);
+        const walkChip = el('div', { class: 'sheet-map-overlay' }, `${walkMin} min · ${km.toFixed(1)} km`);
+        mapCard.appendChild(walkChip);
+      }
+      
+      body.appendChild(mapCard);
+    }
+
     sheet.appendChild(body);
 
-    if (directionsUrl){
-      sheet.appendChild(el('div', { class: 'sheet-actions single' },
-        el('a', {
-          class: 'btn',
-          href: directionsUrl,
-          target: '_blank', rel: 'noopener'
-        }, 'Get Directions')
-      ));
+    // Action buttons
+    const actions = el('div', { class: 'sheet-actions triple' });
+    if (h.receiptUrl && isHttpUrl(h.receiptUrl)) {
+      actions.appendChild(buildReceiptActionButton(h.receiptUrl, h.receipt));
+    } else if (h.receipt) {
+      actions.appendChild(el('div', { class: 'btn secondary disabled' }, 'View Receipt'));
     }
+    
+    const mapsUrl = hasCoords ? (isHotelInKorea(h, day)
+      ? `https://map.naver.com/v5/search/${encodeURIComponent(h.name)}`
+      : `https://maps.google.com/?q=${encodeURIComponent(h.name)}`)
+      : null;
+    if (mapsUrl) {
+      actions.appendChild(el('a', { class: 'btn secondary', href: mapsUrl, target: '_blank', rel: 'noopener' }, 'Open in Maps'));
+    }
+    
+    if (directionsUrl) {
+      actions.appendChild(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+    }
+    
+    if (actions.children.length) sheet.appendChild(actions);
     sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
 
-    if (hasCoords){
+    // Initialize maps
+    if (hasCoords) {
       setTimeout(() => {
-        if (leafletSheet) { leafletSheet.remove(); leafletSheet = null; }
-        const node = $('#map-sheet');
-        if (!node) return;
-        leafletSheet = L.map(node, {
-          center: [lat, lng], zoom: 14,
-          zoomControl: false, attributionControl: false,
-          dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
-          touchZoom: false, boxZoom: false, keyboard: false, tap: false
-        });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          subdomains: 'abcd'
-        }).addTo(leafletSheet);
-        L.marker([lat, lng], { icon: pinIcon('Hotel', accent) }).addTo(leafletSheet);
-        const kmFromUser = state.location
-          ? haversine(state.location, { lat, lng })
-          : null;
-        const showUserOnSheetMap = kmFromUser != null && kmFromUser <= 100 * 1.60934;
-        if (showUserOnSheetMap){
-          L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletSheet);
-          const dashed = L.polyline([[state.location.lat, state.location.lng], [lat, lng]], {
-            color: '#bfb', weight: 1.5, dashArray: '4 4', opacity: 0.6
-          }).addTo(leafletSheet);
-          leafletSheet.fitBounds(dashed.getBounds(), { padding: [30,30] });
+        if (hasGooglePhoto) {
+          // Location map card
+          const mapNode = $('#hotel-sheet-map');
+          if (mapNode && !leafletSheet) {
+            leafletSheet = L.map(mapNode, {
+              center: [lat, lng], zoom: 14,
+              zoomControl: false, attributionControl: false,
+              dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+              touchZoom: false, boxZoom: false, keyboard: false, tap: false
+            });
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+              subdomains: 'abcd'
+            }).addTo(leafletSheet);
+          }
+        } else {
+          // Hero map for fallback variant
+          const heroMapNode = $('#hotel-hero-map');
+          if (heroMapNode && !leafletSheet) {
+            leafletSheet = L.map(heroMapNode, {
+              center: [lat, lng], zoom: 13,
+              zoomControl: false, attributionControl: false,
+              dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+              touchZoom: false, boxZoom: false, keyboard: false, tap: false
+            });
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+              subdomains: 'abcd'
+            }).addTo(leafletSheet);
+          }
         }
-      }, 380);
+      }, 100);
     }
   }
 
@@ -6388,7 +6814,7 @@
     const sheet = $('#sheet');
     sheet.innerHTML = '';
 
-    const accent = day?.color || dayAccent(day?.n) || '#8e44ad';
+    const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
     const directionsUrl = buildEventDirectionsUrl(ev, day);
     const infoUrl = isHttpUrl(ev.moreInfo) ? ev.moreInfo.trim() : '';
     let receiptUrl = isHttpUrl(ev.receiptUrl) ? ev.receiptUrl.trim() : '';
@@ -6397,6 +6823,18 @@
       if (receiptUrl) ev.receiptUrl = receiptUrl;
     }
     const costText = formatEventCost(ev.cost);
+    const lat = normalizeCoord(ev.lat);
+    const lng = normalizeCoord(ev.lng);
+    const hasCoords = lat != null && lng != null;
+
+    // Try to get Google photo
+    const cachedEnrichment = getCachedPlaceEnrichment('event', ev);
+    const hasGooglePhoto = cachedEnrichment?.photoUrl;
+
+    // Request enrichment if not cached
+    if (!cachedEnrichment && ev.name) {
+      requestPlaceEnrichment('event', ev);
+    }
 
     sheet.appendChild(el('div', { class: 'handle' }));
     sheet.appendChild(el('div', { class: 'sheet-nav' },
@@ -6411,55 +6849,158 @@
       )
     ));
 
+    // Hero section - Google photo or map fallback
+    const heroWrap = el('div', { class: 'hero-wrap' });
+    
+    // Build time pill content
+    const timeParts = [];
+    if (ev.date) timeParts.push(fmtDate(ev.date).split(',')[0]);
+    const timeRange = formatEventTimeRange(ev);
+    if (timeRange) timeParts.push(timeRange);
+    if (ev.provider) timeParts.push(ev.provider);
+    const timePill = timeParts.length ? el('div', { class: 'hero-meta-pill' }, timeParts.join(' · ')) : null;
+
+    if (hasGooglePhoto) {
+      // A ★ - Google photo hero with carousel
+      const photoUrls = cachedEnrichment.photoUrls || [cachedEnrichment.photoUrl];
+      const carousel = buildPhotoCarousel(photoUrls, ev.name);
+      if (carousel) {
+        heroWrap.appendChild(carousel);
+      } else {
+        const heroImg = el('img', { class: 'hero-photo', src: cachedEnrichment.photoUrl, alt: ev.name });
+        heroWrap.appendChild(heroImg);
+      }
+      if (timePill) heroWrap.appendChild(timePill);
+    } else if (hasCoords) {
+      // B - Map fallback hero
+      const mapHero = el('div', { class: 'hero-map', id: 'event-hero-map' });
+      heroWrap.appendChild(mapHero);
+      
+      // Walk chip on map
+      if (state.location) {
+        const km = haversine(state.location, { lat, lng });
+        const walkMin = Math.round(km / 5 * 60);
+        const walkChip = el('div', { class: 'hero-meta-pill' }, `${walkMin} min · ${km.toFixed(1)} km`);
+        heroWrap.appendChild(walkChip);
+      }
+    }
+    
+    sheet.appendChild(heroWrap);
+
     const body = el('div', { class: 'sheet-body' });
     body.appendChild(el('h2', { class: 'sheet-title' }, ev.name));
-    body.appendChild(el('div', { class: 'sheet-badges' },
-      ev.provider ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, ev.provider) : null,
-      iconBadge('b', '🎟️', 'Ticket')
-    ));
 
-    const details = el('div', { class: 'sheet-desc' });
-    if (ev.date) {
-      const dateLine = formatEventTimeRange(ev)
-        ? `${fmtDate(ev.date)} · ${formatEventTimeRange(ev)}`
-        : fmtDate(ev.date);
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, dateLine));
-    } else if (formatEventTimeRange(ev)) {
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, formatEventTimeRange(ev)));
+    // Google rating or fallback meta line
+    if (hasGooglePhoto && cachedEnrichment.rating) {
+      const ratingEl = el('div', { class: 'sheet-rating' },
+        el('span', { class: 'star' }, '★'),
+        ` ${cachedEnrichment.rating} `,
+        cachedEnrichment.reviewCount ? el('span', { class: 'count' }, `(${formatNumber(cachedEnrichment.reviewCount)} reviews)`) : null
+      );
+      body.appendChild(ratingEl);
+    } else if (!hasGooglePhoto && timeParts.length) {
+      // Fallback: show time meta under title
+      body.appendChild(el('div', { class: 'sheet-meta-line' }, timeParts.join(' · ')));
     }
-    if (ev.notes) details.appendChild(el('p', { class: 'sheet-detail-line' }, ev.notes));
-    if (costText) details.appendChild(el('p', { class: 'sheet-detail-line' }, costText));
-    if (ev.receipt && !receiptUrl) {
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Receipt: ${ev.receipt}`));
+
+    // Description (if from Google or notes)
+    if (cachedEnrichment?.description) {
+      body.appendChild(el('div', { class: 'sheet-desc' }, el('p', null, cachedEnrichment.description)));
+    } else if (ev.notes) {
+      body.appendChild(el('div', { class: 'sheet-desc' }, el('p', null, ev.notes)));
     }
-    body.appendChild(details);
+
+    // Labeled table
+    const table = el('table', { class: 'sheet-facts' });
+    if (ev.provider) {
+      table.appendChild(el('tr', null, el('th', null, 'Provider'), el('td', null, ev.provider)));
+    }
+    if (ev.date || timeRange) {
+      const timeLine = [ev.date ? fmtDate(ev.date) : null, timeRange].filter(Boolean).join(' · ');
+      table.appendChild(el('tr', null, el('th', null, 'Time'), el('td', null, timeLine)));
+    }
+    if (ev.meetupAddress) {
+      table.appendChild(el('tr', null, el('th', null, 'Meetup'), el('td', null, ev.meetupAddress)));
+    }
+    if (ev.bookingRef) {
+      table.appendChild(el('tr', null, el('th', null, 'Booking Ref'), el('td', null, ev.bookingRef)));
+    }
+    if (costText) {
+      table.appendChild(el('tr', null, el('th', null, 'Cost'), el('td', null, costText)));
+    }
+    if (table.children.length) body.appendChild(table);
+
+    // Location map card (only for A ★ variant)
+    if (hasGooglePhoto && hasCoords) {
+      const mapCard = el('div', { class: 'sheet-map-card sheet-map-card--ticket', 'aria-label': 'Event location map' },
+        el('div', { id: 'event-sheet-map' }),
+        el('div', { class: 'sheet-map-pin sheet-map-pin--ticket' })
+      );
+      
+      if (state.location) {
+        const km = haversine(state.location, { lat, lng });
+        const walkMin = Math.round(km / 5 * 60);
+        const walkChip = el('div', { class: 'sheet-map-overlay' }, `${walkMin} min · ${km.toFixed(1)} km`);
+        mapCard.appendChild(walkChip);
+      }
+      
+      body.appendChild(mapCard);
+    }
+
     sheet.appendChild(body);
 
-    const actionItems = [];
-    if (directionsUrl) actionItems.push({ type: 'link', href: directionsUrl, label: 'Get Directions' });
-    if (receiptUrl) actionItems.push({ type: 'receipt', url: receiptUrl, filename: ev.receipt });
-    if (infoUrl) actionItems.push({ type: 'link', href: infoUrl, label: 'More Info' });
-    if (actionItems.length) {
-      const actions = el('div', { class: sheetActionsClass(actionItems.length) });
-      actionItems.forEach((item, index) => {
-        const primary = actionItems.length === 1 || index === 0;
-        if (item.type === 'receipt') {
-          actions.appendChild(buildReceiptActionButton(item.url, item.filename, { secondary: !primary }));
-        } else {
-          actions.appendChild(el('a', {
-            class: 'btn' + (primary ? '' : ' secondary'),
-            href: item.href,
-            target: '_blank',
-            rel: 'noopener'
-          }, item.label));
-        }
-      });
-      sheet.appendChild(actions);
+    // Action buttons - Directions always on right
+    const actions = el('div', { class: 'sheet-actions triple' });
+    if (receiptUrl) {
+      actions.appendChild(buildReceiptActionButton(receiptUrl, ev.receipt));
     }
+    if (infoUrl) {
+      actions.appendChild(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
+    }
+    if (directionsUrl) {
+      actions.appendChild(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+    }
+    
+    if (actions.children.length) sheet.appendChild(actions);
     sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
+
+    // Initialize maps
+    if (hasCoords) {
+      setTimeout(() => {
+        if (hasGooglePhoto) {
+          // Location map card
+          const mapNode = $('#event-sheet-map');
+          if (mapNode && !leafletSheet) {
+            leafletSheet = L.map(mapNode, {
+              center: [lat, lng], zoom: 14,
+              zoomControl: false, attributionControl: false,
+              dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+              touchZoom: false, boxZoom: false, keyboard: false, tap: false
+            });
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+              subdomains: 'abcd'
+            }).addTo(leafletSheet);
+          }
+        } else {
+          // Hero map for fallback variant
+          const heroMapNode = $('#event-hero-map');
+          if (heroMapNode && !leafletSheet) {
+            leafletSheet = L.map(heroMapNode, {
+              center: [lat, lng], zoom: 13,
+              zoomControl: false, attributionControl: false,
+              dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+              touchZoom: false, boxZoom: false, keyboard: false, tap: false
+            });
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+              subdomains: 'abcd'
+            }).addTo(leafletSheet);
+          }
+        }
+      }, 100);
+    }
   }
 
   async function fetchEventReceiptUrl(rowId){
@@ -6816,7 +7357,7 @@
     const sheet = $('#sheet');
     sheet.innerHTML = '';
 
-    const accent = day?.color || dayAccent(day?.n) || '#b25a14';
+    const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
     const directionsUrl = buildCarRentalDirectionsUrl(cr, day);
     let receiptUrl = isHttpUrl(cr.receiptUrl) ? cr.receiptUrl.trim() : '';
     if (!receiptUrl && cr.receipt && cr.id) {
@@ -6841,108 +7382,102 @@
       )
     ));
 
-    if (hasCoords){
-      const mapWrap = el('div', { class: 'map-wrap' }, el('div', { id: 'map-sheet' }));
-      sheet.appendChild(mapWrap);
-
-      const distRow = el('div', { class: 'distance' });
-      if (state.location){
+    // Map hero with walk chip
+    if (hasCoords) {
+      const heroWrap = el('div', { class: 'hero-wrap' });
+      const mapHero = el('div', { class: 'hero-map', id: 'car-hero-map' });
+      heroWrap.appendChild(mapHero);
+      
+      // Walk chip on map
+      if (state.location) {
         const km = haversine(state.location, { lat, lng });
         const walkMin = Math.round(km / 5 * 60);
-        const transitMin = Math.round(km / 25 * 60);
-        distRow.appendChild(el('div', { class: 'dist-pill' }, '🚶 ', el('span', { class: 'v' }, walkMin + ' min')));
-        distRow.appendChild(el('div', { class: 'dist-pill' }, '🚇 ', el('span', { class: 'v' }, transitMin + ' min')));
-        distRow.appendChild(el('div', { class: 'dist-pill' }, '↔ ', el('span', { class: 'v' }, km.toFixed(1) + ' km')));
-      } else {
-        distRow.appendChild(el('div', { class: 'dist-pill', style: { color: 'var(--fg-mute)' } }, 'Enable location for travel times'));
+        const walkChip = el('div', { class: 'hero-meta-pill' }, `${walkMin} min · ${km.toFixed(1)} km`);
+        heroWrap.appendChild(walkChip);
       }
-      sheet.appendChild(distRow);
+      
+      sheet.appendChild(heroWrap);
     }
 
     const body = el('div', { class: 'sheet-body' });
     body.appendChild(el('h2', { class: 'sheet-title' }, carRentalTitle(cr)));
-    body.appendChild(el('div', { class: 'sheet-badges' },
-      cr.provider ? el('span', { class: 'b', style: { background: accent, color: '#fff', borderColor: 'transparent' } }, cr.provider) : null,
-      iconBadge('b', '🚗', 'Car rental'),
-      cr.carType ? el('span', { class: 'b' }, cr.carType) : null
-    ));
+    
+    // Build time meta line
+    const timeParts = [];
+    if (cr.pickupDate && cr.pickupTime) {
+      timeParts.push(`${fmtDate(cr.pickupDate).split(',')[0]} · ${cr.pickupTime}`);
+    } else if (cr.pickupDate) {
+      timeParts.push(fmtDate(cr.pickupDate).split(',')[0]);
+    }
+    if (cr.returnDate && cr.returnTime) {
+      timeParts.push(`${fmtDate(cr.returnDate).split(',')[0]} · ${cr.returnTime}`);
+    } else if (cr.returnDate) {
+      timeParts.push(fmtDate(cr.returnDate).split(',')[0]);
+    }
+    if (timeParts.length) {
+      body.appendChild(el('div', { class: 'sheet-meta-line' }, timeParts.join(' → ')));
+    }
 
-    const details = el('div', { class: 'sheet-desc' });
-    if (cr.pickupDate) {
-      const pickupLine = carRentalTimeRange(cr)
-        ? `Pick-up ${fmtDate(cr.pickupDate)} · ${cr.pickupTime || '—'}`
-        : `Pick-up ${fmtDate(cr.pickupDate)}`;
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, pickupLine));
+    // Description (from notes)
+    if (cr.notes) {
+      body.appendChild(el('div', { class: 'sheet-desc' }, el('p', null, cr.notes)));
     }
-    if (cr.returnDate) {
-      const returnLine = cr.returnTime
-        ? `Return ${fmtDate(cr.returnDate)} · ${cr.returnTime}`
-        : `Return ${fmtDate(cr.returnDate)}`;
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, returnLine));
+
+    // Labeled table
+    const table = el('table', { class: 'sheet-facts' });
+    if (cr.pickupDate && cr.pickupTime) {
+      table.appendChild(el('tr', null, el('th', null, 'Pick-up'), el('td', null, `${fmtDate(cr.pickupDate).split(',')[0]} · ${cr.pickupTime}`)));
     }
-    if (cr.address) details.appendChild(el('p', { class: 'sheet-detail-line' }, `Pick-up: ${cr.address}`));
-    if (cr.returnAddress) details.appendChild(el('p', { class: 'sheet-detail-line' }, `Return: ${cr.returnAddress}`));
-    if (cr.bookingCode) details.appendChild(el('p', { class: 'sheet-detail-line' }, `Booking: ${cr.bookingCode}`));
-    if (cr.notes) details.appendChild(el('p', { class: 'sheet-detail-line' }, cr.notes));
-    if (costText) details.appendChild(el('p', { class: 'sheet-detail-line' }, costText));
-    if (cr.receipt && !receiptUrl) {
-      details.appendChild(el('p', { class: 'sheet-detail-line' }, `Receipt: ${cr.receipt}`));
+    if (cr.returnDate && cr.returnTime) {
+      table.appendChild(el('tr', null, el('th', null, 'Return'), el('td', null, `${fmtDate(cr.returnDate).split(',')[0]} · ${cr.returnTime}`)));
     }
-    body.appendChild(details);
+    if (cr.address) {
+      table.appendChild(el('tr', null, el('th', null, 'Location'), el('td', null, cr.address)));
+    }
+    if (cr.returnAddress) {
+      table.appendChild(el('tr', null, el('th', null, 'Return Address'), el('td', null, cr.returnAddress)));
+    }
+    if (cr.bookingCode) {
+      table.appendChild(el('tr', null, el('th', null, 'Booking Code'), el('td', null, cr.bookingCode)));
+    }
+    if (costText) {
+      table.appendChild(el('tr', null, el('th', null, 'Cost'), el('td', null, costText)));
+    }
+    if (table.children.length) body.appendChild(table);
+
     sheet.appendChild(body);
 
-    const actionItems = [];
-    if (directionsUrl) actionItems.push({ type: 'link', href: directionsUrl, label: 'Get Directions' });
-    if (receiptUrl) actionItems.push({ type: 'receipt', url: receiptUrl, filename: cr.receipt });
-    if (actionItems.length) {
-      const actions = el('div', { class: sheetActionsClass(actionItems.length) });
-      actionItems.forEach((item, index) => {
-        const primary = actionItems.length === 1 || index === 0;
-        if (item.type === 'receipt') {
-          actions.appendChild(buildReceiptActionButton(item.url, item.filename, { secondary: !primary }));
-        } else {
-          actions.appendChild(el('a', {
-            class: 'btn' + (primary ? '' : ' secondary'),
-            href: item.href,
-            target: '_blank',
-            rel: 'noopener'
-          }, item.label));
-        }
-      });
-      sheet.appendChild(actions);
+    // Action buttons - Directions always on right
+    const actions = el('div', { class: 'sheet-actions double' });
+    if (receiptUrl) {
+      actions.appendChild(buildReceiptActionButton(receiptUrl, cr.receipt));
     }
+    if (directionsUrl) {
+      actions.appendChild(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+    }
+    
+    if (actions.children.length) sheet.appendChild(actions);
     sheet.appendChild(el('div', { class: 'bottom-pad' }));
 
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
 
-    if (hasCoords){
+    // Initialize hero map
+    if (hasCoords) {
       setTimeout(() => {
-        if (leafletSheet) { leafletSheet.remove(); leafletSheet = null; }
-        const node = $('#map-sheet');
-        if (!node) return;
-        leafletSheet = L.map(node, {
-          center: [lat, lng], zoom: 14,
-          zoomControl: false, attributionControl: false,
-          dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
-          touchZoom: false, boxZoom: false, keyboard: false, tap: false
-        });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          subdomains: 'abcd'
-        }).addTo(leafletSheet);
-        L.marker([lat, lng], { icon: pinIcon('Transit', accent) }).addTo(leafletSheet);
-        const kmFromUser = state.location
-          ? haversine(state.location, { lat, lng })
-          : null;
-        const showUserOnSheetMap = kmFromUser != null && kmFromUser <= 100 * 1.60934;
-        if (showUserOnSheetMap){
-          L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletSheet);
-          const dashed = L.polyline([[state.location.lat, state.location.lng], [lat, lng]], {
-            color: '#bfb', weight: 1.5, dashArray: '4 4', opacity: 0.6
+        const heroMapNode = $('#car-hero-map');
+        if (heroMapNode && !leafletSheet) {
+          leafletSheet = L.map(heroMapNode, {
+            center: [lat, lng], zoom: 13,
+            zoomControl: false, attributionControl: false,
+            dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+            touchZoom: false, boxZoom: false, keyboard: false, tap: false
+          });
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            subdomains: 'abcd'
           }).addTo(leafletSheet);
-          leafletSheet.fitBounds(dashed.getBounds(), { padding: [30,30] });
         }
-      }, 380);
+      }, 100);
     }
   }
 
