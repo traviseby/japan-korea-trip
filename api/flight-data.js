@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     if (depIata) params.append('dep_iata', depIata);
     if (arrIata) params.append('arr_iata', arrIata);
 
-    const apiUrl = `https://airlabs.co/api/v9/flight?${params.toString()}`;
+    const apiUrl = `https://airlabs.co/api/v9/flights?${params.toString()}`;
 
     const response = await fetch(apiUrl, {
       headers: {
