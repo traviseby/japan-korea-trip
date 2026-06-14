@@ -788,29 +788,35 @@
   }
 
   async function fetchFlightStatus(flight) {
-    if (!flight.number && !flight.airline) return null;
-    
+    if (!flight.flightNum && !flight.number) return null;
+
     try {
       const params = new URLSearchParams();
-      
-      // Try to build flight IATA code (e.g., "OZ1035" from airline + number)
-      if (flight.airline && flight.number) {
-        const airlineCode = flight.airline.match(/^[A-Z]{2,3}/)?.[0] || flight.airline.slice(0, 2).toUpperCase();
-        params.append('flightIata', `${airlineCode}${flight.number}`);
+
+      // Use flightNum which contains the full IATA code (e.g., "OZ1035", "AA300")
+      if (flight.flightNum) {
+        params.append('flightIata', flight.flightNum);
       } else if (flight.number) {
-        params.append('flightNumber', flight.number);
+        // Fallback: try to extract IATA code from number field
+        // number field is formatted like "Asiana OZ1035"
+        const match = flight.number.match(/([A-Z]{2}\d+)/);
+        if (match) {
+          params.append('flightIata', match[1]);
+        } else {
+          params.append('flightNumber', flight.number);
+        }
       }
-      
+
       if (flight.from) params.append('depIata', flight.from);
       if (flight.to) params.append('arrIata', flight.to);
-      
+
       const response = await fetch(`/api/flight-data?${params.toString()}`);
-      
+
       if (!response.ok) {
         console.log('Flight status not available:', response.status);
         return null;
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {
