@@ -810,14 +810,30 @@
       if (flight.from) params.append('depIata', flight.from);
       if (flight.to) params.append('arrIata', flight.to);
 
-      const response = await fetch(`/api/flight-data?${params.toString()}`);
+      const url = `/api/flight-data?${params.toString()}`;
+      console.log('Fetching flight status:', {
+        flightNum: flight.flightNum,
+        number: flight.number,
+        from: flight.from,
+        to: flight.to,
+        url: url,
+        params: Object.fromEntries(params)
+      });
+
+      const response = await fetch(url);
 
       if (!response.ok) {
-        console.log('Flight status not available:', response.status);
+        const errorText = await response.text();
+        console.error('Flight status API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorBody: errorText
+        });
         return null;
       }
 
       const data = await response.json();
+      console.log('Flight status data received:', data);
       return data;
     } catch (error) {
       console.error('Error fetching flight status:', error);
