@@ -6553,7 +6553,13 @@
           toLng = toCoords[1] + 360;
         }
 
+        // Calculate center point for initial view
+        const centerLat = (fromCoords[0] + toCoords[0]) / 2;
+        const centerLng = (fromCoords[1] + toLng) / 2;
+        
         leafletSheet = L.map(mapNode, {
+          center: [centerLat, centerLng],
+          zoom: 5,
           zoomControl: false,
           attributionControl: false,
           dragging: false,
