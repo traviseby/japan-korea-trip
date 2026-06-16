@@ -6563,11 +6563,11 @@
         const maxDiff = Math.max(latDiff, lngDiff);
         
         let zoomLevel;
-        if (maxDiff < 3) zoomLevel = 5;        // Very short flights (e.g. SEA-SFO)
-        else if (maxDiff < 8) zoomLevel = 4;   // Short flights
-        else if (maxDiff < 15) zoomLevel = 3;  // Medium flights
-        else if (maxDiff < 30) zoomLevel = 2;  // Long flights
-        else zoomLevel = 1;                     // Very long flights
+        if (maxDiff < 3) zoomLevel = 6;        // Very short flights
+        else if (maxDiff < 8) zoomLevel = 5;   // Short flights (e.g. SEA-SFO, SEA-LAX)
+        else if (maxDiff < 15) zoomLevel = 4;  // Medium flights
+        else if (maxDiff < 30) zoomLevel = 3;  // Long flights
+        else zoomLevel = 2;                     // Very long flights
         
         console.log('Map zoom calc:', { latDiff, lngDiff, maxDiff, zoomLevel, route: `${f.from}-${f.to}` });
         
@@ -6588,16 +6588,27 @@
           subdomains: 'abcd'
         }).addTo(leafletSheet);
 
-        // Arc path
+        // Arc path - curve perpendicular to flight direction
         const arcPoints = [];
         const steps = 50;
+        const arcHeight = Math.max(maxDiff * 0.15, 2); // Arc height scales with distance
+        
+        // If mostly north-south, arc east-west; if mostly east-west, arc north-south
+        const isNorthSouth = latDiff > lngDiff;
+        
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
           const lat = fromCoords[0] + (toCoords[0] - fromCoords[0]) * t;
           const lng = fromCoords[1] + (toLng - fromCoords[1]) * t;
-          const arcHeight = 15;
-          const latOffset = Math.sin(t * Math.PI) * arcHeight;
-          arcPoints.push([lat + latOffset, lng]);
+          const arcOffset = Math.sin(t * Math.PI) * arcHeight;
+          
+          if (isNorthSouth) {
+            // North-south flight: arc sideways (east-west)
+            arcPoints.push([lat, lng + arcOffset]);
+          } else {
+            // East-west flight: arc up/down (north-south)
+            arcPoints.push([lat + arcOffset, lng]);
+          }
         }
         
         L.polyline(arcPoints, {
