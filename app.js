@@ -6567,10 +6567,6 @@
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
           subdomains: 'abcd'
         }).addTo(leafletSheet);
-        
-        // Fit bounds to show the route with padding
-        const bounds = L.latLngBounds([fromCoords, [toCoords[0], toLng]]);
-        leafletSheet.fitBounds(bounds, { padding: [40, 40] });
 
         // Arc path
         const arcPoints = [];
