@@ -6762,9 +6762,9 @@
         
         L.polyline(arcPoints, {
           color: accent,
-          weight: 2,
-          dashArray: '6 4',
-          opacity: 0.8
+          weight: 3,
+          dashArray: '8 5',
+          opacity: 1.0
         }).addTo(leafletSheet);
 
         // Airport markers
