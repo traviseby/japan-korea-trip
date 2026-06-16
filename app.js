@@ -865,14 +865,16 @@
 
     const result = {
       statusRow: null,
+      statusBadge: null,
       liveRow: null,
       delayInfo: null,
       gateInfo: null,
       liveMarkerData: null
     };
 
-    // Status row for table
+    // Status badge (for overlay) and row (for table fallback)
     if (flightData.status) {
+      result.statusBadge = buildFlightStatusBadge(flightData.status);
       const statusCell = el('td');
       statusCell.appendChild(buildFlightStatusBadge(flightData.status));
       result.statusRow = el('tr', null, el('th', null, 'Status'), statusCell);
@@ -6496,12 +6498,10 @@
       if (flightData) {
         const liveInfo = buildFlightLiveInfo(flightData);
         if (liveInfo) {
-          // Add status to map overlay chip instead of table
-          if (liveInfo.statusRow && statusOverlay) {
-            const badge = liveInfo.statusRow.querySelector('.flight-status-badge');
-            if (badge) {
-              statusOverlay.appendChild(badge);
-            }
+          // Add status badge to map overlay chip
+          if (liveInfo.statusBadge && statusOverlay) {
+            statusOverlay.appendChild(liveInfo.statusBadge);
+            console.log('Added status badge to overlay:', flightData.status);
           }
           
           // Add live position row at the TOP of the table (if exists)

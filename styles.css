@@ -2242,6 +2242,16 @@ html.ios-standalone .tabbar {
   font-size: 11.5px;
   font-weight: 600;
 }
+/* Color coding for status in overlay pill */
+.hero-meta-pill .flight-status-badge.status-scheduled,
+.hero-meta-pill .flight-status-badge.status-landed {
+  color: #10b981; /* Green for on-time */
+}
+.hero-meta-pill .flight-status-badge.status-cancelled,
+.hero-meta-pill .flight-status-badge.status-delayed,
+.hero-meta-pill .flight-status-badge.status-incident {
+  color: #ef4444; /* Red for delayed/problems */
+}
 /* Hide status overlay when empty */
 .flight-status-overlay:empty {
   display: none;
