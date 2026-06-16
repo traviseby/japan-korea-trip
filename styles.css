@@ -2235,24 +2235,35 @@ html.ios-standalone .tabbar {
   width: fit-content;
 }
 .flight-status-badge.status-scheduled {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-}
-.flight-status-badge.status-active {
   background: rgba(16, 185, 129, 0.15);
   color: #10b981;
 }
-.flight-status-badge.status-landed {
-  background: rgba(139, 92, 246, 0.15);
-  color: #8b5cf6;
+.flight-status-badge.status-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--fg);
 }
-.flight-status-badge.status-cancelled {
+.flight-status-badge.status-landed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+.flight-status-badge.status-cancelled,
+.flight-status-badge.status-delayed {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
 }
 .flight-status-badge.status-incident,
 .flight-status-badge.status-diverted {
   background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+.sheet-meta-line .meta-label {
+  opacity: 0.6;
+  margin-right: 4px;
+}
+.sheet-meta-line.status-delayed {
+  color: #ef4444;
+}
+.sheet-meta-line.status-minor-delay {
   color: #f59e0b;
 }
 .flight-aircraft {

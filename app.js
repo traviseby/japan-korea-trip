@@ -843,59 +843,64 @@
 
   function buildFlightStatusBadge(status) {
     if (!status) return null;
-    
+
     const statusMap = {
       'scheduled': { label: 'Scheduled', class: 'status-scheduled', emoji: '🕐' },
-      'active': { label: 'In Flight', class: 'status-active', emoji: '✈️' },
+      'active': { label: 'En Route', class: 'status-active', emoji: '✈️' },
+      'en-route': { label: 'En Route', class: 'status-active', emoji: '✈️' },
       'landed': { label: 'Landed', class: 'status-landed', emoji: '✅' },
       'cancelled': { label: 'Cancelled', class: 'status-cancelled', emoji: '❌' },
       'incident': { label: 'Incident', class: 'status-incident', emoji: '⚠️' },
       'diverted': { label: 'Diverted', class: 'status-diverted', emoji: '🔄' }
     };
-    
+
     const statusInfo = statusMap[status.toLowerCase()] || { label: status, class: 'status-unknown', emoji: '' };
-    
-    return el('span', { class: `flight-status-badge ${statusInfo.class}` }, 
+
+    return el('span', { class: `flight-status-badge ${statusInfo.class}` },
       `${statusInfo.emoji} ${statusInfo.label}`
     );
   }
 
   function buildFlightLiveInfo(flightData) {
     if (!flightData) return null;
-    
+
     const container = el('div', { class: 'flight-live-info' });
-    
-    // Status badge
+
+    // Status with label (styled like metadata)
     if (flightData.status) {
-      container.appendChild(buildFlightStatusBadge(flightData.status));
+      const statusLine = el('div', { class: 'sheet-meta-line' });
+      statusLine.appendChild(el('span', { class: 'meta-label' }, 'Status: '));
+      statusLine.appendChild(buildFlightStatusBadge(flightData.status));
+      container.appendChild(statusLine);
     }
-    
+
     // Aircraft info
     if (flightData.aircraft?.modelText || flightData.aircraft?.registration) {
       const parts = [];
       if (flightData.aircraft.modelText) parts.push(flightData.aircraft.modelText);
       if (flightData.aircraft.registration) parts.push(`(${flightData.aircraft.registration})`);
-      container.appendChild(el('div', { class: 'flight-aircraft' }, parts.join(' ')));
+      container.appendChild(el('div', { class: 'sheet-meta-line' }, parts.join(' ')));
     }
-    
+
     // Live position (if in flight)
-    if (flightData.live && flightData.status === 'active') {
-      const liveDiv = el('div', { class: 'flight-live-position' });
+    const statusLower = (flightData.status || '').toLowerCase();
+    if (flightData.live && (statusLower === 'active' || statusLower === 'en-route')) {
+      const liveDiv = el('div', { class: 'sheet-meta-line' });
       const parts = [];
-      
+
       if (flightData.live.altitude) {
         parts.push(`${(flightData.live.altitude / 1000).toFixed(1)}k ft`);
       }
       if (flightData.live.speed) {
         parts.push(`${flightData.live.speed} mph`);
       }
-      
+
       if (parts.length) {
         liveDiv.textContent = `📍 ${parts.join(' · ')}`;
         container.appendChild(liveDiv);
       }
     }
-    
+
     // Delays
     const delays = [];
     if (flightData.departure?.delay && flightData.departure.delay > 0) {
@@ -905,7 +910,8 @@
       delays.push(`Arr: +${flightData.arrival.delay} min`);
     }
     if (delays.length) {
-      container.appendChild(el('div', { class: 'flight-delays' }, `⏱️ Delayed: ${delays.join(' · ')}`));
+      const delayClass = (flightData.departure?.delay > 15 || flightData.arrival?.delay > 15) ? 'status-delayed' : 'status-minor-delay';
+      container.appendChild(el('div', { class: `sheet-meta-line ${delayClass}` }, `⏱️ ${delays.join(' · ')}`));
     }
     
     // Gates and terminals
