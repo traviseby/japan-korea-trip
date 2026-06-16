@@ -293,7 +293,7 @@ html.ios-standalone .tabbar {
   margin-bottom: 0;
   margin-top: 4px;
 }
-.hero .meta { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--fg-mid); margin-bottom: 4px; font-weight: 500; text-shadow: 0 1px 6px rgba(0,0,0,0.6); }
+.hero .meta { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--fg-mid); margin-bottom: 4px; font-weight: 500; text-shadow: 0 1px 3px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.5); }
 .hero .day-num {
   display: flex; align-items: baseline; gap: 14px;
   font-family: var(--serif); line-height: 1;
