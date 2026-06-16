@@ -6382,6 +6382,7 @@
     // Get airport coords
     const fromCoords = getAirportCoords(f.from);
     const toCoords = getAirportCoords(f.to);
+    console.log('Flight coords:', { from: f.from, to: f.to, fromCoords, toCoords });
 
     sheet.appendChild(el('div', { class: 'handle' }));
     
