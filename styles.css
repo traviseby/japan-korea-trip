@@ -2247,12 +2247,15 @@ html.ios-standalone .tabbar {
 /* Color coding for status in overlay pill */
 .hero-meta-pill .flight-status-badge.status-scheduled,
 .hero-meta-pill .flight-status-badge.status-landed {
-  color: #10b981; /* Green for on-time */
+  color: #10b981 !important; /* Green for on-time */
+}
+.hero-meta-pill .flight-status-badge.status-active {
+  color: #1a1a1a !important; /* Dark gray for en-route */
 }
 .hero-meta-pill .flight-status-badge.status-cancelled,
 .hero-meta-pill .flight-status-badge.status-delayed,
 .hero-meta-pill .flight-status-badge.status-incident {
-  color: #ef4444; /* Red for delayed/problems */
+  color: #ef4444 !important; /* Red for delayed/problems */
 }
 .flight-status-badge.status-scheduled {
   background: rgba(16, 185, 129, 0.15);
