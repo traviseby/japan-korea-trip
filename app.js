@@ -6553,13 +6553,27 @@
           toLng = toCoords[1] + 360;
         }
 
-        // Calculate center point for initial view
+        // Calculate center point and optimal zoom
         const centerLat = (fromCoords[0] + toCoords[0]) / 2;
         const centerLng = (fromCoords[1] + toLng) / 2;
         
+        // Calculate distance-based zoom
+        const latDiff = Math.abs(toCoords[0] - fromCoords[0]);
+        const lngDiff = Math.abs(toLng - fromCoords[1]);
+        const maxDiff = Math.max(latDiff, lngDiff);
+        
+        let zoomLevel;
+        if (maxDiff < 5) zoomLevel = 6;
+        else if (maxDiff < 10) zoomLevel = 5;
+        else if (maxDiff < 20) zoomLevel = 4;
+        else if (maxDiff < 40) zoomLevel = 3;
+        else zoomLevel = 2;
+        
+        console.log('Map zoom calc:', { latDiff, lngDiff, maxDiff, zoomLevel });
+        
         leafletSheet = L.map(mapNode, {
           center: [centerLat, centerLng],
-          zoom: 5,
+          zoom: zoomLevel,
           zoomControl: false,
           attributionControl: false,
           dragging: false,
@@ -6615,14 +6629,6 @@
         
         L.marker(fromCoords, { icon: fromIcon }).addTo(leafletSheet);
         L.marker([toCoords[0], toLng], { icon: toIcon }).addTo(leafletSheet);
-
-        // Fit bounds after map is fully rendered
-        setTimeout(() => {
-          leafletSheet.invalidateSize();
-          const bounds = L.latLngBounds([fromCoords, [toCoords[0], toLng]]);
-          leafletSheet.fitBounds(bounds, { padding: [60, 80] });
-          console.log('Map bounds set:', bounds.toBBoxString());
-        }, 200);
       }, 100);
     }
   }
