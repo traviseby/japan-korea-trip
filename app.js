@@ -759,19 +759,61 @@
 
   // Major airport coordinates for flight route maps
   const AIRPORT_COORDS = {
-    // US West Coast
-    'SEA': [47.4502, -122.3088],   // Seattle-Tacoma
+    // US West Coast (Alaska Airlines major hubs)
+    'SEA': [47.4502, -122.3088],   // Seattle-Tacoma (Alaska hub)
     'PAE': [47.9063, -122.2816],   // Paine Field (Everett, WA)
-    'PDX': [45.5887, -122.5975],   // Portland
+    'PDX': [45.5887, -122.5975],   // Portland (Alaska hub)
     'SFO': [37.6213, -122.3790],   // San Francisco
     'SJC': [37.3639, -121.9289],   // San Jose
     'OAK': [37.7214, -122.2208],   // Oakland
-    'LAX': [33.9416, -118.4085],   // Los Angeles
-    'SAN': [32.7338, -117.1933],   // San Diego
+    'LAX': [33.9416, -118.4085],   // Los Angeles (Alaska hub)
+    'BUR': [34.2007, -118.3587],   // Burbank
+    'ONT': [34.0560, -117.6012],   // Ontario CA
+    'SNA': [33.6757, -117.8681],   // Orange County
+    'SAN': [32.7338, -117.1933],   // San Diego (Alaska hub)
+    'SMF': [38.6954, -121.5908],   // Sacramento
+    'FAT': [36.7762, -119.7181],   // Fresno
+    'SBA': [34.4262, -119.8403],   // Santa Barbara
+    'PSP': [33.8297, -116.5067],   // Palm Springs
+    'RNO': [39.4991, -119.7681],   // Reno
+    'BOI': [43.5644, -116.2228],   // Boise
+    'GEG': [47.6199, -117.5339],   // Spokane
+    'MSO': [46.9163, -114.0906],   // Missoula
+    'BZN': [45.7769, -111.1530],   // Bozeman
+    'BIL': [45.8077, -108.5430],   // Billings
+    'EUG': [44.1246, -123.2119],   // Eugene
+    'MFR': [42.3742, -122.8735],   // Medford
+    'RDM': [44.2541, -121.1497],   // Redmond/Bend
+    'PSC': [46.2647, -119.1191],   // Pasco/Tri-Cities
     'LAS': [36.0840, -115.1537],   // Las Vegas
     'PHX': [33.4342, -112.0080],   // Phoenix
+    'TUS': [32.1161, -110.9410],   // Tucson
+    'ABQ': [35.0402, -106.6092],   // Albuquerque
     
-    // US East Coast
+    // Alaska
+    'ANC': [61.1743, -149.9962],   // Anchorage (Alaska hub)
+    'FAI': [64.8151, -147.8563],   // Fairbanks
+    'JNU': [58.3550, -134.5764],   // Juneau
+    'KTN': [55.3556, -131.7139],   // Ketchikan
+    'SIT': [57.0471, -135.3616],   // Sitka
+    'CDV': [60.4918, -145.4776],   // Cordova
+    'BET': [60.7798, -161.8381],   // Bethel
+    'ADK': [51.8779, -176.6460],   // Adak Island
+    'DUT': [53.9005, -166.5439],   // Dutch Harbor
+    'OME': [64.5122, -165.4453],   // Nome
+    'OTZ': [66.8847, -162.5985],   // Kotzebue
+    'PSG': [56.8017, -132.9451],   // Petersburg
+    'WRG': [56.4843, -132.3698],   // Wrangell
+    'YAK': [59.5033, -139.6604],   // Yakutat
+    
+    // Hawaii (Alaska Airlines destinations)
+    'HNL': [21.3187, -157.9225],   // Honolulu
+    'OGG': [20.8986, -156.4306],   // Maui (Kahului)
+    'KOA': [19.7388, -156.0456],   // Kona
+    'LIH': [21.9760, -159.3389],   // Kauai (Lihue)
+    'ITO': [19.7214, -155.0481],   // Hilo
+    
+    // US East Coast (Alaska Airlines destinations)
     'BOS': [42.3656, -71.0096],    // Boston
     'JFK': [40.6413, -73.7781],    // New York JFK
     'LGA': [40.7769, -73.8740],    // New York LaGuardia
@@ -782,24 +824,52 @@
     'BWI': [39.1774, -76.6684],    // Baltimore
     'ATL': [33.6407, -84.4277],    // Atlanta
     'MCO': [28.4312, -81.3081],    // Orlando
+    'TPA': [27.9755, -82.5332],    // Tampa
     'MIA': [25.7959, -80.2870],    // Miami
     'FLL': [26.0742, -80.1506],    // Fort Lauderdale
+    'PBI': [26.6832, -80.0956],    // West Palm Beach
+    'RDU': [35.8776, -78.7875],    // Raleigh-Durham
+    'CLT': [35.2140, -80.9431],    // Charlotte
+    'BNA': [36.1245, -86.6782],    // Nashville
+    'MSY': [29.9934, -90.2580],    // New Orleans
     
-    // US Central
+    // US Central (Alaska Airlines destinations)
     'ORD': [41.9742, -87.9073],    // Chicago O'Hare
     'MDW': [41.7868, -87.7522],    // Chicago Midway
     'DEN': [39.8561, -104.6737],   // Denver
     'DFW': [32.8998, -97.0403],    // Dallas/Fort Worth
+    'AUS': [30.1975, -97.6664],    // Austin
     'IAH': [29.9902, -95.3368],    // Houston
     'MSP': [44.8848, -93.2223],    // Minneapolis
     'DTW': [42.2162, -83.3554],    // Detroit
+    'STL': [38.7487, -90.3700],    // St. Louis
+    'MCI': [39.2976, -94.7139],    // Kansas City
     'SLC': [40.7899, -111.9791],   // Salt Lake City
     
-    // Canada
+    // Mexico (Alaska Airlines destinations)
+    'PVR': [20.6801, -105.2544],   // Puerto Vallarta
+    'CZM': [20.5224, -86.9256],    // Cozumel
+    'CUN': [21.0365, -86.8771],    // Cancun
+    'SJD': [23.1518, -109.7211],   // Los Cabos
+    'ZIH': [17.6016, -101.4608],   // Ixtapa/Zihuatanejo
+    'ZLO': [19.1448, -104.5589],   // Manzanillo
+    'GDL': [20.5218, -103.3116],   // Guadalajara
+    'MEX': [19.4363, -99.0721],    // Mexico City
+    'MZT': [23.1614, -106.2658],   // Mazatlan
+    
+    // Central America & Caribbean (Alaska Airlines)
+    'BZE': [17.5392, -88.3082],    // Belize City
+    'LIR': [10.5933, -85.5444],    // Liberia, Costa Rica
+    'SJO': [9.9939, -84.2088],     // San Jose, Costa Rica
+    
+    // Canada (Alaska Airlines destinations)
     'YVR': [49.1967, -123.1815],   // Vancouver
     'YYZ': [43.6777, -79.6248],    // Toronto
     'YUL': [45.4657, -73.7455],    // Montreal
     'YYC': [51.1225, -114.0133],   // Calgary
+    'YEG': [53.3097, -113.5800],   // Edmonton
+    'YLW': [49.9561, -119.3778],   // Kelowna
+    'YYJ': [48.6469, -123.4258],   // Victoria
     
     // Asia - Japan
     'NRT': [35.7648, 139.7966],    // Tokyo Narita
