@@ -6643,8 +6643,8 @@
           leafletSheet.invalidateSize();
           const bounds = L.latLngBounds([fromCoords, [toCoords[0], toLng]]);
           leafletSheet.fitBounds(bounds, { 
-            padding: [50, 50],
-            maxZoom: 6
+            padding: [20, 20],
+            maxZoom: 7
           });
           console.log('Map fitted to bounds:', { route: `${f.from}-${f.to}`, bounds: bounds.toBBoxString() });
         }, 150);
