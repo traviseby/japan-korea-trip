@@ -6563,10 +6563,10 @@
         const maxDiff = Math.max(latDiff, lngDiff);
         
         let zoomLevel;
-        if (maxDiff < 3) zoomLevel = 6;        // Very short flights
-        else if (maxDiff < 8) zoomLevel = 5;   // Short flights (e.g. SEA-SFO, SEA-LAX)
-        else if (maxDiff < 15) zoomLevel = 4;  // Medium flights
-        else if (maxDiff < 30) zoomLevel = 3;  // Long flights
+        if (maxDiff < 3) zoomLevel = 5.5;      // Very short flights
+        else if (maxDiff < 8) zoomLevel = 4.5; // Short flights (e.g. SEA-SFO, SEA-LAX)
+        else if (maxDiff < 15) zoomLevel = 3.5;// Medium flights
+        else if (maxDiff < 30) zoomLevel = 2.5;// Long flights
         else zoomLevel = 2;                     // Very long flights
         
         console.log('Map zoom calc:', { latDiff, lngDiff, maxDiff, zoomLevel, route: `${f.from}-${f.to}` });
