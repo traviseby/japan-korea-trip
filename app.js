@@ -6448,10 +6448,14 @@
                           typeof toCoords[1] === 'number';
 
     let heroWrap = null;
+    let statusPillContainer = null;
     if (hasValidCoords) {
       heroWrap = el('div', { class: 'hero-wrap' });
       const mapHero = el('div', { class: 'flight-hero-map', id: 'flight-hero-map', 'aria-label': 'Flight route map' });
       heroWrap.appendChild(mapHero);
+      // Create empty status pill container (will be populated when flight status loads)
+      statusPillContainer = el('div', { class: 'hero-meta-pill', style: 'display: none;' });
+      heroWrap.appendChild(statusPillContainer);
       body.appendChild(heroWrap);
     }
 
@@ -6493,12 +6497,11 @@
       if (flightData) {
         const liveInfo = buildFlightLiveInfo(flightData);
         if (liveInfo) {
-          // Add status badge to map overlay as a pill
-          if (liveInfo.statusBadge && heroWrap) {
-            const statusPill = el('div', { class: 'hero-meta-pill' });
-            statusPill.appendChild(liveInfo.statusBadge);
-            heroWrap.appendChild(statusPill);
-            console.log('Added status pill to hero:', flightData.status);
+          // Add status badge to the pre-created pill container
+          if (liveInfo.statusBadge && statusPillContainer) {
+            statusPillContainer.appendChild(liveInfo.statusBadge);
+            statusPillContainer.style.display = '';
+            console.log('Added status badge to pill container:', flightData.status);
           }
           
           // Add live position row at the TOP of the table (if exists)

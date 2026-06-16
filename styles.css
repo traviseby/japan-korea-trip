@@ -2061,6 +2061,8 @@ html.ios-standalone .tabbar {
   border-radius: var(--r-pill);
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
 }
 
 /* Flight route map */
