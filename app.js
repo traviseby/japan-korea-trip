@@ -6669,8 +6669,17 @@
               })
             }).addTo(leafletSheet);
             
-            // Pan map to show live position
-            leafletSheet.panTo([liveInfo.liveMarkerData.latitude, liveInfo.liveMarkerData.longitude]);
+            // Re-fit bounds to include live position (don't just pan to it)
+            if (window.flightRouteCoords) {
+              const livePos = [liveInfo.liveMarkerData.latitude, liveInfo.liveMarkerData.longitude];
+              const allPoints = [window.flightRouteCoords.from, window.flightRouteCoords.to, livePos];
+              const bounds = L.latLngBounds(allPoints);
+              leafletSheet.fitBounds(bounds, { 
+                padding: [20, 20],
+                maxZoom: 7
+              });
+              console.log('Re-fit bounds to include live plane:', livePos);
+            }
           }
         }
       }
@@ -6762,9 +6771,9 @@
         
         L.polyline(arcPoints, {
           color: accent,
-          weight: 3,
-          dashArray: '8 5',
-          opacity: 1.0
+          weight: 2,
+          dashArray: '6 4',
+          opacity: 0.8
         }).addTo(leafletSheet);
 
         // Airport markers
@@ -6790,11 +6799,12 @@
         L.marker(fromCoords, { icon: fromIcon }).addTo(leafletSheet);
         L.marker([toCoords[0], toLng], { icon: toIcon }).addTo(leafletSheet);
         
-        // Store bearing calculation for live plane rotation
+        // Store bearing and coords for live plane rotation and re-fitting
         window.flightRouteBearing = Math.atan2(
           toLng - fromCoords[1],
           toCoords[0] - fromCoords[0]
         ) * (180 / Math.PI);
+        window.flightRouteCoords = { from: fromCoords, to: [toCoords[0], toLng] };
         
         // Fit bounds after map container is properly sized
         setTimeout(() => {
