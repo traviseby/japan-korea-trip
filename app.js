@@ -6439,16 +6439,22 @@
     const body = el('div', { class: 'sheet-body' });
 
     // Flight route map hero - only show if we have valid coordinates
-    const hasValidCoords = fromCoords && toCoords && 
-                          typeof fromCoords[0] === 'number' && 
+    const hasValidCoords = fromCoords && toCoords &&
+                          typeof fromCoords[0] === 'number' &&
                           typeof fromCoords[1] === 'number' &&
-                          typeof toCoords[0] === 'number' && 
+                          typeof toCoords[0] === 'number' &&
                           typeof toCoords[1] === 'number';
-    
+
+    let statusOverlay = null;
     if (hasValidCoords) {
       const heroWrap = el('div', { class: 'hero-wrap' });
       const mapHero = el('div', { class: 'flight-hero-map', id: 'flight-hero-map', 'aria-label': 'Flight route map' });
       heroWrap.appendChild(mapHero);
+      
+      // Status badge overlay (will be populated when flight status loads)
+      statusOverlay = el('div', { class: 'hero-meta-pill flight-status-overlay' });
+      heroWrap.appendChild(statusOverlay);
+      
       body.appendChild(heroWrap);
     }
 
@@ -6490,13 +6496,18 @@
       if (flightData) {
         const liveInfo = buildFlightLiveInfo(flightData);
         if (liveInfo) {
-          // Add status and live position rows at the TOP of the table
-          const firstRow = table.firstChild;
-          if (liveInfo.liveRow) {
-            table.insertBefore(liveInfo.liveRow, firstRow);
+          // Add status to map overlay chip instead of table
+          if (liveInfo.statusRow && statusOverlay) {
+            const badge = liveInfo.statusRow.querySelector('.flight-status-badge');
+            if (badge) {
+              statusOverlay.appendChild(badge);
+            }
           }
-          if (liveInfo.statusRow) {
-            table.insertBefore(liveInfo.statusRow, firstRow);
+          
+          // Add live position row at the TOP of the table (if exists)
+          if (liveInfo.liveRow) {
+            const firstRow = table.firstChild;
+            table.insertBefore(liveInfo.liveRow, firstRow);
           }
           
           // Add delay and gate info below table

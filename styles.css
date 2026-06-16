@@ -2234,6 +2234,18 @@ html.ios-standalone .tabbar {
   font-size: 13px;
   width: fit-content;
 }
+/* Status badge in overlay - remove padding/background since hero-meta-pill provides it */
+.hero-meta-pill .flight-status-badge {
+  padding: 0;
+  background: none !important;
+  color: #1a1a1a;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+/* Hide status overlay when empty */
+.flight-status-overlay:empty {
+  display: none;
+}
 .flight-status-badge.status-scheduled {
   background: rgba(16, 185, 129, 0.15);
   color: #10b981;
