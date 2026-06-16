@@ -908,7 +908,7 @@
     }
     if (delays.length) {
       const delayClass = (flightData.departure?.delay > 15 || flightData.arrival?.delay > 15) ? 'status-delayed' : 'status-minor-delay';
-      result.delayInfo = el('div', { class: `sheet-meta-line ${delayClass}` }, `⏱️ ${delays.join(' · ')}`));
+      result.delayInfo = el('div', { class: `sheet-meta-line ${delayClass}` }, `⏱️ ${delays.join(' · ')}`);
     }
     
     // Gates and terminals (keep as meta line)
