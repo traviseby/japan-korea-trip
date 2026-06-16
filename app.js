@@ -6553,9 +6553,22 @@
           toLng = toCoords[1] + 360;
         }
 
+        // Calculate appropriate zoom based on distance
+        const latDiff = Math.abs(fromCoords[0] - toCoords[0]);
+        const lngDiff = Math.abs(fromCoords[1] - toLng);
+        const maxDiff = Math.max(latDiff, lngDiff);
+        
+        // Zoom levels based on coordinate span
+        let zoomLevel = 4;
+        if (maxDiff < 5) zoomLevel = 6;        // Short domestic flight (e.g., SEA-SFO)
+        else if (maxDiff < 15) zoomLevel = 5;  // Medium domestic flight (e.g., SEA-LAX)
+        else if (maxDiff < 30) zoomLevel = 4;  // Long domestic/short international
+        else if (maxDiff < 60) zoomLevel = 3;  // Cross-country or regional international
+        else zoomLevel = 2;                     // Transoceanic
+
         leafletSheet = L.map(mapNode, {
           center: [(fromCoords[0] + toCoords[0]) / 2, (fromCoords[1] + toLng) / 2],
-          zoom: 3,
+          zoom: zoomLevel,
           zoomControl: false,
           attributionControl: false,
           dragging: false,
