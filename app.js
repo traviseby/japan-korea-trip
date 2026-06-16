@@ -6553,24 +6553,7 @@
           toLng = toCoords[1] + 360;
         }
 
-        // Calculate appropriate zoom based on distance
-        const latDiff = Math.abs(fromCoords[0] - toCoords[0]);
-        const lngDiff = Math.abs(fromCoords[1] - toLng);
-        const maxDiff = Math.max(latDiff, lngDiff);
-        
-        // Zoom levels based on coordinate span
-        let zoomLevel = 4;
-        if (maxDiff < 5) zoomLevel = 6;        // Short domestic flight (e.g., SEA-SFO)
-        else if (maxDiff < 15) zoomLevel = 5;  // Medium domestic flight (e.g., SEA-LAX)
-        else if (maxDiff < 30) zoomLevel = 4;  // Long domestic/short international
-        else if (maxDiff < 60) zoomLevel = 3;  // Cross-country or regional international
-        else zoomLevel = 2;                     // Transoceanic
-        
-        console.log('Flight map zoom calc:', { latDiff, lngDiff, maxDiff, zoomLevel, route: `${f.from}-${f.to}` });
-
         leafletSheet = L.map(mapNode, {
-          center: [(fromCoords[0] + toCoords[0]) / 2, (fromCoords[1] + toLng) / 2],
-          zoom: zoomLevel,
           zoomControl: false,
           attributionControl: false,
           dragging: false,
@@ -6584,6 +6567,10 @@
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
           subdomains: 'abcd'
         }).addTo(leafletSheet);
+        
+        // Fit bounds to show the route with padding
+        const bounds = L.latLngBounds([fromCoords, [toCoords[0], toLng]]);
+        leafletSheet.fitBounds(bounds, { padding: [40, 40] });
 
         // Arc path
         const arcPoints = [];
