@@ -759,27 +759,96 @@
 
   // Major airport coordinates for flight route maps
   const AIRPORT_COORDS = {
-    'SEA': [47.4502, -122.3088],
-    'BOS': [42.3656, -71.0096],
-    'NRT': [35.7648, 139.7966],
-    'HND': [35.5494, 139.7798],
-    'ICN': [37.4602, 126.4407],
-    'GMP': [37.5583, 126.7906],
-    'LAX': [33.9416, -118.4085],
-    'SFO': [37.6213, -122.3790],
-    'ORD': [41.9742, -87.9073],
-    'JFK': [40.6413, -73.7781],
-    'LHR': [51.4700, -0.4543],
-    'CDG': [49.0097, 2.5479],
-    'FRA': [50.0379, 8.5622],
-    'SIN': [1.3644, 103.9915],
-    'HKG': [22.3080, 113.9185],
-    'PVG': [31.1443, 121.8083],
-    'TPE': [25.0797, 121.2342],
-    'BKK': [13.6900, 100.7501],
-    'SYD': [-33.9461, 151.1772],
-    'YVR': [49.1967, -123.1815],
-    'YYZ': [43.6777, -79.6248]
+    // US West Coast
+    'SEA': [47.4502, -122.3088],   // Seattle-Tacoma
+    'PAE': [47.9063, -122.2816],   // Paine Field (Everett, WA)
+    'PDX': [45.5887, -122.5975],   // Portland
+    'SFO': [37.6213, -122.3790],   // San Francisco
+    'SJC': [37.3639, -121.9289],   // San Jose
+    'OAK': [37.7214, -122.2208],   // Oakland
+    'LAX': [33.9416, -118.4085],   // Los Angeles
+    'SAN': [32.7338, -117.1933],   // San Diego
+    'LAS': [36.0840, -115.1537],   // Las Vegas
+    'PHX': [33.4342, -112.0080],   // Phoenix
+    
+    // US East Coast
+    'BOS': [42.3656, -71.0096],    // Boston
+    'JFK': [40.6413, -73.7781],    // New York JFK
+    'LGA': [40.7769, -73.8740],    // New York LaGuardia
+    'EWR': [40.6895, -74.1745],    // Newark
+    'PHL': [39.8729, -75.2437],    // Philadelphia
+    'DCA': [38.8521, -77.0377],    // Washington Reagan
+    'IAD': [38.9531, -77.4565],    // Washington Dulles
+    'BWI': [39.1774, -76.6684],    // Baltimore
+    'ATL': [33.6407, -84.4277],    // Atlanta
+    'MCO': [28.4312, -81.3081],    // Orlando
+    'MIA': [25.7959, -80.2870],    // Miami
+    'FLL': [26.0742, -80.1506],    // Fort Lauderdale
+    
+    // US Central
+    'ORD': [41.9742, -87.9073],    // Chicago O'Hare
+    'MDW': [41.7868, -87.7522],    // Chicago Midway
+    'DEN': [39.8561, -104.6737],   // Denver
+    'DFW': [32.8998, -97.0403],    // Dallas/Fort Worth
+    'IAH': [29.9902, -95.3368],    // Houston
+    'MSP': [44.8848, -93.2223],    // Minneapolis
+    'DTW': [42.2162, -83.3554],    // Detroit
+    'SLC': [40.7899, -111.9791],   // Salt Lake City
+    
+    // Canada
+    'YVR': [49.1967, -123.1815],   // Vancouver
+    'YYZ': [43.6777, -79.6248],    // Toronto
+    'YUL': [45.4657, -73.7455],    // Montreal
+    'YYC': [51.1225, -114.0133],   // Calgary
+    
+    // Asia - Japan
+    'NRT': [35.7648, 139.7966],    // Tokyo Narita
+    'HND': [35.5494, 139.7798],    // Tokyo Haneda
+    'KIX': [34.4273, 135.2440],    // Osaka Kansai
+    'ITM': [34.7855, 135.4381],    // Osaka Itami
+    'NGO': [34.8584, 136.8049],    // Nagoya
+    'FUK': [33.5859, 130.4511],    // Fukuoka
+    'CTS': [42.7752, 141.6920],    // Sapporo
+    
+    // Asia - Korea
+    'ICN': [37.4602, 126.4407],    // Seoul Incheon
+    'GMP': [37.5583, 126.7906],    // Seoul Gimpo
+    'PUS': [35.1795, 128.9382],    // Busan
+    
+    // Asia - China
+    'PVG': [31.1443, 121.8083],    // Shanghai Pudong
+    'PEK': [40.0801, 116.5846],    // Beijing Capital
+    'HKG': [22.3080, 113.9185],    // Hong Kong
+    'CAN': [23.3924, 113.2988],    // Guangzhou
+    
+    // Asia - Southeast Asia
+    'SIN': [1.3644, 103.9915],     // Singapore
+    'BKK': [13.6900, 100.7501],    // Bangkok
+    'MNL': [14.5086, 121.0198],    // Manila
+    'SGN': [10.8188, 106.6519],    // Ho Chi Minh City
+    'HAN': [21.2212, 105.8072],    // Hanoi
+    
+    // Asia - Other
+    'TPE': [25.0797, 121.2342],    // Taipei
+    'DEL': [28.5562, 77.1000],     // Delhi
+    'BOM': [19.0896, 72.8656],     // Mumbai
+    
+    // Europe
+    'LHR': [51.4700, -0.4543],     // London Heathrow
+    'LGW': [51.1537, -0.1821],     // London Gatwick
+    'CDG': [49.0097, 2.5479],      // Paris Charles de Gaulle
+    'FRA': [50.0379, 8.5622],      // Frankfurt
+    'AMS': [52.3105, 4.7683],      // Amsterdam
+    'MAD': [40.4983, -3.5676],     // Madrid
+    'BCN': [41.2974, 2.0833],      // Barcelona
+    'FCO': [41.8003, 12.2389],     // Rome
+    'MUC': [48.3538, 11.7861],     // Munich
+    'ZRH': [47.4647, 8.5492],      // Zurich
+    
+    // Oceania
+    'SYD': [-33.9461, 151.1772],   // Sydney
+    'MEL': [-37.6690, 144.8410],   // Melbourne
+    'AKL': [-37.0082, 174.7850],   // Auckland
   };
 
   function getAirportCoords(code){
