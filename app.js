@@ -6564,27 +6564,13 @@
           toLng = toCoords[1] + 360;
         }
 
-        // Calculate center point and optimal zoom
-        const centerLat = (fromCoords[0] + toCoords[0]) / 2;
-        const centerLng = (fromCoords[1] + toLng) / 2;
-        
-        // Calculate distance-based zoom (lower numbers = more zoomed out)
+        // Calculate distance for arc height
         const latDiff = Math.abs(toCoords[0] - fromCoords[0]);
         const lngDiff = Math.abs(toLng - fromCoords[1]);
         const maxDiff = Math.max(latDiff, lngDiff);
         
-        let zoomLevel;
-        if (maxDiff < 3) zoomLevel = 5.5;      // Very short flights
-        else if (maxDiff < 8) zoomLevel = 4.5; // Short flights (e.g. SEA-SFO, SEA-LAX)
-        else if (maxDiff < 15) zoomLevel = 3.5;// Medium flights
-        else if (maxDiff < 30) zoomLevel = 2.5;// Long flights
-        else zoomLevel = 2;                     // Very long flights
-        
-        console.log('Map zoom calc:', { latDiff, lngDiff, maxDiff, zoomLevel, route: `${f.from}-${f.to}` });
-        
+        // Initialize map without center/zoom - will use fitBounds later
         leafletSheet = L.map(mapNode, {
-          center: [centerLat, centerLng],
-          zoom: zoomLevel,
           zoomControl: false,
           attributionControl: false,
           dragging: false,
@@ -6651,6 +6637,17 @@
         
         L.marker(fromCoords, { icon: fromIcon }).addTo(leafletSheet);
         L.marker([toCoords[0], toLng], { icon: toIcon }).addTo(leafletSheet);
+        
+        // Fit bounds after map container is properly sized
+        setTimeout(() => {
+          leafletSheet.invalidateSize();
+          const bounds = L.latLngBounds([fromCoords, [toCoords[0], toLng]]);
+          leafletSheet.fitBounds(bounds, { 
+            padding: [50, 50],
+            maxZoom: 6
+          });
+          console.log('Map fitted to bounds:', { route: `${f.from}-${f.to}`, bounds: bounds.toBBoxString() });
+        }, 150);
       }, 100);
     }
   }
