@@ -6447,16 +6447,11 @@
                           typeof toCoords[0] === 'number' &&
                           typeof toCoords[1] === 'number';
 
-    let statusOverlay = null;
+    let heroWrap = null;
     if (hasValidCoords) {
-      const heroWrap = el('div', { class: 'hero-wrap' });
+      heroWrap = el('div', { class: 'hero-wrap' });
       const mapHero = el('div', { class: 'flight-hero-map', id: 'flight-hero-map', 'aria-label': 'Flight route map' });
       heroWrap.appendChild(mapHero);
-      
-      // Status badge overlay (will be populated when flight status loads)
-      statusOverlay = el('div', { class: 'hero-meta-pill flight-status-overlay' });
-      heroWrap.appendChild(statusOverlay);
-      
       body.appendChild(heroWrap);
     }
 
@@ -6495,17 +6490,15 @@
     
     // Fetch live flight status
     fetchFlightStatus(f).then(flightData => {
-      console.log('Processing flight status, statusOverlay exists:', !!statusOverlay);
       if (flightData) {
         const liveInfo = buildFlightLiveInfo(flightData);
-        console.log('Built liveInfo:', { hasStatusBadge: !!liveInfo?.statusBadge, status: flightData.status });
         if (liveInfo) {
-          // Add status badge to map overlay chip
-          if (liveInfo.statusBadge && statusOverlay) {
-            statusOverlay.appendChild(liveInfo.statusBadge);
-            console.log('Added status badge to overlay:', flightData.status);
-          } else {
-            console.log('Skipping badge overlay:', { hasStatusBadge: !!liveInfo.statusBadge, hasOverlay: !!statusOverlay });
+          // Add status badge to map overlay as a pill
+          if (liveInfo.statusBadge && heroWrap) {
+            const statusPill = el('div', { class: 'hero-meta-pill' });
+            statusPill.appendChild(liveInfo.statusBadge);
+            heroWrap.appendChild(statusPill);
+            console.log('Added status pill to hero:', flightData.status);
           }
           
           // Add live position row at the TOP of the table (if exists)
@@ -6524,11 +6517,13 @@
           
           // Update map with live position if available
           if (liveInfo.liveMarkerData && leafletSheet) {
+            const bearing = window.flightRouteBearing || 0;
             const liveMarker = L.marker([liveInfo.liveMarkerData.latitude, liveInfo.liveMarkerData.longitude], {
               icon: L.divIcon({
                 className: 'flight-live-marker',
-                html: '✈️',
-                iconSize: [24, 24]
+                html: `<div style="transform: rotate(${bearing}deg); font-size: 24px; line-height: 1;">✈️</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
               })
             }).addTo(leafletSheet);
             
@@ -6653,21 +6648,11 @@
         L.marker(fromCoords, { icon: fromIcon }).addTo(leafletSheet);
         L.marker([toCoords[0], toLng], { icon: toIcon }).addTo(leafletSheet);
         
-        // Calculate bearing for plane rotation (from departure to arrival)
-        const bearing = Math.atan2(
+        // Store bearing calculation for live plane rotation
+        window.flightRouteBearing = Math.atan2(
           toLng - fromCoords[1],
           toCoords[0] - fromCoords[0]
         ) * (180 / Math.PI);
-        
-        // Add plane icon in the middle of the route
-        const midPoint = arcPoints[Math.floor(arcPoints.length / 2)];
-        const planeIcon = L.divIcon({
-          html: `<div style="transform: rotate(${bearing}deg); font-size: 20px; line-height: 1;">✈️</div>`,
-          className: 'flight-route-plane',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
-        });
-        L.marker(midPoint, { icon: planeIcon }).addTo(leafletSheet);
         
         // Fit bounds after map container is properly sized
         setTimeout(() => {
