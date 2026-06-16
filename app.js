@@ -6541,10 +6541,16 @@
         const mapNode = $('#flight-hero-map');
         if (!mapNode || leafletSheet) return;
 
-        // Adjust dest longitude for westbound routes
+        // Adjust longitude for routes that cross the date line
         let toLng = toCoords[1];
-        if (toCoords[1] > fromCoords[1]) {
+        const lngDiff = toCoords[1] - fromCoords[1];
+        
+        // If the route spans more than 180 degrees, we're going the long way
+        // Adjust to take the shorter path
+        if (lngDiff > 180) {
           toLng = toCoords[1] - 360;
+        } else if (lngDiff < -180) {
+          toLng = toCoords[1] + 360;
         }
 
         leafletSheet = L.map(mapNode, {
