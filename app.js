@@ -6557,19 +6557,19 @@
         const centerLat = (fromCoords[0] + toCoords[0]) / 2;
         const centerLng = (fromCoords[1] + toLng) / 2;
         
-        // Calculate distance-based zoom
+        // Calculate distance-based zoom (lower numbers = more zoomed out)
         const latDiff = Math.abs(toCoords[0] - fromCoords[0]);
         const lngDiff = Math.abs(toLng - fromCoords[1]);
         const maxDiff = Math.max(latDiff, lngDiff);
         
         let zoomLevel;
-        if (maxDiff < 5) zoomLevel = 6;
-        else if (maxDiff < 10) zoomLevel = 5;
-        else if (maxDiff < 20) zoomLevel = 4;
-        else if (maxDiff < 40) zoomLevel = 3;
-        else zoomLevel = 2;
+        if (maxDiff < 3) zoomLevel = 5;        // Very short flights (e.g. SEA-SFO)
+        else if (maxDiff < 8) zoomLevel = 4;   // Short flights
+        else if (maxDiff < 15) zoomLevel = 3;  // Medium flights
+        else if (maxDiff < 30) zoomLevel = 2;  // Long flights
+        else zoomLevel = 1;                     // Very long flights
         
-        console.log('Map zoom calc:', { latDiff, lngDiff, maxDiff, zoomLevel });
+        console.log('Map zoom calc:', { latDiff, lngDiff, maxDiff, zoomLevel, route: `${f.from}-${f.to}` });
         
         leafletSheet = L.map(mapNode, {
           center: [centerLat, centerLng],
