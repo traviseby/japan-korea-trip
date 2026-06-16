@@ -760,6 +760,7 @@
   // Major airport coordinates for flight route maps
   const AIRPORT_COORDS = {
     'SEA': [47.4502, -122.3088],
+    'BOS': [42.3656, -71.0096],
     'NRT': [35.7648, 139.7966],
     'HND': [35.5494, 139.7798],
     'ICN': [37.4602, 126.4407],
@@ -845,20 +846,18 @@
     if (!status) return null;
 
     const statusMap = {
-      'scheduled': { label: 'Scheduled', class: 'status-scheduled', emoji: '🕐' },
-      'active': { label: 'En Route', class: 'status-active', emoji: '✈️' },
-      'en-route': { label: 'En Route', class: 'status-active', emoji: '✈️' },
-      'landed': { label: 'Landed', class: 'status-landed', emoji: '✅' },
-      'cancelled': { label: 'Cancelled', class: 'status-cancelled', emoji: '❌' },
-      'incident': { label: 'Incident', class: 'status-incident', emoji: '⚠️' },
-      'diverted': { label: 'Diverted', class: 'status-diverted', emoji: '🔄' }
+      'scheduled': { label: 'Scheduled', class: 'status-scheduled' },
+      'active': { label: 'En Route', class: 'status-active' },
+      'en-route': { label: 'En Route', class: 'status-active' },
+      'landed': { label: 'Landed', class: 'status-landed' },
+      'cancelled': { label: 'Cancelled', class: 'status-cancelled' },
+      'incident': { label: 'Incident', class: 'status-incident' },
+      'diverted': { label: 'Diverted', class: 'status-diverted' }
     };
 
-    const statusInfo = statusMap[status.toLowerCase()] || { label: status, class: 'status-unknown', emoji: '' };
+    const statusInfo = statusMap[status.toLowerCase()] || { label: status, class: 'status-unknown' };
 
-    return el('span', { class: `flight-status-badge ${statusInfo.class}` },
-      `${statusInfo.emoji} ${statusInfo.label}`
-    );
+    return el('span', { class: `flight-status-badge ${statusInfo.class}` }, statusInfo.label);
   }
 
   function buildFlightLiveInfo(flightData) {
@@ -6491,12 +6490,13 @@
       if (flightData) {
         const liveInfo = buildFlightLiveInfo(flightData);
         if (liveInfo) {
-          // Add status and live position rows to table
-          if (liveInfo.statusRow) {
-            table.appendChild(liveInfo.statusRow);
-          }
+          // Add status and live position rows at the TOP of the table
+          const firstRow = table.firstChild;
           if (liveInfo.liveRow) {
-            table.appendChild(liveInfo.liveRow);
+            table.insertBefore(liveInfo.liveRow, firstRow);
+          }
+          if (liveInfo.statusRow) {
+            table.insertBefore(liveInfo.statusRow, firstRow);
           }
           
           // Add delay and gate info below table
