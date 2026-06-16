@@ -6780,20 +6780,18 @@
         const fromIcon = L.divIcon({
           html: `<div class="flight-airport-marker">
             <div class="flight-airport-code">${f.from}</div>
-            <div class="flight-airport-label">${f.fromCity || f.from}</div>
           </div>`,
           className: '',
-          iconSize: [60, 40],
-          iconAnchor: [30, 20]
+          iconSize: [60, 30],
+          iconAnchor: [30, 15]
         });
         const toIcon = L.divIcon({
           html: `<div class="flight-airport-marker">
             <div class="flight-airport-code">${f.to}</div>
-            <div class="flight-airport-label">${f.toCity || f.to}</div>
           </div>`,
           className: '',
-          iconSize: [60, 40],
-          iconAnchor: [30, 20]
+          iconSize: [60, 30],
+          iconAnchor: [30, 15]
         });
         
         L.marker(fromCoords, { icon: fromIcon }).addTo(leafletSheet);
