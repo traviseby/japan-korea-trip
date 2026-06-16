@@ -864,28 +864,24 @@
   function buildFlightLiveInfo(flightData) {
     if (!flightData) return null;
 
-    const container = el('div', { class: 'flight-live-info' });
+    const result = {
+      statusRow: null,
+      liveRow: null,
+      delayInfo: null,
+      gateInfo: null,
+      liveMarkerData: null
+    };
 
-    // Status with label (styled like metadata)
+    // Status row for table
     if (flightData.status) {
-      const statusLine = el('div', { class: 'sheet-meta-line' });
-      statusLine.appendChild(el('span', { class: 'meta-label' }, 'Status: '));
-      statusLine.appendChild(buildFlightStatusBadge(flightData.status));
-      container.appendChild(statusLine);
+      const statusCell = el('td');
+      statusCell.appendChild(buildFlightStatusBadge(flightData.status));
+      result.statusRow = el('tr', null, el('th', null, 'Status'), statusCell);
     }
 
-    // Aircraft info
-    if (flightData.aircraft?.modelText || flightData.aircraft?.registration) {
-      const parts = [];
-      if (flightData.aircraft.modelText) parts.push(flightData.aircraft.modelText);
-      if (flightData.aircraft.registration) parts.push(`(${flightData.aircraft.registration})`);
-      container.appendChild(el('div', { class: 'sheet-meta-line' }, parts.join(' ')));
-    }
-
-    // Live position (if in flight)
+    // Live position row for table (if in flight)
     const statusLower = (flightData.status || '').toLowerCase();
     if (flightData.live && (statusLower === 'active' || statusLower === 'en-route')) {
-      const liveDiv = el('div', { class: 'sheet-meta-line' });
       const parts = [];
 
       if (flightData.live.altitude) {
@@ -896,12 +892,13 @@
       }
 
       if (parts.length) {
-        liveDiv.textContent = `📍 ${parts.join(' · ')}`;
-        container.appendChild(liveDiv);
+        result.liveRow = el('tr', null, el('th', null, 'Live Position'), el('td', null, parts.join(' · ')));
       }
+      
+      result.liveMarkerData = flightData.live;
     }
 
-    // Delays
+    // Delays (keep as meta line)
     const delays = [];
     if (flightData.departure?.delay && flightData.departure.delay > 0) {
       delays.push(`Dep: +${flightData.departure.delay} min`);
@@ -911,28 +908,28 @@
     }
     if (delays.length) {
       const delayClass = (flightData.departure?.delay > 15 || flightData.arrival?.delay > 15) ? 'status-delayed' : 'status-minor-delay';
-      container.appendChild(el('div', { class: `sheet-meta-line ${delayClass}` }, `⏱️ ${delays.join(' · ')}`));
+      result.delayInfo = el('div', { class: `sheet-meta-line ${delayClass}` }, `⏱️ ${delays.join(' · ')}`));
     }
     
-    // Gates and terminals
-    const gateInfo = [];
+    // Gates and terminals (keep as meta line)
+    const gateInfoParts = [];
     if (flightData.departure?.gate) {
-      gateInfo.push(`Dep Gate: ${flightData.departure.gate}`);
+      gateInfoParts.push(`Dep Gate: ${flightData.departure.gate}`);
     }
     if (flightData.departure?.terminal) {
-      gateInfo.push(`Terminal: ${flightData.departure.terminal}`);
+      gateInfoParts.push(`Terminal: ${flightData.departure.terminal}`);
     }
     if (flightData.arrival?.gate) {
-      gateInfo.push(`Arr Gate: ${flightData.arrival.gate}`);
+      gateInfoParts.push(`Arr Gate: ${flightData.arrival.gate}`);
     }
     if (flightData.arrival?.terminal && !flightData.departure?.terminal) {
-      gateInfo.push(`Terminal: ${flightData.arrival.terminal}`);
+      gateInfoParts.push(`Terminal: ${flightData.arrival.terminal}`);
     }
-    if (gateInfo.length) {
-      container.appendChild(el('div', { class: 'flight-gates' }, gateInfo.join(' · ')));
+    if (gateInfoParts.length) {
+      result.gateInfo = el('div', { class: 'flight-gates' }, gateInfoParts.join(' · '));
     }
     
-    return container.children.length > 0 ? container : null;
+    return result;
   }
 
   function hasMapCoordinates(a){
@@ -6466,36 +6463,6 @@
       body.appendChild(el('div', { class: 'sheet-meta-line' }, airlineParts.join(' ')));
     }
 
-    // Flight status (async - will populate when available)
-    const flightStatusContainer = el('div', { class: 'flight-status-container' });
-    body.appendChild(flightStatusContainer);
-    
-    // Fetch live flight status
-    fetchFlightStatus(f).then(flightData => {
-      if (flightData) {
-        const liveInfo = buildFlightLiveInfo(flightData);
-        if (liveInfo) {
-          flightStatusContainer.appendChild(liveInfo);
-          
-          // Update map with live position if available
-          if (flightData.live && leafletSheet) {
-            const liveMarker = L.marker([flightData.live.latitude, flightData.live.longitude], {
-              icon: L.divIcon({
-                className: 'flight-live-marker',
-                html: '✈️',
-                iconSize: [24, 24]
-              })
-            }).addTo(leafletSheet);
-            
-            // Pan map to show live position
-            leafletSheet.panTo([flightData.live.latitude, flightData.live.longitude]);
-          }
-        }
-      }
-    }).catch(err => {
-      console.error('Failed to fetch flight status:', err);
-    });
-
     // Labeled table
     const table = el('table', { class: 'sheet-facts' });
     if (depart && f.date) {
@@ -6514,6 +6481,50 @@
       table.appendChild(el('tr', null, el('th', null, 'Cost'), el('td', null, costText)));
     }
     if (table.children.length) body.appendChild(table);
+    
+    // Container for extra meta info (delays, gates) - will be populated async
+    const extraMetaContainer = el('div', { class: 'flight-extra-meta' });
+    body.appendChild(extraMetaContainer);
+    
+    // Fetch live flight status
+    fetchFlightStatus(f).then(flightData => {
+      if (flightData) {
+        const liveInfo = buildFlightLiveInfo(flightData);
+        if (liveInfo) {
+          // Add status and live position rows to table
+          if (liveInfo.statusRow) {
+            table.appendChild(liveInfo.statusRow);
+          }
+          if (liveInfo.liveRow) {
+            table.appendChild(liveInfo.liveRow);
+          }
+          
+          // Add delay and gate info below table
+          if (liveInfo.delayInfo) {
+            extraMetaContainer.appendChild(liveInfo.delayInfo);
+          }
+          if (liveInfo.gateInfo) {
+            extraMetaContainer.appendChild(liveInfo.gateInfo);
+          }
+          
+          // Update map with live position if available
+          if (liveInfo.liveMarkerData && leafletSheet) {
+            const liveMarker = L.marker([liveInfo.liveMarkerData.latitude, liveInfo.liveMarkerData.longitude], {
+              icon: L.divIcon({
+                className: 'flight-live-marker',
+                html: '✈️',
+                iconSize: [24, 24]
+              })
+            }).addTo(leafletSheet);
+            
+            // Pan map to show live position
+            leafletSheet.panTo([liveInfo.liveMarkerData.latitude, liveInfo.liveMarkerData.longitude]);
+          }
+        }
+      }
+    }).catch(err => {
+      console.error('Failed to fetch flight status:', err);
+    });
 
     // Notes
     if (f.notes) {
