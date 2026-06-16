@@ -6565,6 +6565,8 @@
         else if (maxDiff < 30) zoomLevel = 4;  // Long domestic/short international
         else if (maxDiff < 60) zoomLevel = 3;  // Cross-country or regional international
         else zoomLevel = 2;                     // Transoceanic
+        
+        console.log('Flight map zoom calc:', { latDiff, lngDiff, maxDiff, zoomLevel, route: `${f.from}-${f.to}` });
 
         leafletSheet = L.map(mapNode, {
           center: [(fromCoords[0] + toCoords[0]) / 2, (fromCoords[1] + toLng) / 2],
