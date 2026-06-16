@@ -6610,9 +6610,13 @@
         L.marker(fromCoords, { icon: fromIcon }).addTo(leafletSheet);
         L.marker([toCoords[0], toLng], { icon: toIcon }).addTo(leafletSheet);
 
-        // Fit bounds
-        const bounds = L.latLngBounds([fromCoords, [toCoords[0], toLng]]);
-        leafletSheet.fitBounds(bounds, { padding: [60, 80] });
+        // Fit bounds after map is fully rendered
+        setTimeout(() => {
+          leafletSheet.invalidateSize();
+          const bounds = L.latLngBounds([fromCoords, [toCoords[0], toLng]]);
+          leafletSheet.fitBounds(bounds, { padding: [60, 80] });
+          console.log('Map bounds set:', bounds.toBBoxString());
+        }, 200);
       }, 100);
     }
   }
