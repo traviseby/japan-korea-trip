@@ -2653,8 +2653,7 @@
     
     const card = el('div', { class: 'offline-card' },
       el('div', { class: 'oc-head' },
-        el('div', { class: 'oc-headline' }, 'Sync from Superhuman Docs'),
-        el('span', { class: 'oc-status', id: 'sync-status' }, activeTrip ? 'Ready' : 'No trip')
+        el('div', { class: 'oc-headline' }, 'Sync from Superhuman Docs')
       ),
       el('div', { class: 'oc-desc' }, desc),
       el('button', { 
@@ -2681,8 +2680,7 @@
 
   async function triggerCodaSync(){
     const btn = $('#sync-btn');
-    const status = $('#sync-status');
-    if (!btn || !status) return;
+    if (!btn) return;
     
     const activeTrip = getActiveTrip();
     if (!activeTrip) {
@@ -2707,7 +2705,6 @@
       setTimeout(() => location.reload(), 500);
     } catch (err){
       console.error('Sync error:', err);
-      status.textContent = 'Error';
       btn.textContent = 'Sync now';
       btn.disabled = false;
       toast('Error: ' + err.message);
