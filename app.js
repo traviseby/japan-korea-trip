@@ -477,7 +477,7 @@
         : el('div', { class: 'body' }, day.notes);
       
       const notes = el('div', { class: 'notes' },
-        el('div', { class: 'notes-head' }, 'Notes'),
+        el('div', { class: 'notes-head' }, 'Tips'),
         notesBody
       );
       root.appendChild(el('div', { class: 'section tight' }));
