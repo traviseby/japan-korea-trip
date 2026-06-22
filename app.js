@@ -2885,9 +2885,16 @@
     return 'View Receipt';
   }
 
-  function openExternalReceipt(url){
+  function downloadImage(url, filename){
     if (!url) return;
-    window.open(url, '_blank', 'noopener');
+    // Create a temporary link to trigger download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'image.jpg';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function sheetActionsClass(count) {
@@ -3074,8 +3081,9 @@
     };
   }
 
-  function openReceiptImageSheet(url, filename){
+  function openReceiptImageSheet(url, filename, initialIndex){
     const urls = Array.isArray(url) ? url : [url];
+    const startIndex = Math.max(0, Math.min(initialIndex || 0, urls.length - 1));
     const { sheet, backdrop } = ensureReceiptImageSheetDom();
     if (sheet.__receiptZoomCleanup) {
       sheet.__receiptZoomCleanup();
@@ -3092,7 +3100,7 @@
     ));
 
     const viewport = el('div', { class: 'receipt-zoom-viewport' });
-    const carouselState = { currentIndex: 0, cleanup: null };
+    const carouselState = { currentIndex: startIndex, cleanup: null };
     const track = el('div', { class: 'receipt-zoom-track' });
     
     // Create stage and image for each URL
@@ -3129,7 +3137,11 @@
       carouselState.cleanup = attachReceiptPinchZoom(viewport, stages[index].stage, stages[index].img);
     };
     
-    attachCurrentZoom(0);
+    // Initialize carousel at starting index
+    attachCurrentZoom(startIndex);
+    if (startIndex > 0) {
+      track.style.transform = `translateX(-${startIndex * 100}%)`;
+    }
     
     // Add indicators if multiple images
     if (urls.length > 1) {
@@ -3151,7 +3163,7 @@
       
       urls.forEach((_, i) => {
         const dot = el('div', {
-          class: 'receipt-dot' + (i === 0 ? ' active' : ''),
+          class: 'receipt-dot' + (i === startIndex ? ' active' : ''),
           'data-index': i
         });
         dot.addEventListener('click', (e) => {
@@ -3209,8 +3221,12 @@
       el('button', {
         class: 'btn secondary',
         type: 'button',
-        onclick: () => openExternalReceipt(urls[carouselState.currentIndex])
-      }, 'Open in Browser')
+        onclick: () => {
+          const currentUrl = urls[carouselState.currentIndex];
+          const imgFilename = filename || `image-${carouselState.currentIndex + 1}.jpg`;
+          downloadImage(currentUrl, imgFilename);
+        }
+      }, 'Download')
     ));
 
     // Store cleanup function
@@ -3413,6 +3429,10 @@
         alt: alt || '',
         loading: i === 0 ? 'eager' : 'lazy',
         decoding: 'async'
+      });
+      img.style.cursor = 'pointer';
+      img.addEventListener('click', () => {
+        openReceiptImageSheet(photoUrls, alt || 'photo.jpg', state.currentIndex);
       });
       track.appendChild(img);
     });
@@ -6436,6 +6456,10 @@
         heroWrap.appendChild(carousel);
       } else {
         const heroImg = el('img', { class: 'hero-photo', src: enrichment.photoUrl, alt: a.name });
+        heroImg.style.cursor = 'pointer';
+        heroImg.addEventListener('click', () => {
+          openReceiptImageSheet(enrichment.photoUrl, a.name || 'photo.jpg');
+        });
         heroWrap.appendChild(heroImg);
       }
       
@@ -7345,6 +7369,10 @@
           heroWrap.appendChild(carousel);
         } else {
           const heroImg = el('img', { class: 'hero-photo', src: cachedEnrichment.photoUrl, alt: h.name });
+          heroImg.style.cursor = 'pointer';
+          heroImg.addEventListener('click', () => {
+            openReceiptImageSheet(cachedEnrichment.photoUrl, h.name || 'photo.jpg');
+          });
           heroWrap.appendChild(heroImg);
         }
         if (datePill) heroWrap.appendChild(datePill);
@@ -7631,6 +7659,10 @@
           heroWrap.appendChild(carousel);
         } else {
           const heroImg = el('img', { class: 'hero-photo', src: cachedEnrichment.photoUrl, alt: ev.name });
+          heroImg.style.cursor = 'pointer';
+          heroImg.addEventListener('click', () => {
+            openReceiptImageSheet(cachedEnrichment.photoUrl, ev.name || 'photo.jpg');
+          });
           heroWrap.appendChild(heroImg);
         }
         if (timePill) heroWrap.appendChild(timePill);

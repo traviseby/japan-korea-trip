@@ -2073,6 +2073,13 @@ html.ios-standalone .tabbar {
   height: 200px;
   object-fit: cover;
   display: block;
+  transition: opacity 0.2s ease;
+}
+.sheet .hero-photo:hover {
+  opacity: 0.9;
+}
+.sheet .hero-photo:active {
+  opacity: 0.8;
 }
 .sheet .hero-map {
   width: 100%;
