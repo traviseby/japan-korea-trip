@@ -148,12 +148,21 @@
       this._creep = 0.35;
       this._captionIndex = -1;
       this._captionShownAt = 0;
+      this._wingMode = 'none'; // none, left, right, center, top
     }
-    static get observedAttributes() { return ['progress', 'ease', 'creep']; }
+    static get observedAttributes() { return ['progress', 'ease', 'creep', 'wing-mode']; }
     attributeChangedCallback(n, _o, v) {
       if (n === 'progress') this.progress = parseFloat(v);
       if (n === 'ease') this.ease = parseFloat(v);
       if (n === 'creep') this.creep = parseFloat(v);
+      if (n === 'wing-mode') this.wingMode = v;
+    }
+    get wingMode() { return this._wingMode; }
+    set wingMode(v) {
+      if (this._wingMode !== v) {
+        this._wingMode = v || 'none';
+        if (this._scaler) this._build(); // Rebuild if already connected
+      }
     }
     get progress() { return this._realMax; }
     set progress(v) {
@@ -263,11 +272,198 @@
       this._scaler.style.transform = `translate(-50%,-50%) scale(${s})`;
     }
 
+    _getWingSvg() {
+      const w = PW.w, h = PW.h;
+      
+      if (this._wingMode === 'left') {
+        // Left wing extending from bottom-left
+        return `
+          <svg class="stl-wing" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;inset:0;pointer-events:none;z-index:10">
+            <defs>
+              <linearGradient id="wing-grad-left" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#8a95a5;stop-opacity:1" />
+                <stop offset="40%" style="stop-color:#b8c2cf;stop-opacity:1" />
+                <stop offset="70%" style="stop-color:#9aa8b8;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#7a8595;stop-opacity:0.9" />
+              </linearGradient>
+              <linearGradient id="wing-shadow-left" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" style="stop-color:#000;stop-opacity:0.3" />
+                <stop offset="50%" style="stop-color:#000;stop-opacity:0" />
+              </linearGradient>
+            </defs>
+            <!-- Main wing body -->
+            <path d="M 0,${h} L 0,${h-120} Q 80,${h-160} 180,${h-140} L 220,${h} Z" 
+                  fill="url(#wing-grad-left)" stroke="#6a7585" stroke-width="1.5"/>
+            <!-- Wing panel lines -->
+            <line x1="0" y1="${h-30}" x2="180" y2="${h-30}" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <line x1="0" y1="${h-60}" x2="170" y2="${h-80}" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <line x1="0" y1="${h-90}" x2="150" y2="${h-120}" stroke="#5a6575" stroke-width="1" opacity="0.5"/>
+            <!-- Rivets -->
+            ${Array.from({length: 12}, (_, i) => {
+              const x = 20 + i * 15;
+              const y = h - 25 - Math.sin(i * 0.5) * 8;
+              return `<circle cx="${x}" cy="${y}" r="1.2" fill="#4a5565" opacity="0.7"/>`;
+            }).join('')}
+            <!-- Winglet -->
+            <path d="M 0,${h-115} L 15,${h-145} L 25,${h-140} L 12,${h-110} Z" 
+                  fill="#7a8595" stroke="#5a6575" stroke-width="1"/>
+            <!-- Shadow overlay -->
+            <rect x="0" y="${h-120}" width="220" height="120" fill="url(#wing-shadow-left)"/>
+            <!-- Engine nacelle -->
+            <ellipse cx="90" cy="${h-90}" rx="28" ry="38" fill="#6a7585" stroke="#5a6575" stroke-width="1.5"/>
+            <ellipse cx="90" cy="${h-90}" rx="20" ry="28" fill="#3a4555"/>
+            <ellipse cx="90" cy="${h-90}" rx="12" ry="18" fill="#1a2535"/>
+          </svg>`;
+      }
+      
+      if (this._wingMode === 'right') {
+        // Right wing extending from bottom-right
+        return `
+          <svg class="stl-wing" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;inset:0;pointer-events:none;z-index:10">
+            <defs>
+              <linearGradient id="wing-grad-right" x1="100%" y1="0%" x2="0%" y2="0%">
+                <stop offset="0%" style="stop-color:#8a95a5;stop-opacity:1" />
+                <stop offset="40%" style="stop-color:#b8c2cf;stop-opacity:1" />
+                <stop offset="70%" style="stop-color:#9aa8b8;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#7a8595;stop-opacity:0.9" />
+              </linearGradient>
+              <linearGradient id="wing-shadow-right" x1="100%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#000;stop-opacity:0.3" />
+                <stop offset="50%" style="stop-color:#000;stop-opacity:0" />
+              </linearGradient>
+            </defs>
+            <!-- Main wing body -->
+            <path d="M ${w},${h} L ${w},${h-120} Q ${w-80},${h-160} ${w-180},${h-140} L ${w-220},${h} Z" 
+                  fill="url(#wing-grad-right)" stroke="#6a7585" stroke-width="1.5"/>
+            <!-- Wing panel lines -->
+            <line x1="${w}" y1="${h-30}" x2="${w-180}" y2="${h-30}" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <line x1="${w}" y1="${h-60}" x2="${w-170}" y2="${h-80}" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <line x1="${w}" y1="${h-90}" x2="${w-150}" y2="${h-120}" stroke="#5a6575" stroke-width="1" opacity="0.5"/>
+            <!-- Rivets -->
+            ${Array.from({length: 12}, (_, i) => {
+              const x = w - 20 - i * 15;
+              const y = h - 25 - Math.sin(i * 0.5) * 8;
+              return `<circle cx="${x}" cy="${y}" r="1.2" fill="#4a5565" opacity="0.7"/>`;
+            }).join('')}
+            <!-- Winglet -->
+            <path d="M ${w},${h-115} L ${w-15},${h-145} L ${w-25},${h-140} L ${w-12},${h-110} Z" 
+                  fill="#7a8595" stroke="#5a6575" stroke-width="1"/>
+            <!-- Shadow overlay -->
+            <rect x="${w-220}" y="${h-120}" width="220" height="120" fill="url(#wing-shadow-right)"/>
+            <!-- Engine nacelle -->
+            <ellipse cx="${w-90}" cy="${h-90}" rx="28" ry="38" fill="#6a7585" stroke="#5a6575" stroke-width="1.5"/>
+            <ellipse cx="${w-90}" cy="${h-90}" rx="20" ry="28" fill="#3a4555"/>
+            <ellipse cx="${w-90}" cy="${h-90}" rx="12" ry="18" fill="#1a2535"/>
+          </svg>`;
+      }
+      
+      if (this._wingMode === 'center') {
+        // Wing tip centered at bottom
+        return `
+          <svg class="stl-wing" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;inset:0;pointer-events:none;z-index:10">
+            <defs>
+              <linearGradient id="wing-grad-center" x1="50%" y1="100%" x2="50%" y2="0%">
+                <stop offset="0%" style="stop-color:#9aa8b8;stop-opacity:1" />
+                <stop offset="50%" style="stop-color:#c5d0dd;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#8a95a5;stop-opacity:0.8" />
+              </linearGradient>
+              <radialGradient id="wing-shadow-center" cx="50%" cy="100%">
+                <stop offset="0%" style="stop-color:#000;stop-opacity:0.25" />
+                <stop offset="70%" style="stop-color:#000;stop-opacity:0" />
+              </radialGradient>
+            </defs>
+            <!-- Left wing section -->
+            <path d="M ${w/2},${h} L ${w/2-10},${h-100} Q ${w/2-80},${h-120} ${w/2-140},${h-90} L ${w/2-150},${h} Z" 
+                  fill="url(#wing-grad-center)" stroke="#6a7585" stroke-width="1.5"/>
+            <!-- Right wing section -->
+            <path d="M ${w/2},${h} L ${w/2+10},${h-100} Q ${w/2+80},${h-120} ${w/2+140},${h-90} L ${w/2+150},${h} Z" 
+                  fill="url(#wing-grad-center)" stroke="#6a7585" stroke-width="1.5"/>
+            <!-- Center panel lines -->
+            <line x1="${w/2-130}" y1="${h-40}" x2="${w/2+130}" y2="${h-40}" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <line x1="${w/2-110}" y1="${h-70}" x2="${w/2+110}" y2="${h-70}" stroke="#5a6575" stroke-width="1" opacity="0.5"/>
+            <!-- Rivets left -->
+            ${Array.from({length: 8}, (_, i) => {
+              const x = w/2 - 20 - i * 16;
+              const y = h - 35;
+              return `<circle cx="${x}" cy="${y}" r="1.2" fill="#4a5565" opacity="0.7"/>`;
+            }).join('')}
+            <!-- Rivets right -->
+            ${Array.from({length: 8}, (_, i) => {
+              const x = w/2 + 20 + i * 16;
+              const y = h - 35;
+              return `<circle cx="${x}" cy="${y}" r="1.2" fill="#4a5565" opacity="0.7"/>`;
+            }).join('')}
+            <!-- Winglets -->
+            <path d="M ${w/2-140},${h-85} L ${w/2-160},${h-110} L ${w/2-155},${h-100} L ${w/2-135},${h-80} Z" 
+                  fill="#7a8595" stroke="#5a6575" stroke-width="1"/>
+            <path d="M ${w/2+140},${h-85} L ${w/2+160},${h-110} L ${w/2+155},${h-100} L ${w/2+135},${h-80} Z" 
+                  fill="#7a8595" stroke="#5a6575" stroke-width="1"/>
+            <!-- Shadow -->
+            <ellipse cx="${w/2}" cy="${h}" rx="150" ry="100" fill="url(#wing-shadow-center)"/>
+          </svg>`;
+      }
+      
+      if (this._wingMode === 'top') {
+        // Wing view from above/top perspective
+        return `
+          <svg class="stl-wing" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="position:absolute;inset:0;pointer-events:none;z-index:10">
+            <defs>
+              <linearGradient id="wing-grad-top" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#b8c2cf;stop-opacity:1" />
+                <stop offset="50%" style="stop-color:#9aa8b8;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#7a8595;stop-opacity:0.8" />
+              </linearGradient>
+              <linearGradient id="wing-shadow-top" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#000;stop-opacity:0" />
+                <stop offset="50%" style="stop-color:#000;stop-opacity:0.2" />
+              </linearGradient>
+            </defs>
+            <!-- Left wing from top -->
+            <path d="M 0,80 L 0,40 Q 60,20 140,35 L 160,90 Z" 
+                  fill="url(#wing-grad-top)" stroke="#6a7585" stroke-width="1.5"/>
+            <!-- Right wing from top -->
+            <path d="M ${w},80 L ${w},40 Q ${w-60},20 ${w-140},35 L ${w-160},90 Z" 
+                  fill="url(#wing-grad-top)" stroke="#6a7585" stroke-width="1.5"/>
+            <!-- Panel lines left -->
+            <line x1="0" y1="50" x2="140" y2="55" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <line x1="0" y1="65" x2="150" y2="72" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <!-- Panel lines right -->
+            <line x1="${w}" y1="50" x2="${w-140}" y2="55" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <line x1="${w}" y1="65" x2="${w-150}" y2="72" stroke="#5a6575" stroke-width="1" opacity="0.6"/>
+            <!-- Rivets left -->
+            ${Array.from({length: 10}, (_, i) => {
+              const x = 10 + i * 14;
+              const y = 48 + i * 3;
+              return `<circle cx="${x}" cy="${y}" r="1.2" fill="#4a5565" opacity="0.7"/>`;
+            }).join('')}
+            <!-- Rivets right -->
+            ${Array.from({length: 10}, (_, i) => {
+              const x = w - 10 - i * 14;
+              const y = 48 + i * 3;
+              return `<circle cx="${x}" cy="${y}" r="1.2" fill="#4a5565" opacity="0.7"/>`;
+            }).join('')}
+            <!-- Engine nacelles -->
+            <ellipse cx="70" cy="55" rx="24" ry="32" fill="#6a7585" stroke="#5a6575" stroke-width="1.5"/>
+            <ellipse cx="70" cy="55" rx="16" ry="22" fill="#3a4555"/>
+            <ellipse cx="${w-70}" cy="55" rx="24" ry="32" fill="#6a7585" stroke="#5a6575" stroke-width="1.5"/>
+            <ellipse cx="${w-70}" cy="55" rx="16" ry="22" fill="#3a4555"/>
+            <!-- Shadows -->
+            <rect x="0" y="40" width="160" height="50" fill="url(#wing-shadow-top)"/>
+            <rect x="${w-160}" y="40" width="160" height="50" fill="url(#wing-shadow-top)"/>
+          </svg>`;
+      }
+      
+      return ''; // No wing
+    }
+
     _build() {
       const stars = Array.from({ length: 34 }, (() => { const rnd = rng(7); return () => ({ x: rnd() * 100, y: rnd() * 52, r: 0.5 + rnd() * 1.3, ph: rnd() * 6.28, sp: 1.5 + rnd() * 2 }); })());
       const clouds = Array.from({ length: 6 }, (() => { const r2 = rng(21); return () => ({ base: r2() * 1.5, y: 30 + r2() * 55, scale: 0.6 + r2() * 0.9, speed: 0.02 + r2() * 0.05, op: 0.5 + r2() * 0.4 }); })());
       const fg = Array.from({ length: 3 }, (() => { const r3 = rng(41); return () => ({ base: r3(), y: 28 + r3() * 24, scale: 0.95 + r3() * 0.7, speed: 0.015 + r3() * 0.022, op: 0.72 + r3() * 0.24 }); })());
       this._stars = stars; this._clouds = clouds; this._fg = fg;
+
+      // Generate wing SVG based on mode
+      const wingSvg = this._getWingSvg();
 
       this.innerHTML = `
         <div class="stl-backdrop">
@@ -303,6 +499,7 @@
               <line data-tail x1="${PW.w / 2 - 34}" y1="2" x2="${PW.w / 2}" y2="2" stroke="url(#stl-tailgrad)" stroke-width="4" stroke-linecap="butt" style="opacity:0;filter:drop-shadow(0 0 7px rgba(255,231,178,0.7)) drop-shadow(0 0 16px rgba(255,201,130,0.45))"></line>
               <path data-line d="${roundRect(2, 2, PW.w - 4, PW.h - 4, PW.r - 2)}" fill="none" stroke="#FFF3DA" stroke-width="4" stroke-linecap="butt" style="filter:drop-shadow(0 0 7px rgba(255,231,178,0.95)) drop-shadow(0 0 18px rgba(255,201,130,0.6))"></path>
             </svg>
+            ${wingSvg}
           </div>
 
           <div class="stl-abs" style="left:50%;top:${PW.y - 7}px;transform:translateX(-50%);width:80px;height:6px;border-radius:5px;background:linear-gradient(#6b6b70,#3f3f43)"></div>

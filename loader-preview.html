@@ -87,7 +87,7 @@
 </head>
 <body>
 
-<div class="preview-controls" id="controls">
+  <div class="preview-controls" id="controls">
   <div style="font-weight: 600; margin-bottom: 4px;">Loading Screen Preview</div>
   
   <button onclick="animateLoader()">▶️ Animate Full Load</button>
@@ -98,7 +98,28 @@
          oninput="setProgress(this.value / 100)">
   <div style="font-size: 12px; opacity: 0.6; text-align: center;" id="progressLabel">0%</div>
   
-  <button onclick="toggleControls()" style="background: rgba(255,255,255,0.2); margin-top: 8px;">
+  <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 12px; margin-top: 12px;">
+    <label style="margin-bottom: 8px; display: block;">Wing View:</label>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <button onclick="setWingMode('none')" id="wing-none" style="background: rgba(255,255,255,0.15); font-size: 12px; padding: 6px;">
+        No Wing
+      </button>
+      <button onclick="setWingMode('left')" id="wing-left" style="background: rgba(255,255,255,0.15); font-size: 12px; padding: 6px;">
+        ✈️ Left Wing
+      </button>
+      <button onclick="setWingMode('right')" id="wing-right" style="background: rgba(255,255,255,0.15); font-size: 12px; padding: 6px;">
+        ✈️ Right Wing
+      </button>
+      <button onclick="setWingMode('center')" id="wing-center" style="background: rgba(255,255,255,0.15); font-size: 12px; padding: 6px;">
+        ✈️ Center
+      </button>
+      <button onclick="setWingMode('top')" id="wing-top" style="background: rgba(255,255,255,0.15); font-size: 12px; padding: 6px; grid-column: 1 / -1;">
+        ✈️ Top View
+      </button>
+    </div>
+  </div>
+  
+  <button onclick="toggleControls()" style="background: rgba(255,255,255,0.2); margin-top: 12px;">
     Hide Controls
   </button>
 </div>
@@ -119,6 +140,7 @@
     // Create new loader
     loader = document.createElement('supertrip-loader');
     loader.id = 'preview-loader';
+    loader.setAttribute('wing-mode', currentWingMode);
     document.body.appendChild(loader);
     loader.progress = 0;
     
@@ -205,8 +227,35 @@
     controls.classList.toggle('hidden');
   }
   
+  let currentWingMode = 'none';
+  
+  function setWingMode(mode) {
+    currentWingMode = mode;
+    
+    if (!loader || !document.body.contains(loader)) {
+      loader = createLoader();
+    }
+    
+    loader.setAttribute('wing-mode', mode);
+    
+    // Update button styles
+    ['none', 'left', 'right', 'center', 'top'].forEach(m => {
+      const btn = document.getElementById('wing-' + m);
+      if (btn) {
+        if (m === mode) {
+          btn.style.background = '#007aff';
+          btn.style.fontWeight = '600';
+        } else {
+          btn.style.background = 'rgba(255,255,255,0.15)';
+          btn.style.fontWeight = '400';
+        }
+      }
+    });
+  }
+  
   // Auto-start on load
   window.addEventListener('load', () => {
+    setWingMode('none'); // Initialize button state
     setTimeout(() => {
       animateLoader();
     }, 300);
