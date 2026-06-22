@@ -1319,6 +1319,17 @@ html.ios-standalone .tabbar {
   margin-bottom: 8px;
   font-weight: 500;
 }
+.notes .notes-list {
+  margin: 0;
+  padding-left: 20px;
+  list-style: disc;
+}
+.notes .notes-list li {
+  margin-bottom: 8px;
+}
+.notes .notes-list li:last-child {
+  margin-bottom: 0;
+}
 .notes.collapsible .body {
   max-height: 62px;
   overflow: hidden;

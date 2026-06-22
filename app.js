@@ -466,9 +466,19 @@
 
     // Notes card
     if (day.notes){
+      const noteLines = String(day.notes)
+        .split(/\n+/)
+        .map(s => s.trim())
+        .map(s => s.replace(/^[-•]\s*/, '')) // Remove leading dash or bullet
+        .filter(Boolean);
+      
+      const notesBody = noteLines.length > 1
+        ? el('ul', { class: 'notes-list' }, ...noteLines.map(line => el('li', null, line)))
+        : el('div', { class: 'body' }, day.notes);
+      
       const notes = el('div', { class: 'notes' },
         el('div', { class: 'notes-head' }, 'Notes'),
-        el('div', { class: 'body' }, day.notes)
+        notesBody
       );
       root.appendChild(el('div', { class: 'section tight' }));
       root.appendChild(notes);
