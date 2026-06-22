@@ -8673,6 +8673,7 @@
 
     sheet.addEventListener('touchstart', e => {
       if (!sheet.classList.contains('open') || e.touches.length !== 1) return;
+      if (sheet.__horizontalSwipeActive) return;
       if (!canStartDismiss(e.target)) return;
       scrollEl = scrollContainer(e.target);
       startY = e.touches[0].clientY;
@@ -8683,6 +8684,10 @@
 
     sheet.addEventListener('touchmove', e => {
       if (!armed || !sheet.classList.contains('open')) return;
+      if (sheet.__horizontalSwipeActive) {
+        armed = false;
+        return;
+      }
       const y = e.touches[0].clientY;
       const delta = y - startY;
 
@@ -8756,7 +8761,7 @@
     let locked = null;
     let dragging = false;
     let currentX = 0;
-    let scrollTop = 0;
+    let savedScrollTop = 0;
 
     function getCurrentActivity(){
       return state.sheet ? D.byId[state.sheet] : null;
@@ -8800,6 +8805,8 @@
 
     function resetDrag(animate){
       body.classList.remove('is-swiping');
+      body.style.overflow = '';
+      sheet.__horizontalSwipeActive = false;
       if (animate) setDragTransform(0, true);
       else {
         body.style.transition = 'none';
@@ -8826,13 +8833,12 @@
         : adjacentActivity(a.id, -1);
       if (!targetActivity) return;
 
-      // Save current scroll position
-      scrollTop = body.scrollTop;
-
       const w = sheet.offsetWidth || document.documentElement.clientWidth;
       setDragTransform(direction === 'next' ? -w : w, true);
       body.style.opacity = '0';
       body.classList.remove('is-swiping');
+      body.style.overflow = '';
+      sheet.__horizontalSwipeActive = false;
       dragging = false;
       setTimeout(() => {
         openSheet(targetActivity);
@@ -8840,7 +8846,9 @@
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const newBody = $('#sheet .sheet-body');
-            if (newBody) newBody.scrollTop = scrollTop;
+            if (newBody && savedScrollTop > 0) {
+              newBody.scrollTop = savedScrollTop;
+            }
           });
         });
       }, 220);
@@ -8856,10 +8864,11 @@
       if (e.touches.length !== 1) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
-      scrollTop = body.scrollTop;
+      savedScrollTop = body.scrollTop;
       locked = null;
       dragging = false;
       currentX = 0;
+      sheet.__horizontalSwipeActive = false;
       body.style.transition = 'none';
     }, { passive: true });
 
@@ -8878,13 +8887,15 @@
           if (!dragging) {
             dragging = true;
             body.classList.add('is-swiping');
-            // Lock vertical scroll position
-            body.scrollTop = scrollTop;
+            body.style.overflow = 'hidden';
+            sheet.__horizontalSwipeActive = true;
+            // Lock body scroll position
+            body.scrollTop = savedScrollTop;
           }
           setDragTransform(currentX, false);
-          // Keep scroll locked during horizontal swipe
-          if (body.scrollTop !== scrollTop) {
-            body.scrollTop = scrollTop;
+          // Continuously enforce scroll lock
+          if (body.scrollTop !== savedScrollTop) {
+            body.scrollTop = savedScrollTop;
           }
           e.preventDefault();
         }
