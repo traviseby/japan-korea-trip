@@ -8756,6 +8756,7 @@
     let locked = null;
     let dragging = false;
     let currentX = 0;
+    let scrollTop = 0;
 
     function getCurrentActivity(){
       return state.sheet ? D.byId[state.sheet] : null;
@@ -8771,7 +8772,7 @@
       return a && adjacentActivity(a.id, +1);
     }
 
-    const SWIPE_LOCK_PX = 10;
+    const SWIPE_LOCK_PX = 15;
     const SWIPE_ARM_PX = 40;
 
     function swipeDragOffset(rawDx){
@@ -8825,12 +8826,24 @@
         : adjacentActivity(a.id, -1);
       if (!targetActivity) return;
 
+      // Save current scroll position
+      scrollTop = body.scrollTop;
+
       const w = sheet.offsetWidth || document.documentElement.clientWidth;
       setDragTransform(direction === 'next' ? -w : w, true);
       body.style.opacity = '0';
       body.classList.remove('is-swiping');
       dragging = false;
-      setTimeout(() => openSheet(targetActivity), 220);
+      setTimeout(() => {
+        openSheet(targetActivity);
+        // Restore scroll position after new sheet opens
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const newBody = $('#sheet .sheet-body');
+            if (newBody) newBody.scrollTop = scrollTop;
+          });
+        });
+      }, 220);
     }
 
     body.addEventListener('touchstart', e => {
@@ -8843,6 +8856,7 @@
       if (e.touches.length !== 1) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
+      scrollTop = body.scrollTop;
       locked = null;
       dragging = false;
       currentX = 0;
@@ -8855,7 +8869,7 @@
       const dy = e.touches[0].clientY - startY;
 
       if (locked == null && Math.abs(dx) + Math.abs(dy) > SWIPE_LOCK_PX) {
-        locked = Math.abs(dx) > Math.abs(dy) * 1.25 ? 'x' : 'y';
+        locked = Math.abs(dx) > Math.abs(dy) * 1.5 ? 'x' : 'y';
       }
 
       if (locked === 'x') {
@@ -8864,8 +8878,14 @@
           if (!dragging) {
             dragging = true;
             body.classList.add('is-swiping');
+            // Lock vertical scroll position
+            body.scrollTop = scrollTop;
           }
           setDragTransform(currentX, false);
+          // Keep scroll locked during horizontal swipe
+          if (body.scrollTop !== scrollTop) {
+            body.scrollTop = scrollTop;
+          }
           e.preventDefault();
         }
       }
