@@ -148,6 +148,12 @@ export default async function handler(req, res) {
       if (!node) return '';
       if (typeof node.text === 'string') return node.text;
       if (Array.isArray(node.children)) {
+        // If children are "Line" elements (Slate paragraphs/list items), join with newlines
+        const hasLineChildren = node.children.some(child => child?.type === 'Line');
+        if (hasLineChildren) {
+          return node.children.map(extractSlateText).filter(Boolean).join('\n');
+        }
+        // Otherwise just concatenate text
         return node.children.map(extractSlateText).join('');
       }
       return '';
@@ -332,7 +338,7 @@ export default async function handler(req, res) {
     }
 
     function inferActivityCol(actCols, actRows) {
-      const skip = /date|time of day|category|lat|long|description|more info|url|link|notes|emoji|priority|duration|cost/i;
+      const skip = /date|time of day|category|lat|long|description|more info|url|link|notes|emoji|priority|duration|cost|tips|tip/i;
       let bestId = null;
       let bestScore = 0;
       for (const col of actCols) {
@@ -553,7 +559,8 @@ export default async function handler(req, res) {
       moreInfo: resolveCol(ACT_MAP, actCols, 'moreInfo', ['More Info', 'URL', 'Link', 'Website', /^more info/i], actRows),
       category: resolveCol(ACT_MAP, actCols, 'category', ['Category'], actRows),
       latitude: resolveCol(ACT_MAP, actCols, 'latitude', ['Latitude', 'Lat'], actRows),
-      longitude: resolveCol(ACT_MAP, actCols, 'longitude', ['Longitude', 'Lng', 'Long'], actRows)
+      longitude: resolveCol(ACT_MAP, actCols, 'longitude', ['Longitude', 'Lng', 'Long'], actRows),
+      tips: resolveCol(ACT_MAP, actCols, 'tips', ['Tips', 'Tip'], actRows)
     };
 
     // Build activities array
@@ -569,7 +576,8 @@ export default async function handler(req, res) {
         url: moreInfoFromCell(v[ACT.moreInfo]),
         cat: cellText(v[ACT.category]?.name || v[ACT.category]),
         lat: cellCoord(v[ACT.latitude]),
-        lng: cellCoord(v[ACT.longitude])
+        lng: cellCoord(v[ACT.longitude]),
+        tips: cellText(v[ACT.tips])
       };
       if (!actDate) return { ...activity, day: UNSCHEDULED_DAY };
       const day = days.find(d => d.date === actDate)?.n;

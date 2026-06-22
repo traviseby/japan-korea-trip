@@ -520,7 +520,7 @@
     return card;
   }
 
-  const TRIP_DATA_CACHE_PREFIX = 'jk26.tripData.v2.';
+  const TRIP_DATA_CACHE_PREFIX = 'jk26.tripData.v3.';
 
   function getTrips(){
     const stored = localStorage.getItem('jk26.trips');
@@ -1534,9 +1534,9 @@
           activeTripLoadProgress.setProgress(LOAD_PROGRESS.FETCH_START);
         }
         
-        // Add timeout to fetch (30 seconds max)
+        // Add timeout to fetch (60 seconds max)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
         
         const body = { docUrl };
         if (token) {
@@ -1567,7 +1567,7 @@
         } catch (fetchErr) {
           clearTimeout(timeoutId);
           if (fetchErr.name === 'AbortError') {
-            throw new Error('Request timed out after 30 seconds. The server may be slow or experiencing issues.');
+            throw new Error('Request timed out after 60 seconds. The server may be slow or experiencing issues.');
           }
           throw fetchErr;
         }
@@ -1618,6 +1618,23 @@
     console.log('🔍 URL search params:', window.location.search);
     console.log('🔍 URL pathname:', window.location.pathname);
     console.log('🔍 URL hash:', window.location.hash);
+    
+    // Clear old v2 caches (we're now on v3 with Tips field)
+    const oldCachePrefix = 'jk26.tripData.v2.';
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(oldCachePrefix)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => {
+      console.log('🗑️ Clearing old cache:', key);
+      localStorage.removeItem(key);
+    });
+    if (keysToRemove.length > 0) {
+      console.log(`✨ Cleared ${keysToRemove.length} old v2 cache(s)`);
+    }
     
     // Demo mode for previewing token UI
     const urlParams = new URLSearchParams(window.location.search);
@@ -2693,8 +2710,12 @@
     btn.textContent = 'Syncing...';
 
     try {
-      // Clear cached data for this trip to force fresh fetch
-      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${docUrl}`);
+      // Clear cached data for this trip to force fresh fetch (both old v2 and new v3)
+      const normalizedUrl = docUrl.split('#')[0].split('?')[0];
+      localStorage.removeItem(`jk26.tripData.v2.${normalizedUrl}`);
+      localStorage.removeItem(`jk26.tripData.v3.${normalizedUrl}`);
+      localStorage.removeItem(`${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`);
+      console.log('🗑️ Cleared all cache versions for manual sync');
 
       // Fetch fresh data from Coda (pass token if available)
       await loadTripData(docUrl, false, activeTrip.token || null, { preserveUi: true });
@@ -6248,9 +6269,9 @@
       body.appendChild(el('div', { class: 'sheet-meta-line' }, itineraryParts.join(' · ')));
     }
 
-    const { summary, notes } = splitActivityDesc(a.desc);
-    if (summary) {
-      body.appendChild(el('div', { class: 'sheet-desc' }, el('p', null, summary)));
+    // Description
+    if (a.desc) {
+      body.appendChild(el('div', { class: 'sheet-desc' }, el('p', null, a.desc)));
     }
 
     // Location map card (only for A ★ variant with Google photo)
@@ -6269,12 +6290,19 @@
       body.appendChild(mapCard);
     }
 
-    if (notes.length) {
-      const notesBlock = el('div', { class: 'sheet-notes' },
-        el('div', { class: 'notes-label' }, 'NOTES'),
-        ...notes.map(note => el('p', null, note))
-      );
-      body.appendChild(notesBlock);
+    // Tips section - displayed as bulleted list
+    console.log('Activity tips data:', { name: a.name, tips: a.tips, hasTips: !!a.tips });
+    if (a.tips) {
+      const tipLines = String(a.tips).split(/\n+/).map(s => s.trim()).filter(Boolean);
+      console.log('Parsed tip lines:', tipLines);
+      if (tipLines.length) {
+        const tipsBlock = el('div', { class: 'sheet-tips' },
+          el('div', { class: 'tips-label' }, 'TIPS'),
+          el('ul', null, ...tipLines.map(tip => el('li', null, tip)))
+        );
+        body.appendChild(tipsBlock);
+        console.log('Added tips block to sheet');
+      }
     }
 
     return body;
