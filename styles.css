@@ -2216,13 +2216,17 @@ html.ios-standalone .tabbar {
 /* Activity Tips */
 .sheet .sheet-tips {
   margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
 }
 .sheet .sheet-tips .tips-label {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--fg-mute);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .sheet .sheet-tips ul {
   margin: 0;
@@ -2230,8 +2234,8 @@ html.ios-standalone .tabbar {
   list-style: disc;
 }
 .sheet .sheet-tips li {
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.55;
   color: var(--fg-mid);
   margin-bottom: 8px;
 }

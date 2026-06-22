@@ -6291,17 +6291,18 @@
     }
 
     // Tips section - displayed as bulleted list
-    console.log('Activity tips data:', { name: a.name, tips: a.tips, hasTips: !!a.tips });
     if (a.tips) {
-      const tipLines = String(a.tips).split(/\n+/).map(s => s.trim()).filter(Boolean);
-      console.log('Parsed tip lines:', tipLines);
+      const tipLines = String(a.tips)
+        .split(/\n+/)
+        .map(s => s.trim())
+        .map(s => s.replace(/^[-•]\s*/, '')) // Remove leading dash or bullet
+        .filter(Boolean);
       if (tipLines.length) {
         const tipsBlock = el('div', { class: 'sheet-tips' },
           el('div', { class: 'tips-label' }, 'TIPS'),
           el('ul', null, ...tipLines.map(tip => el('li', null, tip)))
         );
         body.appendChild(tipsBlock);
-        console.log('Added tips block to sheet');
       }
     }
 
