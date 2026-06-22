@@ -6569,7 +6569,10 @@
     sheet.appendChild(actions);
 
     backdrop.classList.add('open');
-    requestAnimationFrame(() => sheet.classList.add('open'));
+    requestAnimationFrame(() => {
+      sheet.classList.add('open');
+      attachActivitySheetSwipe();
+    });
 
     // Initialize maps
     setTimeout(() => {
@@ -8739,6 +8742,159 @@
       if (e.touches.length < 2) return;
       if (e.target.closest(PINCH_LOCK)) e.preventDefault();
     }, { passive: false });
+  }
+
+  // Swipe navigation for activity sheets
+  function attachActivitySheetSwipe(){
+    const sheet = $('#sheet');
+    const body = sheet?.querySelector('.sheet-body');
+    if (!sheet || !body || body.__swipeBound) return;
+    body.__swipeBound = true;
+
+    let startX = null;
+    let startY = null;
+    let locked = null;
+    let dragging = false;
+    let currentX = 0;
+
+    function getCurrentActivity(){
+      return state.sheet ? D.byId[state.sheet] : null;
+    }
+
+    function canGoPrev(){
+      const a = getCurrentActivity();
+      return a && adjacentActivity(a.id, -1);
+    }
+
+    function canGoNext(){
+      const a = getCurrentActivity();
+      return a && adjacentActivity(a.id, +1);
+    }
+
+    const SWIPE_LOCK_PX = 10;
+    const SWIPE_ARM_PX = 40;
+
+    function swipeDragOffset(rawDx){
+      const sign = rawDx < 0 ? -1 : rawDx > 0 ? 1 : 0;
+      const abs = Math.abs(rawDx);
+      if (abs <= SWIPE_ARM_PX) return 0;
+      return sign * (abs - SWIPE_ARM_PX);
+    }
+
+    function visualSwipeX(rawDx){
+      let x = swipeDragOffset(rawDx);
+      if (x > 0 && !canGoPrev()) x *= 0.22;
+      if (x < 0 && !canGoNext()) x *= 0.22;
+      return x;
+    }
+
+    function setDragTransform(x, animate){
+      const w = sheet.offsetWidth || document.documentElement.clientWidth;
+      body.style.transition = animate
+        ? 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease'
+        : 'none';
+      body.style.transform = `translateX(${x}px)`;
+      body.style.opacity = String(1 - Math.min(Math.abs(x) / (w * 0.55), 1) * 0.18);
+    }
+
+    function resetDrag(animate){
+      body.classList.remove('is-swiping');
+      if (animate) setDragTransform(0, true);
+      else {
+        body.style.transition = 'none';
+        body.style.transform = 'translateX(0)';
+        body.style.opacity = '1';
+      }
+      if (animate) {
+        setTimeout(() => {
+          body.style.transition = '';
+          body.style.opacity = '';
+        }, 360);
+      } else {
+        body.style.opacity = '';
+      }
+      dragging = false;
+      currentX = 0;
+    }
+
+    function finishSwipe(direction){
+      const a = getCurrentActivity();
+      if (!a) return;
+      const targetActivity = direction === 'next' 
+        ? adjacentActivity(a.id, +1) 
+        : adjacentActivity(a.id, -1);
+      if (!targetActivity) return;
+
+      const w = sheet.offsetWidth || document.documentElement.clientWidth;
+      setDragTransform(direction === 'next' ? -w : w, true);
+      body.style.opacity = '0';
+      body.classList.remove('is-swiping');
+      dragging = false;
+      setTimeout(() => openSheet(targetActivity), 220);
+    }
+
+    body.addEventListener('touchstart', e => {
+      // Don't swipe if touching hero images, maps, or interactive elements
+      const target = e.target;
+      if (target.closest('.hero-wrap, .hero-map, .sheet-map-card, .photo-carousel, button, a')) {
+        return;
+      }
+
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      locked = null;
+      dragging = false;
+      currentX = 0;
+      body.style.transition = 'none';
+    }, { passive: true });
+
+    body.addEventListener('touchmove', e => {
+      if (startX == null) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+
+      if (locked == null && Math.abs(dx) + Math.abs(dy) > SWIPE_LOCK_PX) {
+        locked = Math.abs(dx) > Math.abs(dy) * 1.25 ? 'x' : 'y';
+      }
+
+      if (locked === 'x') {
+        currentX = visualSwipeX(dx);
+        if (Math.abs(dx) >= SWIPE_ARM_PX) {
+          if (!dragging) {
+            dragging = true;
+            body.classList.add('is-swiping');
+          }
+          setDragTransform(currentX, false);
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
+    body.addEventListener('touchend', e => {
+      if (startX == null) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - startX;
+      const w = sheet.offsetWidth || document.documentElement.clientWidth;
+      const threshold = Math.min(80, w * 0.22) + SWIPE_ARM_PX;
+
+      if (locked === 'x' && dragging) {
+        if (dx <= -threshold && canGoNext()) finishSwipe('next');
+        else if (dx >= threshold && canGoPrev()) finishSwipe('prev');
+        else resetDrag(true);
+      }
+
+      startX = null;
+      startY = null;
+      locked = null;
+    }, { passive: true });
+
+    body.addEventListener('touchcancel', () => {
+      if (dragging) resetDrag(false);
+      startX = null;
+      startY = null;
+      locked = null;
+    }, { passive: true });
   }
 
   // Swipe-anywhere day navigation on the Today scroll

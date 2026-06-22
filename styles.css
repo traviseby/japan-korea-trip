@@ -2010,6 +2010,9 @@ html.ios-standalone .tabbar {
 .sheet .sheet-body::-webkit-scrollbar {
   display: none;
 }
+.sheet .sheet-body.is-swiping {
+  overflow-y: hidden;
+}
 .sheet .sheet-title {
   font-family: var(--serif);
   font-size: 28px; font-weight: 400; line-height: 1.15;
