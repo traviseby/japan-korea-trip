@@ -3075,6 +3075,7 @@
   }
 
   function openReceiptImageSheet(url, filename){
+    const urls = Array.isArray(url) ? url : [url];
     const { sheet, backdrop } = ensureReceiptImageSheetDom();
     if (sheet.__receiptZoomCleanup) {
       sheet.__receiptZoomCleanup();
@@ -3091,32 +3092,134 @@
     ));
 
     const viewport = el('div', { class: 'receipt-zoom-viewport' });
-    const stage = el('div', { class: 'receipt-zoom-stage' });
-    const status = el('div', { class: 'receipt-zoom-status' }, 'Loading…');
-    const img = el('img', {
-      class: 'receipt-zoom-img',
-      src: url,
-      alt: 'Receipt',
-      draggable: 'false'
+    const carouselState = { currentIndex: 0, cleanup: null };
+    const track = el('div', { class: 'receipt-zoom-track' });
+    
+    // Create stage and image for each URL
+    const stages = urls.map((imageUrl, index) => {
+      const stage = el('div', { class: 'receipt-zoom-stage' });
+      const status = el('div', { class: 'receipt-zoom-status' }, 'Loading…');
+      const img = el('img', {
+        class: 'receipt-zoom-img',
+        src: imageUrl,
+        alt: 'Receipt',
+        draggable: 'false',
+        loading: index === 0 ? 'eager' : 'lazy'
+      });
+      img.addEventListener('load', () => { status.style.display = 'none'; });
+      img.addEventListener('error', () => {
+        status.textContent = 'Couldn\u2019t load image';
+        status.classList.add('error');
+      });
+      stage.appendChild(img);
+      stage.appendChild(status);
+      track.appendChild(stage);
+      
+      return { stage, img };
     });
-    img.addEventListener('load', () => { status.style.display = 'none'; });
-    img.addEventListener('error', () => {
-      status.textContent = 'Couldn\u2019t load image';
-      status.classList.add('error');
-    });
-    stage.appendChild(img);
-    viewport.appendChild(stage);
-    viewport.appendChild(status);
+    
+    viewport.appendChild(track);
+    
+    // Attach pinch zoom to current image
+    const attachCurrentZoom = (index) => {
+      if (carouselState.cleanup) {
+        carouselState.cleanup();
+        carouselState.cleanup = null;
+      }
+      carouselState.cleanup = attachReceiptPinchZoom(viewport, stages[index].stage, stages[index].img);
+    };
+    
+    attachCurrentZoom(0);
+    
+    // Add indicators if multiple images
+    if (urls.length > 1) {
+      const indicators = el('div', { class: 'receipt-indicators' });
+      
+      let touchStartX = 0;
+      let touchCurrentX = 0;
+      let isDragging = false;
+      let initialScale = 1;
+      
+      const updateCarousel = (index) => {
+        carouselState.currentIndex = index;
+        track.style.transform = `translateX(-${index * 100}%)`;
+        indicators.querySelectorAll('.receipt-dot').forEach((dot, i) => {
+          dot.classList.toggle('active', i === index);
+        });
+        attachCurrentZoom(index);
+      };
+      
+      urls.forEach((_, i) => {
+        const dot = el('div', {
+          class: 'receipt-dot' + (i === 0 ? ' active' : ''),
+          'data-index': i
+        });
+        dot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          updateCarousel(i);
+        });
+        indicators.appendChild(dot);
+      });
+      viewport.appendChild(indicators);
+      
+      // Swipe gesture handlers
+      viewport.addEventListener('touchstart', (e) => {
+        const currentStage = stages[carouselState.currentIndex].stage;
+        const currentImg = stages[carouselState.currentIndex].img;
+        const matrix = new DOMMatrix(getComputedStyle(currentImg).transform);
+        initialScale = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b);
+        
+        // Only handle swipe if not zoomed in
+        if (initialScale <= 1.05) {
+          touchStartX = e.touches[0].clientX;
+          touchCurrentX = touchStartX;
+          isDragging = true;
+          track.style.transition = 'none';
+        }
+      });
+      
+      viewport.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        touchCurrentX = e.touches[0].clientX;
+        const diff = touchCurrentX - touchStartX;
+        const currentOffset = -carouselState.currentIndex * viewport.offsetWidth;
+        track.style.transform = `translateX(${currentOffset + diff}px)`;
+      });
+      
+      viewport.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        track.style.transition = 'transform 0.3s ease-out';
+        
+        const diff = touchCurrentX - touchStartX;
+        const threshold = viewport.offsetWidth * 0.2;
+        
+        if (diff < -threshold && carouselState.currentIndex < urls.length - 1) {
+          updateCarousel(carouselState.currentIndex + 1);
+        } else if (diff > threshold && carouselState.currentIndex > 0) {
+          updateCarousel(carouselState.currentIndex - 1);
+        } else {
+          updateCarousel(carouselState.currentIndex);
+        }
+      });
+    }
+    
     sheet.appendChild(viewport);
     sheet.appendChild(el('div', { class: 'receipt-image-actions' },
       el('button', {
         class: 'btn secondary',
         type: 'button',
-        onclick: () => openExternalReceipt(url)
+        onclick: () => openExternalReceipt(urls[carouselState.currentIndex])
       }, 'Open in Browser')
     ));
 
-    sheet.__receiptZoomCleanup = attachReceiptPinchZoom(viewport, stage, img);
+    // Store cleanup function
+    sheet.__receiptZoomCleanup = () => {
+      if (carouselState.cleanup) {
+        carouselState.cleanup();
+        carouselState.cleanup = null;
+      }
+    };
 
     backdrop.classList.add('open');
     backdrop.onclick = hideReceiptImageSheet;
