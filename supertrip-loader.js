@@ -21,7 +21,9 @@
 
 (() => {
   const CW = 402, CH = 874;
-  const PW = { x: 58, y: 130, w: 286, h: 542, r: 97 };
+  // Window now fills almost the entire canvas, with border inset
+  const borderWidth = 12; // Width of the visible frame
+  const PW = { x: borderWidth, y: borderWidth, w: CW - (borderWidth * 2), h: CH - (borderWidth * 2), r: 40 };
 
   const clamp = (t, a = 0, b = 1) => Math.min(b, Math.max(a, t));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -276,8 +278,8 @@
           <div class="stl-backdrop-black" data-backdrop-black></div>
         </div>
         <div class="stl-scaler">
-          <div class="stl-abs" data-surra style="left:${PW.x - 16}px;top:${PW.y - 16}px;width:${PW.w + 32}px;height:${PW.h + 32}px;border-radius:${PW.r + 16}px;background:linear-gradient(150deg,#36363a,#1e1e21);box-shadow:0 30px 60px rgba(0,0,0,0.5), inset 0 2px 3px rgba(255,255,255,0.08)"></div>
-          <div class="stl-abs" data-surrb style="left:${PW.x - 7}px;top:${PW.y - 7}px;width:${PW.w + 14}px;height:${PW.h + 14}px;border-radius:${PW.r + 7}px;background:linear-gradient(150deg,#54545a,#2f2f33)"></div>
+          <div class="stl-abs" data-surra style="left:${PW.x - borderWidth}px;top:${PW.y - borderWidth}px;width:${PW.w + (borderWidth * 2)}px;height:${PW.h + (borderWidth * 2)}px;border-radius:${PW.r + borderWidth}px;background:linear-gradient(150deg,#36363a,#1e1e21);box-shadow:0 30px 60px rgba(0,0,0,0.5), inset 0 2px 3px rgba(255,255,255,0.08)"></div>
+          <div class="stl-abs" data-surrb style="left:${PW.x - 4}px;top:${PW.y - 4}px;width:${PW.w + 8}px;height:${PW.h + 8}px;border-radius:${PW.r + 4}px;background:linear-gradient(150deg,#54545a,#2f2f33)"></div>
 
           <div class="stl-abs stl-glass" style="left:${PW.x}px;top:${PW.y}px;width:${PW.w}px;height:${PW.h}px;border-radius:${PW.r}px;box-shadow:inset 0 0 40px rgba(0,0,0,0.45)">
             <div class="stl-abs" data-sky style="inset:0"></div>
@@ -303,12 +305,12 @@
             </svg>
           </div>
 
-          <div class="stl-abs" style="left:50%;top:${PW.y - 14}px;transform:translateX(-50%);width:46px;height:7px;border-radius:5px;background:linear-gradient(#6b6b70,#3f3f43)"></div>
+          <div class="stl-abs" style="left:50%;top:${PW.y - 7}px;transform:translateX(-50%);width:80px;height:6px;border-radius:5px;background:linear-gradient(#6b6b70,#3f3f43)"></div>
 
-          <div class="stl-abs" style="left:0;right:0;top:${PW.y + PW.h + 80}px;height:26px">
+          <div class="stl-abs" style="left:0;right:0;top:${PW.y + 48}px;height:26px">
             ${CAPTIONS.map(([txt]) => `<div class="stl-cap">${txt}</div>`).join('')}
           </div>
-          <div class="stl-abs" style="left:0;right:0;top:${PW.y + PW.h + 116}px;text-align:center">
+          <div class="stl-abs" style="left:0;right:0;bottom:${borderWidth + 32}px;text-align:center">
             <span data-pct style="font:620 14px/1 -apple-system, system-ui;font-variant-numeric:tabular-nums;color:rgba(255,248,238,0.55);letter-spacing:0.02em">0%</span>
           </div>
           <div class="stl-abs" data-white style="inset:0;background:#fff;opacity:0;pointer-events:none"></div>
