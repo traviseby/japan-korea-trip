@@ -3194,18 +3194,20 @@
         if (!isDragging) return;
         touchCurrentX = e.touches[0].clientX;
         const diff = touchCurrentX - touchStartX;
-        const currentOffset = -carouselState.currentIndex * viewport.offsetWidth;
-        track.style.transform = `translateX(${currentOffset + diff}px)`;
+        const viewportWidth = viewport.offsetWidth;
+        const dragPercent = (diff / viewportWidth) * 100;
+        const currentPercent = -carouselState.currentIndex * 100;
+        track.style.transform = `translateX(${currentPercent + dragPercent}%)`;
       });
-      
+
       viewport.addEventListener('touchend', () => {
         if (!isDragging) return;
         isDragging = false;
         track.style.transition = 'transform 0.3s ease-out';
-        
+
         const diff = touchCurrentX - touchStartX;
-        const threshold = viewport.offsetWidth * 0.2;
-        
+        const threshold = viewport.offsetWidth * 0.25;
+
         if (diff < -threshold && carouselState.currentIndex < urls.length - 1) {
           updateCarousel(carouselState.currentIndex + 1);
         } else if (diff > threshold && carouselState.currentIndex > 0) {
@@ -3213,6 +3215,13 @@
         } else {
           updateCarousel(carouselState.currentIndex);
         }
+      });
+
+      viewport.addEventListener('touchcancel', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        track.style.transition = 'transform 0.3s ease-out';
+        updateCarousel(carouselState.currentIndex);
       });
     }
     
