@@ -6467,13 +6467,13 @@
 
   function initActivitySheetMap(a, accent, hasGooglePhoto) {
     if (leafletSheet) { leafletSheet.remove(); leafletSheet = null; }
-    
+
     // Check for location map card (A ★ variant) or hero map (B fallback)
     const mapCardNode = $('#activity-sheet-map');
     const heroMapNode = $('#activity-hero-map');
     const node = mapCardNode || heroMapNode;
     if (!node) return;
-    
+
     leafletSheet = L.map(node, {
       center: [a.lat, a.lng], zoom: hasGooglePhoto ? 14 : 13,
       zoomControl: false, attributionControl: false,
@@ -6484,6 +6484,23 @@
       subdomains: 'abcd'
     }).addTo(leafletSheet);
     L.marker([a.lat, a.lng], { icon: pinIcon(a.cat, accent) }).addTo(leafletSheet);
+
+    // Click handler: open Maps tab with filters applied for this activity
+    const clickable = node.closest('.sheet-map-card') || node;
+    clickable.style.cursor = 'pointer';
+    clickable.onclick = () => {
+      // Close the sheet
+      closeSheet();
+      
+      // Apply filters for this activity
+      filterState.day = !isUnscheduledDay(a.day) ? [a.day] : [];
+      filterState.timeOfDay = a.time ? [a.time] : [];
+      filterState.category = a.cat ? [a.cat] : [];
+      filterState.search = '';
+      
+      // Switch to map tab
+      switchTab('map');
+    };
   }
 
   function hydrateActivitySheetEnrichment(sheet, a, enrichment) {

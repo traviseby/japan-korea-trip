@@ -2078,6 +2078,13 @@ html.ios-standalone .tabbar {
   width: 100%;
   height: 200px;
   position: relative;
+  transition: opacity 0.2s ease;
+}
+.sheet .hero-map:hover {
+  opacity: 0.9;
+}
+.sheet .hero-map:active {
+  opacity: 0.8;
 }
 
 /* Photo carousel */
@@ -2232,6 +2239,13 @@ html.ios-standalone .tabbar {
   position: relative;
   margin-bottom: 16px;
   cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.sheet .sheet-map-card:hover {
+  opacity: 0.9;
+}
+.sheet .sheet-map-card:active {
+  opacity: 0.8;
 }
 .sheet .sheet-map-card > div:first-child {
   position: absolute;
