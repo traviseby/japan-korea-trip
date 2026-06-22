@@ -2197,9 +2197,10 @@ html.ios-standalone .tabbar {
   margin-bottom: 20px;
 }
 .sheet .sheet-notes .notes-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   color: var(--fg-mute);
   margin-bottom: 8px;
 }
@@ -2222,11 +2223,12 @@ html.ios-standalone .tabbar {
   border: 1px solid var(--border);
 }
 .sheet .sheet-tips .tips-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   color: var(--fg-mute);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .sheet .sheet-tips ul {
   margin: 0;
