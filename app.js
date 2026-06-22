@@ -9134,7 +9134,14 @@
     root.appendChild(buildResetCard());
     root.appendChild(el('div', { class: 'settings-section-head' }, 'About'));
     root.appendChild(el('div', { class: 'settings-about' },
-      el('div', null, 'Supertrip'),
+      el('div', { class: 'about-header' },
+        el('div', { class: 'about-title' }, 'Supertrip'),
+        el('button', {
+          class: 'about-refresh-btn',
+          'aria-label': 'Refresh app',
+          onclick: () => location.reload()
+        }, '↻')
+      ),
       el('div', { class: 'sub' }, 'Created by TJ Eby'),
       el('div', { class: 'sub', style: 'margin-top: 8px; opacity: 0.6;' }, `Version ${APP_VERSION}`)
     ));
