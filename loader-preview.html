@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Loading Screen Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #000;
+      overflow: hidden;
+    }
+    
+    .preview-controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 2147483001;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 280px;
+    }
+    
+    .preview-controls button {
+      background: #007aff;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    
+    .preview-controls button:hover {
+      opacity: 0.8;
+    }
+    
+    .preview-controls button:active {
+      opacity: 0.6;
+    }
+    
+    .preview-controls input[type="range"] {
+      width: 100%;
+      margin: 4px 0;
+    }
+    
+    .preview-controls label {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: -8px;
+    }
+    
+    .hide-controls-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 2147483001;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      display: none;
+    }
+    
+    .preview-controls.hidden {
+      display: none;
+    }
+    
+    .preview-controls.hidden + .hide-controls-btn {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<div class="preview-controls" id="controls">
+  <div style="font-weight: 600; margin-bottom: 4px;">Loading Screen Preview</div>
+  
+  <button onclick="animateLoader()">▶️ Animate Full Load</button>
+  <button onclick="resetLoader()">🔄 Reset</button>
+  
+  <label for="progressSlider">Manual Progress Control:</label>
+  <input type="range" id="progressSlider" min="0" max="100" value="0" 
+         oninput="setProgress(this.value / 100)">
+  <div style="font-size: 12px; opacity: 0.6; text-align: center;" id="progressLabel">0%</div>
+  
+  <button onclick="toggleControls()" style="background: rgba(255,255,255,0.2); margin-top: 8px;">
+    Hide Controls
+  </button>
+</div>
+
+<button class="hide-controls-btn" onclick="toggleControls()">Show Controls</button>
+
+<script src="supertrip-loader.js"></script>
+
+<script>
+  let loader = null;
+  let animating = false;
+  
+  function createLoader() {
+    // Remove existing loader if any
+    const existing = document.querySelector('supertrip-loader');
+    if (existing) existing.remove();
+    
+    // Create new loader
+    loader = document.createElement('supertrip-loader');
+    loader.id = 'preview-loader';
+    document.body.appendChild(loader);
+    loader.progress = 0;
+    
+    // Update slider
+    document.getElementById('progressSlider').value = 0;
+    document.getElementById('progressLabel').textContent = '0%';
+    
+    return loader;
+  }
+  
+  function animateLoader() {
+    if (animating) return;
+    
+    const loader = createLoader();
+    animating = true;
+    
+    // Simulate realistic loading progress with milestones
+    const milestones = [
+      { time: 0, progress: 0.04 },      // Init
+      { time: 500, progress: 0.08 },    // Doc info start
+      { time: 1200, progress: 0.16 },   // Doc connected
+      { time: 1800, progress: 0.20 },   // Trip saved
+      { time: 2200, progress: 0.22 },   // Fetch start
+      { time: 3500, progress: 0.36 },   // Itinerary
+      { time: 5000, progress: 0.58 },   // Flights
+      { time: 6500, progress: 0.78 },   // Hotels
+      { time: 8000, progress: 0.92 },   // Activities
+      { time: 8800, progress: 0.96 },   // Prepare app
+      { time: 9400, progress: 1.0 },    // Done
+    ];
+    
+    let startTime = Date.now();
+    
+    function updateProgress() {
+      const elapsed = Date.now() - startTime;
+      
+      // Find current milestone
+      let targetProgress = 0;
+      for (let i = 0; i < milestones.length; i++) {
+        if (elapsed >= milestones[i].time) {
+          targetProgress = milestones[i].progress;
+        }
+      }
+      
+      loader.progress = targetProgress;
+      
+      // Update slider
+      const pct = Math.round(targetProgress * 100);
+      document.getElementById('progressSlider').value = pct;
+      document.getElementById('progressLabel').textContent = pct + '%';
+      
+      if (targetProgress < 1) {
+        requestAnimationFrame(updateProgress);
+      } else {
+        setTimeout(() => {
+          animating = false;
+          // Loader will fade out automatically via the 'complete' event
+        }, 1000);
+      }
+    }
+    
+    updateProgress();
+  }
+  
+  function resetLoader() {
+    animating = false;
+    createLoader();
+  }
+  
+  function setProgress(value) {
+    if (animating) return;
+    
+    if (!loader || !document.body.contains(loader)) {
+      loader = createLoader();
+    }
+    
+    loader.progress = value;
+    const pct = Math.round(value * 100);
+    document.getElementById('progressLabel').textContent = pct + '%';
+  }
+  
+  function toggleControls() {
+    const controls = document.getElementById('controls');
+    controls.classList.toggle('hidden');
+  }
+  
+  // Auto-start on load
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      animateLoader();
+    }, 300);
+  });
+</script>
+
+</body>
+</html>
