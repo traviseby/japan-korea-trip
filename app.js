@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.74';
+  const APP_VERSION = '2.75';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -3105,14 +3105,15 @@
     img.addEventListener('load', fitToViewport);
     if (img.complete) fitToViewport();
 
-    return () => {
+    return (options = {}) => {
+      const resetVisual = options.resetVisual !== false;
       viewport.removeEventListener('pointerdown', onPointerDown);
       viewport.removeEventListener('pointermove', onPointerMove);
       viewport.removeEventListener('pointerup', onPointerUp);
       viewport.removeEventListener('pointercancel', onPointerUp);
       window.removeEventListener('resize', onResize);
       delete layer.__receiptIsZoomed;
-      resetTransform();
+      if (resetVisual) resetTransform();
     };
   }
 
@@ -3131,10 +3132,11 @@
     sheet.innerHTML = '';
 
     const viewport = el('div', { class: 'receipt-zoom-viewport' });
-    const carouselState = { currentIndex: startIndex, cleanup: null };
+    const carouselState = { currentIndex: startIndex, cleanup: null, pendingZoomCleanup: null };
     const track = el('div', { class: 'receipt-zoom-track' });
     let indicatorsEl = null;
     let navEl = null;
+    let trackTransitionHandler = null;
 
     // Create stage and image for each URL — zoom transform lives on layer, not stage,
     // so every slide stays exactly one viewport wide for reliable carousel math.
@@ -3185,17 +3187,58 @@
       track.style.transform = `translateX(-${trackOffset(index)}px)`;
     }
 
+    function resetInactiveLayers(activeIndex){
+      stages.forEach(({ layer, img }, i) => {
+        if (i === activeIndex) return;
+        layer.style.transform = '';
+        img.style.width = '';
+        img.style.height = '';
+      });
+    }
+
+    function flushPendingZoomCleanup(){
+      if (carouselState.pendingZoomCleanup) {
+        carouselState.pendingZoomCleanup();
+        carouselState.pendingZoomCleanup = null;
+      }
+    }
+
+    function afterTrackTransition(fn){
+      if (trackTransitionHandler) {
+        track.removeEventListener('transitionend', trackTransitionHandler);
+        trackTransitionHandler = null;
+        flushPendingZoomCleanup();
+        resetInactiveLayers(carouselState.currentIndex);
+      }
+      const onEnd = (e) => {
+        if (e.target !== track || e.propertyName !== 'transform') return;
+        track.removeEventListener('transitionend', onEnd);
+        trackTransitionHandler = null;
+        fn();
+      };
+      trackTransitionHandler = onEnd;
+      track.addEventListener('transitionend', onEnd);
+      setTimeout(() => {
+        if (trackTransitionHandler !== onEnd) return;
+        track.removeEventListener('transitionend', onEnd);
+        trackTransitionHandler = null;
+        fn();
+      }, 350);
+    }
+
     // Attach pinch zoom to current image only
-    const attachCurrentZoom = (index) => {
+    const attachCurrentZoom = (index, { deferOutgoingReset = false } = {}) => {
       if (carouselState.cleanup) {
-        carouselState.cleanup();
+        if (deferOutgoingReset) {
+          const outgoingCleanup = carouselState.cleanup;
+          carouselState.pendingZoomCleanup = () => outgoingCleanup({ resetVisual: true });
+          outgoingCleanup({ resetVisual: false });
+        } else {
+          carouselState.cleanup({ resetVisual: true });
+        }
         carouselState.cleanup = null;
       }
-      stages.forEach(({ layer }, i) => {
-        if (i !== index) {
-          layer.style.transform = '';
-        }
-      });
+      if (!deferOutgoingReset) resetInactiveLayers(index);
       carouselState.cleanup = attachReceiptPinchZoom(viewport, stages[index].layer, stages[index].img);
     };
 
@@ -3210,15 +3253,25 @@
     }
 
     const updateCarousel = (index, opts = {}) => {
-      carouselState.currentIndex = Math.max(0, Math.min(index, urls.length - 1));
+      const target = Math.max(0, Math.min(index, urls.length - 1));
+      const shouldAnimate = opts.animate !== false && target !== carouselState.currentIndex;
+      carouselState.currentIndex = target;
       layoutSlides();
-      setTrackPosition(carouselState.currentIndex, opts.animate);
+      setTrackPosition(carouselState.currentIndex, shouldAnimate);
       if (indicatorsEl) {
         indicatorsEl.querySelectorAll('.receipt-dot').forEach((dot, i) => {
           dot.classList.toggle('active', i === carouselState.currentIndex);
         });
       }
-      attachCurrentZoom(carouselState.currentIndex);
+      attachCurrentZoom(carouselState.currentIndex, { deferOutgoingReset: shouldAnimate });
+      if (shouldAnimate) {
+        afterTrackTransition(() => {
+          flushPendingZoomCleanup();
+          resetInactiveLayers(carouselState.currentIndex);
+        });
+      } else {
+        flushPendingZoomCleanup();
+      }
       syncChevrons();
     };
 
@@ -3344,8 +3397,13 @@
     // Store cleanup function (zoom + optional resize observer)
     const zoomCleanup = sheet.__receiptZoomCleanup;
     sheet.__receiptZoomCleanup = () => {
+      if (trackTransitionHandler) {
+        track.removeEventListener('transitionend', trackTransitionHandler);
+        trackTransitionHandler = null;
+      }
+      flushPendingZoomCleanup();
       if (carouselState.cleanup) {
-        carouselState.cleanup();
+        carouselState.cleanup({ resetVisual: true });
         carouselState.cleanup = null;
       }
       if (zoomCleanup) zoomCleanup();
