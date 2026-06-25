@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.72';
+  const APP_VERSION = '2.74';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -2976,7 +2976,7 @@
     sheet.innerHTML = '';
   }
 
-  function attachReceiptPinchZoom(viewport, stage, img){
+  function attachReceiptPinchZoom(viewport, layer, img){
     let scale = 1;
     let minScale = 1;
     let maxScale = 4;
@@ -3010,7 +3010,15 @@
 
     function applyTransform(){
       clampPan();
-      stage.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      layer.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    }
+
+    layer.__receiptIsZoomed = () => scale > minScale * 1.02;
+
+    function resetTransform(){
+      layer.style.transform = '';
+      img.style.width = '';
+      img.style.height = '';
     }
 
     function fitToViewport(){
@@ -3042,6 +3050,7 @@
     }
 
     function onPointerDown(e){
+      if (pointers.size === 0) e.stopPropagation();
       viewport.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 1) {
@@ -3102,7 +3111,13 @@
       viewport.removeEventListener('pointerup', onPointerUp);
       viewport.removeEventListener('pointercancel', onPointerUp);
       window.removeEventListener('resize', onResize);
+      delete layer.__receiptIsZoomed;
+      resetTransform();
     };
+  }
+
+  function receiptLayerZoomed(layer){
+    return typeof layer.__receiptIsZoomed === 'function' && layer.__receiptIsZoomed();
   }
 
   function openReceiptImageSheet(url, filename, initialIndex){
@@ -3119,12 +3134,13 @@
     const carouselState = { currentIndex: startIndex, cleanup: null };
     const track = el('div', { class: 'receipt-zoom-track' });
     let indicatorsEl = null;
-    let prevChevBtn = null;
-    let nextChevBtn = null;
+    let navEl = null;
 
-    // Create stage and image for each URL
+    // Create stage and image for each URL — zoom transform lives on layer, not stage,
+    // so every slide stays exactly one viewport wide for reliable carousel math.
     const stages = urls.map((imageUrl, index) => {
       const stage = el('div', { class: 'receipt-zoom-stage' });
+      const layer = el('div', { class: 'receipt-zoom-layer' });
       const status = el('div', { class: 'receipt-zoom-status' }, 'Loading…');
       const img = el('img', {
         class: 'receipt-zoom-img',
@@ -3138,35 +3154,65 @@
         status.textContent = 'Couldn\u2019t load image';
         status.classList.add('error');
       });
-      stage.appendChild(img);
+      layer.appendChild(img);
+      stage.appendChild(layer);
       stage.appendChild(status);
       track.appendChild(stage);
 
-      return { stage, img };
+      return { stage, layer, img };
     });
 
     viewport.appendChild(track);
 
-    // Attach pinch zoom to current image
+    function slideWidth(){
+      return viewport.clientWidth || viewport.offsetWidth || 1;
+    }
+
+    function layoutSlides(){
+      const w = slideWidth();
+      stages.forEach(({ stage }) => {
+        stage.style.flex = `0 0 ${w}px`;
+        stage.style.width = `${w}px`;
+      });
+    }
+
+    function trackOffset(index){
+      return index * slideWidth();
+    }
+
+    function setTrackPosition(index, animate){
+      track.style.transition = animate === false ? 'none' : 'transform 0.3s ease-out';
+      track.style.transform = `translateX(-${trackOffset(index)}px)`;
+    }
+
+    // Attach pinch zoom to current image only
     const attachCurrentZoom = (index) => {
       if (carouselState.cleanup) {
         carouselState.cleanup();
         carouselState.cleanup = null;
       }
-      carouselState.cleanup = attachReceiptPinchZoom(viewport, stages[index].stage, stages[index].img);
+      stages.forEach(({ layer }, i) => {
+        if (i !== index) {
+          layer.style.transform = '';
+        }
+      });
+      carouselState.cleanup = attachReceiptPinchZoom(viewport, stages[index].layer, stages[index].img);
     };
 
     function syncChevrons(){
+      if (!navEl) return;
+      const prev = navEl.querySelector('[data-receipt-chev="prev"]');
+      const next = navEl.querySelector('[data-receipt-chev="next"]');
       const hasPrev = carouselState.currentIndex > 0;
       const hasNext = carouselState.currentIndex < urls.length - 1;
-      if (prevChevBtn) prevChevBtn.disabled = hasPrev ? null : '';
-      if (nextChevBtn) nextChevBtn.disabled = hasNext ? null : '';
+      if (prev) prev.disabled = hasPrev ? null : '';
+      if (next) next.disabled = hasNext ? null : '';
     }
 
-    const updateCarousel = (index) => {
+    const updateCarousel = (index, opts = {}) => {
       carouselState.currentIndex = Math.max(0, Math.min(index, urls.length - 1));
-      track.style.transition = 'transform 0.3s ease-out';
-      track.style.transform = `translateX(-${carouselState.currentIndex * 100}%)`;
+      layoutSlides();
+      setTrackPosition(carouselState.currentIndex, opts.animate);
       if (indicatorsEl) {
         indicatorsEl.querySelectorAll('.receipt-dot').forEach((dot, i) => {
           dot.classList.toggle('active', i === carouselState.currentIndex);
@@ -3177,31 +3223,34 @@
     };
 
     sheet.appendChild(el('div', { class: 'handle' }));
-    prevChevBtn = el('button', {
-      class: 'sheet-chev toolbar-btn',
-      disabled: startIndex > 0 ? null : '',
-      'aria-label': 'Previous image',
-      onclick: () => updateCarousel(carouselState.currentIndex - 1)
-    }, tabIcon('chev-left'));
-    nextChevBtn = el('button', {
-      class: 'sheet-chev toolbar-btn',
-      disabled: startIndex < urls.length - 1 ? null : '',
-      'aria-label': 'Next image',
-      onclick: () => updateCarousel(carouselState.currentIndex + 1)
-    }, tabIcon('chev-right'));
-    sheet.appendChild(el('div', { class: 'sheet-nav' },
-      prevChevBtn,
-      nextChevBtn,
-      el('div', { class: 'sheet-nav-actions' },
-        buildSheetCloseButton(hideReceiptImageSheet)
-      )
+    const navChildren = [];
+    if (urls.length > 1) {
+      navChildren.push(
+        el('button', {
+          class: 'sheet-chev toolbar-btn',
+          'data-receipt-chev': 'prev',
+          disabled: startIndex > 0 ? null : '',
+          'aria-label': 'Previous image',
+          onclick: () => updateCarousel(carouselState.currentIndex - 1)
+        }, tabIcon('chev-left')),
+        el('button', {
+          class: 'sheet-chev toolbar-btn',
+          'data-receipt-chev': 'next',
+          disabled: startIndex < urls.length - 1 ? null : '',
+          'aria-label': 'Next image',
+          onclick: () => updateCarousel(carouselState.currentIndex + 1)
+        }, tabIcon('chev-right'))
+      );
+    }
+    navChildren.push(el('div', { class: 'sheet-nav-actions' },
+      buildSheetCloseButton(hideReceiptImageSheet)
     ));
+    navEl = el('div', { class: 'sheet-nav' }, ...navChildren);
+    sheet.appendChild(navEl);
 
     // Initialize carousel at starting index
-    attachCurrentZoom(startIndex);
-    if (startIndex > 0) {
-      track.style.transform = `translateX(-${startIndex * 100}%)`;
-    }
+    layoutSlides();
+    updateCarousel(startIndex, { animate: false });
 
     // Add indicators and swipe if multiple images
     if (urls.length > 1) {
@@ -3210,7 +3259,6 @@
       let touchStartX = 0;
       let touchCurrentX = 0;
       let isDragging = false;
-      let initialScale = 1;
 
       urls.forEach((_, i) => {
         const dot = el('div', {
@@ -3225,38 +3273,30 @@
       });
       viewport.appendChild(indicatorsEl);
 
-      // Swipe gesture handlers
+      // Swipe gesture handlers (pixel-based, only when not zoomed in)
       viewport.addEventListener('touchstart', (e) => {
-        const currentImg = stages[carouselState.currentIndex].img;
-        const matrix = new DOMMatrix(getComputedStyle(currentImg).transform);
-        initialScale = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b);
+        const layer = stages[carouselState.currentIndex].layer;
+        if (receiptLayerZoomed(layer)) return;
 
-        // Only handle swipe if not zoomed in
-        if (initialScale <= 1.05) {
-          touchStartX = e.touches[0].clientX;
-          touchCurrentX = touchStartX;
-          isDragging = true;
-          track.style.transition = 'none';
-        }
+        touchStartX = e.touches[0].clientX;
+        touchCurrentX = touchStartX;
+        isDragging = true;
+        track.style.transition = 'none';
       });
 
       viewport.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
         touchCurrentX = e.touches[0].clientX;
         const diff = touchCurrentX - touchStartX;
-        const viewportWidth = viewport.offsetWidth;
-        const dragPercent = (diff / viewportWidth) * 100;
-        const currentPercent = -carouselState.currentIndex * 100;
-        track.style.transform = `translateX(${currentPercent + dragPercent}%)`;
+        track.style.transform = `translateX(${-trackOffset(carouselState.currentIndex) + diff}px)`;
       });
 
       viewport.addEventListener('touchend', () => {
         if (!isDragging) return;
         isDragging = false;
-        track.style.transition = 'transform 0.3s ease-out';
 
         const diff = touchCurrentX - touchStartX;
-        const threshold = viewport.offsetWidth * 0.25;
+        const threshold = slideWidth() * 0.25;
 
         if (diff < -threshold && carouselState.currentIndex < urls.length - 1) {
           updateCarousel(carouselState.currentIndex + 1);
@@ -3270,9 +3310,22 @@
       viewport.addEventListener('touchcancel', () => {
         if (!isDragging) return;
         isDragging = false;
-        track.style.transition = 'transform 0.3s ease-out';
         updateCarousel(carouselState.currentIndex);
       });
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        if (!sheet.classList.contains('open')) return;
+        layoutSlides();
+        setTrackPosition(carouselState.currentIndex, false);
+      });
+      ro.observe(viewport);
+      const prevCleanup = sheet.__receiptZoomCleanup;
+      sheet.__receiptZoomCleanup = () => {
+        ro.disconnect();
+        if (prevCleanup) prevCleanup();
+      };
     }
 
     sheet.appendChild(viewport);
@@ -3288,12 +3341,14 @@
       }, 'Download')
     ));
 
-    // Store cleanup function
+    // Store cleanup function (zoom + optional resize observer)
+    const zoomCleanup = sheet.__receiptZoomCleanup;
     sheet.__receiptZoomCleanup = () => {
       if (carouselState.cleanup) {
         carouselState.cleanup();
         carouselState.cleanup = null;
       }
+      if (zoomCleanup) zoomCleanup();
     };
 
     backdrop.classList.add('open');
