@@ -5316,7 +5316,7 @@
 
     root.appendChild(el('div', { class: 'add-activity-container', style: { padding: '20px', paddingTop: '16px' } },
       el('p', { style: { fontSize: '14px', color: 'var(--fg-mid)', lineHeight: '1.5', marginBottom: '20px' } }, 
-        'Paste a Google Maps or TripAdvisor URL to quickly add an activity to your trip.'
+        'Paste a Google Maps link (maps.app.goo.gl or google.com/maps). Share links from Google may need to be opened in Maps first so you can copy the full URL.'
       ),
       
       el('div', { class: 'url-input-section' },
@@ -5335,7 +5335,7 @@
           el('input', {
             type: 'text',
             id: 'activity-url-input',
-            placeholder: 'https://maps.google.com/...',
+            placeholder: 'https://maps.app.goo.gl/... or share.google/...',
             style: {
               flex: '1',
               minWidth: '0',
@@ -5408,8 +5408,11 @@
       
       if (parsed.error) {
         setParseUrlBtnBusy(false);
-        toast('Invalid URL');
-        openEditActivitySheetForUnparsedUrl(url, parsed);
+        const resultDiv = $('#parse-result');
+        if (resultDiv) {
+          resultDiv.innerHTML = '';
+          resultDiv.appendChild(buildParseUrlErrorPanel(url, parsed));
+        }
         return;
       }
 
@@ -5448,16 +5451,84 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { error: data.error || 'Could not resolve Google Maps URL.' };
+      return {
+        error: data.error || 'Could not resolve Google Maps URL.',
+        errorCode: data.errorCode || null,
+        resolvedUrl: data.resolvedUrl || null,
+        openUrl: data.openUrl || url,
+        name: data.name || null,
+        isShareLink: isGoogleShareUrl(url)
+      };
     }
     return { name: data.name, lat: data.lat, lng: data.lng, category: null };
+  }
+
+  async function copyTextToClipboard(text, successMsg = 'Copied'){
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = el('textarea', { value: text });
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      toast(successMsg);
+    } catch {
+      toast('Couldn\u2019t copy');
+    }
+  }
+
+  function parseUrlErrorMessage(url, parsed){
+    if (parsed.isShareLink || parsed.errorCode === 'share_token' || isGoogleShareUrl(url)) {
+      return 'Google share links can\u2019t be read automatically. Open the link below, then use Share \u2192 Copy link in Maps and paste that URL above.';
+    }
+    if (parsed.error) return parsed.error;
+    return 'We couldn\u2019t extract a location from that link.';
+  }
+
+  function buildParseUrlErrorPanel(url, parsed){
+    const openUrl = parsed.openUrl || normalizeActivityUrl(url);
+    const isShare = parsed.isShareLink || isGoogleShareUrl(url);
+    const panel = el('div', { class: 'parse-url-error' },
+      el('p', { class: 'parse-url-error-title' }, 'Couldn\u2019t read that link'),
+      el('p', { class: 'parse-url-error-msg' }, parseUrlErrorMessage(url, parsed)),
+      el('ol', { class: 'parse-url-error-steps' },
+        el('li', null, isShare ? 'Tap Open in Google Maps below' : 'Open the link below'),
+        el('li', null, 'Copy the URL from your browser or Maps share sheet'),
+        el('li', null, 'Paste it above and tap Add activity again')
+      ),
+      el('div', { class: 'parse-url-error-actions' },
+        el('a', {
+          class: 'btn secondary',
+          href: openUrl,
+          target: '_blank',
+          rel: 'noopener noreferrer'
+        }, isShare ? 'Open in Google Maps' : 'Open link'),
+        el('button', {
+          class: 'btn secondary',
+          type: 'button',
+          onclick: () => copyTextToClipboard(openUrl, 'Link copied')
+        }, 'Copy link'),
+        el('button', {
+          class: 'btn secondary',
+          type: 'button',
+          onclick: () => openEditActivitySheetForUnparsedUrl(url, parsed)
+        }, 'Add manually')
+      )
+    );
+    return panel;
   }
 
   async function parseActivityUrl(rawUrl) {
     const url = normalizeActivityUrl(rawUrl);
 
     if (isGoogleShareUrl(url)) {
-      return resolveGoogleMapsUrl(url);
+      const result = await resolveGoogleMapsUrl(url);
+      return { ...result, isShareLink: true };
     }
 
     if (isGoogleMapsUrl(url)) {

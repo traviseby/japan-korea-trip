@@ -1111,6 +1111,48 @@ html.ios-standalone .tabbar {
   border: 0;
 }
 
+.parse-url-error {
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.parse-url-error-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.parse-url-error-msg {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--fg-mid);
+}
+.parse-url-error-steps {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-mute);
+}
+.parse-url-error-steps li + li { margin-top: 4px; }
+.parse-url-error-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.parse-url-error-actions .btn {
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .sheet-backdrop.sheet-stack-2 { z-index: 1700; }
 .sheet.sheet-stack-2 { z-index: 1750; }
 .sheet-backdrop.sheet-stack-3 { z-index: 1800; }

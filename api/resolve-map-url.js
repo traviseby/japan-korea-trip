@@ -127,6 +127,11 @@ async function geocodePlaceName(name) {
   };
 }
 
+function isOpaqueShareToken(value) {
+  const q = String(value || '').trim();
+  return q.length >= 8 && /^[A-Za-z0-9_-]+$/.test(q);
+}
+
 async function resolveShareGoogleUrl(url) {
   const finalUrl = await followRedirects(url);
 
@@ -138,6 +143,15 @@ async function resolveShareGoogleUrl(url) {
   }
 
   const placeName = extractPlaceNameFromGoogleSearchUrl(finalUrl);
+  if (placeName && isOpaqueShareToken(placeName)) {
+    return {
+      error: 'This Google share link must be opened in Maps first. Copy the Maps URL and paste it here.',
+      errorCode: 'share_token',
+      resolvedUrl: finalUrl,
+      openUrl: url
+    };
+  }
+
   if (placeName) {
     const geocoded = await geocodePlaceName(placeName);
     if (geocoded) {
@@ -147,13 +161,16 @@ async function resolveShareGoogleUrl(url) {
     return {
       error: `Could not find coordinates for "${placeName}".`,
       resolvedUrl: finalUrl,
-      name: placeName
+      name: placeName,
+      openUrl: url
     };
   }
 
   return {
-    error: 'Could not resolve share.google link.',
-    resolvedUrl: finalUrl
+    error: 'Could not resolve share.google link. Open it in Google Maps and copy the Maps URL.',
+    errorCode: 'share_unresolved',
+    resolvedUrl: finalUrl,
+    openUrl: url
   };
 }
 
@@ -195,7 +212,9 @@ export default async function handler(req, res) {
     if (result.error) {
       return res.status(422).json({
         error: result.error,
+        errorCode: result.errorCode || null,
         resolvedUrl: result.resolvedUrl,
+        openUrl: result.openUrl || trimmed,
         name: result.name || null
       });
     }
