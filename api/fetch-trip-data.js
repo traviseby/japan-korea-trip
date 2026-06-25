@@ -1,6 +1,6 @@
 // Vercel serverless function to fetch trip data from Coda doc on-demand
 // Returns the same data structure that sync.mjs generates, but as JSON
-const FETCH_TRIP_DATA_VERSION = '2026-06-06-doc-xcK3zPlhp7';
+const FETCH_TRIP_DATA_VERSION = '2026-06-24-address-geocode';
 
 export default async function handler(req, res) {
   console.log('fetch-trip-data called, method:', req.method, 'version:', FETCH_TRIP_DATA_VERSION);
@@ -314,6 +314,7 @@ export default async function handler(req, res) {
       description: 'c-hFjRSpkKWQ',
       moreInfo: 'c-OOu-mpFiAD',
       category: 'c-vAMQo8XJAc',
+      address: 'c-K-ELDiAS2l',
       latitude: 'c-1oOmaseFGM',
       longitude: 'c-tmpeKQQks2'
     };
@@ -338,7 +339,7 @@ export default async function handler(req, res) {
     }
 
     function inferActivityCol(actCols, actRows) {
-      const skip = /date|time of day|category|lat|long|description|more info|url|link|notes|emoji|priority|duration|cost|tips|tip/i;
+      const skip = /date|time of day|category|lat|long|address|description|more info|url|link|notes|emoji|priority|duration|cost|tips|tip|city/i;
       let bestId = null;
       let bestScore = 0;
       for (const col of actCols) {
@@ -558,6 +559,7 @@ export default async function handler(req, res) {
       description: resolveCol(ACT_MAP, actCols, 'description', ['Description', 'Desc', 'Notes', /^description/i], actRows),
       moreInfo: resolveCol(ACT_MAP, actCols, 'moreInfo', ['More Info', 'URL', 'Link', 'Website', /^more info/i], actRows),
       category: resolveCol(ACT_MAP, actCols, 'category', ['Category'], actRows),
+      address: resolveCol(ACT_MAP, actCols, 'address', ['Address', 'Location'], actRows),
       latitude: resolveCol(ACT_MAP, actCols, 'latitude', ['Latitude', 'Lat'], actRows),
       longitude: resolveCol(ACT_MAP, actCols, 'longitude', ['Longitude', 'Lng', 'Long'], actRows),
       tips: resolveCol(ACT_MAP, actCols, 'tips', ['Tips', 'Tip'], actRows)
@@ -575,6 +577,7 @@ export default async function handler(req, res) {
         desc: cellText(v[ACT.description]),
         url: moreInfoFromCell(v[ACT.moreInfo]),
         cat: cellText(v[ACT.category]?.name || v[ACT.category]),
+        address: cellText(v[ACT.address]),
         lat: cellCoord(v[ACT.latitude]),
         lng: cellCoord(v[ACT.longitude]),
         tips: cellText(v[ACT.tips])
@@ -727,6 +730,25 @@ export default async function handler(req, res) {
         lng: valid.reduce((sum, x) => sum + x.lng, 0) / valid.length
       };
     }
+
+    const dayByNum = Object.fromEntries(days.map(d => [d.n, d]));
+    const { fillMissingCoords } = await import('./_geocode.js');
+
+    function activityGeocodeQuery(a) {
+      if (a.address) return a.address;
+      const parts = [a.name];
+      const day = dayByNum[a.day];
+      if (day?.loc) parts.push(day.loc);
+      return parts.filter(Boolean).join(', ');
+    }
+
+    await fillMissingCoords(activities, activityGeocodeQuery);
+    await fillMissingCoords(hotels, h => {
+      if (h.address) return h.address;
+      return [h.name, h.city].filter(Boolean).join(', ');
+    });
+    await fillMissingCoords(events, e => e.meetupAddress || e.name || '');
+    await fillMissingCoords(carRentals, cr => cr.address || cr.returnAddress || '');
 
     days.forEach(d => {
       if (d.lat != null && d.lng != null) return;

@@ -111,6 +111,11 @@ export default async function handler(req, res) {
       cells.push({ column: lngCol, value: activity.lng });
     }
 
+    const addressCol = colId(columns, 'Address', 'Location');
+    if (activity.address && addressCol) {
+      cells.push({ column: addressCol, value: activity.address });
+    }
+
     const categoryCol = colId(columns, 'Category');
     if (activity.category && categoryCol) {
       cells.push({ column: categoryCol, value: activity.category });

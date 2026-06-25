@@ -19,6 +19,7 @@
 
 import { writeFile, readFile } from 'node:fs/promises';
 import 'dotenv/config';
+import { fillMissingCoords } from './api/_geocode.js';
 
 const TOKEN = process.env.CODA_TOKEN;
 if (!TOKEN){
@@ -92,6 +93,7 @@ const ACT = {
   description: 'c-hFjRSpkKWQ',
   moreInfo:    'c-OOu-mpFiAD',
   category:    'c-vAMQo8XJAc',
+  address:     'c-K-ELDiAS2l',
   latitude:    'c-1oOmaseFGM',
   longitude:   'c-tmpeKQQks2'
 };
@@ -492,6 +494,7 @@ ACT.activity = ACT_MAP['Name'] || ACT_MAP['Activity'] || ACT.activity;
 ACT.description = ACT_MAP['Description'] || ACT.description;
 ACT.moreInfo = ACT_MAP['More Info'] || ACT.moreInfo;
 ACT.category = ACT_MAP['Category'] || ACT.category;
+ACT.address = ACT_MAP['Address'] || ACT_MAP['Location'] || ACT.address;
 ACT.latitude = ACT_MAP['Latitude'] || ACT_MAP['Lat'] || ACT.latitude;
 ACT.longitude = ACT_MAP['Longitude'] || ACT_MAP['Lng'] || ACT.longitude;
 
@@ -646,6 +649,7 @@ const activities = actRows.map(r => {
     desc: stripFence(v[ACT.description] || ''),
     url:  stripFence(v[ACT.moreInfo] || ''),
     cat:  normalizeCategory(stripFence(v[ACT.category]?.name || v[ACT.category] || '')),
+    address: stripFence(v[ACT.address] || ''),
     lat, lng
   };
   if (!dayDate) return { ...activity, day: UNSCHEDULED_DAY };
@@ -773,6 +777,18 @@ const carRentals = carRentalRows.map(r => {
     day:           dayNum
   };
 });
+
+const dayByNum = Object.fromEntries(days.map(d => [d.n, d]));
+await fillMissingCoords(activities, a => {
+  if (a.address) return a.address;
+  const parts = [a.name];
+  const day = dayByNum[a.day];
+  if (day?.loc) parts.push(day.loc);
+  return parts.filter(Boolean).join(', ');
+});
+await fillMissingCoords(hotels, h => h.address || [h.name, h.city].filter(Boolean).join(', '));
+await fillMissingCoords(events, e => e.meetupAddress || e.name || '');
+await fillMissingCoords(carRentals, cr => cr.address || cr.returnAddress || '');
 
 // ── Category mapping and normalization ────────────────────────────────────
 // Maps old multi-word categories from Coda to simplified single-word names

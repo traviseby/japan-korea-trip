@@ -120,6 +120,11 @@ export default async function handler(req, res) {
       cells.push({ column: lngCol, value: activity.lng != null ? activity.lng : '' });
     }
 
+    const addressCol = colId(columns, 'Address', 'Location');
+    if (addressCol) {
+      cells.push({ column: addressCol, value: activity.address || '' });
+    }
+
     const urlCol = colId(columns, 'More Info', 'URL', 'Link');
     if (urlCol) {
       cells.push({ column: urlCol, value: activity.url || '' });

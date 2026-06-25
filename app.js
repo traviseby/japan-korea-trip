@@ -195,6 +195,15 @@
     const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
     return 2 * R * Math.asin(Math.sqrt(h));
   }
+  function bearingDegrees(lat1, lng1, lat2, lng2){
+    const toRad = x => x * Math.PI / 180;
+    const toDeg = x => (x * 180 / Math.PI + 360) % 360;
+    const dLng = toRad(lng2 - lng1);
+    const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+    const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+              Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+    return toDeg(Math.atan2(y, x));
+  }
   function activityCenter(day){
     const acts = (D.dayActivities[day] || []).filter(a => a.lat && a.lng);
     if (!acts.length) {
@@ -251,7 +260,15 @@
     return L.divIcon({ className: 'pin-wrap', html, iconSize: [38, 48], iconAnchor: [19, 46], popupAnchor: [0, -46] });
   }
   function locationIcon(){
-    return L.divIcon({ className: 'loc-wrap', html: '<div class="location-dot"></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
+    const html = `<div class="loc-marker">
+      <div class="location-heading">
+        <svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true">
+          <path d="M26 26 L12 5 A24 24 0 0 1 40 5 Z" fill="rgba(33,150,243,0.38)"/>
+        </svg>
+      </div>
+      <div class="location-dot"></div>
+    </div>`;
+    return L.divIcon({ className: 'loc-wrap', html, iconSize: [52, 52], iconAnchor: [26, 26] });
   }
 
   // ─── Weather (Open-Meteo) ─────────────────────────────────────────────────
@@ -4100,6 +4117,12 @@
   }
   let fullMapMarkers = [];
   let lastMapRegion = null;
+  let userLocMarker = null;
+  let mapFollowUser = false;
+  let locationWatchId = null;
+  let suppressMapFollowOff = false;
+  let lastLocPos = null;
+  let userLocHeading = null;
 
   function snapFullMapToPins(){
     if (!leafletFull) return false;
@@ -4210,6 +4233,7 @@
     try {
       fullMapMarkers.forEach(m => leafletFull.removeLayer(m));
       fullMapMarkers = [];
+      userLocMarker = null;
 
       inRegion.forEach(a => {
         const lat = normalizeCoord(a.lat);
@@ -4221,9 +4245,11 @@
         fullMapMarkers.push(m);
       });
       if (state.location){
-        const lm = L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletFull);
-        fullMapMarkers.push(lm);
+        userLocMarker = L.marker([state.location.lat, state.location.lng], { icon: locationIcon() }).addTo(leafletFull);
+        fullMapMarkers.push(userLocMarker);
+        if (userLocHeading != null) updateLocMarkerHeading(userLocHeading);
       }
+      attachMapFollowHandlers();
     } catch (e) {
       console.error('🗺️ Error adding map markers:', e);
       return;
@@ -5619,6 +5645,7 @@
       name: a.name || '',
       desc: a.desc || '',
       url: a.url || '',
+      address: a.address || '',
       lat: a.lat != null && !isNaN(a.lat) ? String(a.lat) : '',
       lng: a.lng != null && !isNaN(a.lng) ? String(a.lng) : ''
     };
@@ -5816,6 +5843,17 @@
       ),
       buildEditPickerField('Type', 'edit-type-label', editCatLabel(draft.cat), openEditTypePicker, editCatEmoji(draft.cat)),
       el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-activity-address' }, 'Address'),
+        el('input', {
+          type: 'text',
+          id: 'edit-activity-address',
+          class: 'edit-input',
+          value: draft.address,
+          placeholder: 'Place name, street, city',
+          oninput: (e) => { draft.address = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-activity-lat' }, 'Latitude'),
         el('input', {
           type: 'text',
@@ -5892,6 +5930,7 @@
       name,
       desc: draft.desc.trim(),
       url: draft.url.trim(),
+      address: draft.address.trim(),
       lat,
       lng,
       cat: draft.cat || null,
@@ -5908,6 +5947,7 @@
             name,
             lat,
             lng,
+            address: draft.address.trim(),
             category: draft.cat || null,
             url: draft.url.trim()
           }
@@ -5940,6 +5980,7 @@
               name,
               desc: activityPatch.desc,
               url: activityPatch.url,
+              address: activityPatch.address,
               lat,
               lng,
               category: draft.cat || null,
@@ -7845,6 +7886,8 @@
       time: ev.time || '',
       endTime: ev.endTime || '',
       meetupAddress: ev.meetupAddress || '',
+      lat: ev.lat != null && !isNaN(ev.lat) ? String(ev.lat) : '',
+      lng: ev.lng != null && !isNaN(ev.lng) ? String(ev.lng) : '',
       notes: ev.notes || '',
       cost: ev.cost != null && ev.cost !== '' ? String(ev.cost) : '',
       moreInfo: ev.moreInfo || ''
@@ -7972,6 +8015,28 @@
         })
       ),
       el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-lat' }, 'Latitude'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-lat',
+          class: 'edit-input',
+          value: draft.lat,
+          placeholder: '35.6896',
+          oninput: (e) => { draft.lat = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
+        el('label', { class: 'edit-label', for: 'edit-event-lng' }, 'Longitude'),
+        el('input', {
+          type: 'text',
+          id: 'edit-event-lng',
+          class: 'edit-input',
+          value: draft.lng,
+          placeholder: '139.6917',
+          oninput: (e) => { draft.lng = e.target.value; }
+        })
+      ),
+      el('div', { class: 'edit-field' },
         el('label', { class: 'edit-label', for: 'edit-event-notes' }, 'Notes'),
         el('textarea', {
           id: 'edit-event-notes',
@@ -8059,6 +8124,15 @@
       }
     }
 
+    const latStr = draft.lat.trim();
+    const lngStr = draft.lng.trim();
+    const lat = latStr === '' ? null : parseFloat(latStr);
+    const lng = lngStr === '' ? null : parseFloat(lngStr);
+    if ((latStr && isNaN(lat)) || (lngStr && isNaN(lng))) {
+      toast('Lat & long must be numbers');
+      return;
+    }
+
     const btn = $('#edit-event-submit');
     if (btn) {
       btn.disabled = true;
@@ -8075,6 +8149,8 @@
       time: draft.time.trim(),
       endTime: draft.endTime.trim(),
       meetupAddress: draft.meetupAddress.trim(),
+      lat,
+      lng,
       notes: draft.notes.trim(),
       cost,
       moreInfo: draft.moreInfo.trim()
@@ -9156,6 +9232,123 @@
   // ─── Geolocation ──────────────────────────────────────────────────────────
   let mapGeolocateRequested = false;
 
+  function setLocateBtnFollowing(on){
+    const btn = $('#locate-me');
+    if (btn) btn.classList.toggle('following', on);
+  }
+
+  function updateLocMarkerHeading(heading){
+    userLocHeading = heading;
+    const root = userLocMarker?.getElement?.();
+    if (!root) return;
+    const cone = root.querySelector('.location-heading');
+    if (!cone) return;
+    if (heading != null && !isNaN(heading)){
+      cone.classList.add('visible');
+      cone.style.transform = `rotate(${heading}deg)`;
+    } else {
+      cone.classList.remove('visible');
+      cone.style.transform = '';
+    }
+  }
+
+  function resolveHeading(pos){
+    const h = pos.coords.heading;
+    if (h != null && !isNaN(h) && h >= 0) return h;
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const speed = pos.coords.speed;
+    if (lastLocPos && speed != null && speed > 0.4){
+      const movedM = haversine(lastLocPos, { lat, lng }) * 1000;
+      if (movedM > 2) return bearingDegrees(lastLocPos.lat, lastLocPos.lng, lat, lng);
+    }
+    return null;
+  }
+
+  function stopMapFollow(){
+    mapFollowUser = false;
+    setLocateBtnFollowing(false);
+  }
+
+  function stopLocationWatch(){
+    stopMapFollow();
+    if (locationWatchId != null){
+      navigator.geolocation.clearWatch(locationWatchId);
+      locationWatchId = null;
+    }
+    lastLocPos = null;
+    userLocHeading = null;
+  }
+
+  function ensureUserLocMarker(lat, lng){
+    if (!leafletFull || state.tab !== 'map') return;
+    if (userLocMarker){
+      userLocMarker.setLatLng([lat, lng]);
+    } else {
+      userLocMarker = L.marker([lat, lng], { icon: locationIcon() }).addTo(leafletFull);
+      fullMapMarkers.push(userLocMarker);
+      if (userLocHeading != null) updateLocMarkerHeading(userLocHeading);
+    }
+  }
+
+  function handlePositionUpdate(pos){
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    if (!nearestMapCity(lat, lng)){
+      stopLocationWatch();
+      return;
+    }
+    const heading = resolveHeading(pos);
+    lastLocPos = { lat, lng };
+    state.location = { lat, lng };
+    ensureUserLocMarker(lat, lng);
+    updateLocMarkerHeading(heading);
+    if (mapFollowUser && leafletFull){
+      suppressMapFollowOff = true;
+      leafletFull.panTo([lat, lng], { animate: true });
+      leafletFull.once('moveend', () => { suppressMapFollowOff = false; });
+    }
+  }
+
+  function startLocationWatch(opts = {}){
+    if (!('geolocation' in navigator)) return;
+    if (opts.follow){
+      mapFollowUser = true;
+      setLocateBtnFollowing(true);
+    }
+    if (locationWatchId != null) return;
+    locationWatchId = navigator.geolocation.watchPosition(
+      handlePositionUpdate,
+      () => stopLocationWatch(),
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }
+    );
+  }
+
+  function resumeMapFollow(onDone){
+    if (!state.location || !leafletFull){
+      if (onDone) onDone();
+      return;
+    }
+    suppressMapFollowOff = true;
+    leafletFull.flyTo([state.location.lat, state.location.lng], 14, { duration: 0.8 });
+    leafletFull.once('moveend', () => {
+      suppressMapFollowOff = false;
+      mapFollowUser = true;
+      setLocateBtnFollowing(true);
+      if (onDone) onDone();
+    });
+  }
+
+  function attachMapFollowHandlers(){
+    if (!leafletFull || leafletFull._followHandlersAttached) return;
+    leafletFull._followHandlersAttached = true;
+    const maybeStopFollow = () => {
+      if (!suppressMapFollowOff && mapFollowUser) stopMapFollow();
+    };
+    leafletFull.on('dragstart', maybeStopFollow);
+    leafletFull.on('zoomstart', maybeStopFollow);
+  }
+
   function tryGeolocate(){
     if (!('geolocation' in navigator)) return;
     navigator.geolocation.getCurrentPosition(
@@ -9265,6 +9458,15 @@
 
   function locateMe(){
     const btn = $('#locate-me');
+    if (mapFollowUser){
+      stopMapFollow();
+      return;
+    }
+    if (locationWatchId && state.location && nearestMapCityToUser()){
+      if (btn) btn.classList.add('loading');
+      resumeMapFollow(() => { if (btn) btn.classList.remove('loading'); });
+      return;
+    }
     if (btn) btn.classList.add('loading');
     if (!('geolocation' in navigator)){
       if (btn) btn.classList.remove('loading');
@@ -9282,7 +9484,13 @@
             state.region = city;
             buildFullMap();
             setTimeout(() => {
-              if (leafletFull) leafletFull.flyTo([state.location.lat, state.location.lng], 14, { duration: 0.8 });
+              if (!leafletFull) return;
+              suppressMapFollowOff = true;
+              leafletFull.flyTo([state.location.lat, state.location.lng], 14, { duration: 0.8 });
+              leafletFull.once('moveend', () => {
+                suppressMapFollowOff = false;
+                startLocationWatch({ follow: true });
+              });
             }, 100);
           } else {
             // User is far from any trip city — frame visible activities instead.
@@ -9322,6 +9530,12 @@
 
   // ─── Tabs ─────────────────────────────────────────────────────────────────
   function switchTab(tab){
+    if (tab === 'today' && state.tab === 'today'){
+      const target = currentDay();
+      if (state.todayDay !== target) navTo(target);
+      return;
+    }
+    if (tab !== 'map') stopLocationWatch();
     state.tab = tab;
     $$('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
     $$('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
