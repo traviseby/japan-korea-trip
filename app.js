@@ -172,10 +172,11 @@
       return a - b;
     });
   }
+  function activityOrder(a, b){
+    return (a.order ?? 0) - (b.order ?? 0);
+  }
   function sortActivities(a, b){
-    if (isUnscheduledDay(a.day) && !isUnscheduledDay(b.day)) return -1;
-    if (!isUnscheduledDay(a.day) && isUnscheduledDay(b.day)) return 1;
-    return a.day - b.day || timeOrder(a.time) - timeOrder(b.time);
+    return activityOrder(a, b);
   }
   function dayFilterLabel(dayNum){
     if (isUnscheduledDay(dayNum)) return 'Unscheduled';
@@ -463,20 +464,23 @@
 
     setTimeout(() => buildMiniMap(day, acts), 30);
 
-    // Activity list grouped by time of day
-    const groups = ['Morning','Afternoon','Evening','Late Night'];
-    const grouped = {};
-    (D.dayActivities[day.n] || [])
-      .sort((a,b) => timeOrder(a.time) - timeOrder(b.time))
-      .forEach(a => (grouped[a.time] = grouped[a.time] || []).push(a));
-
-    groups.forEach(g => {
-      if (!grouped[g] || grouped[g].length === 0) return;
-      root.appendChild(el('div', { class: 'tod-head' },
-        el('span', null, g),
-        el('span', { class: 'line' })
-      ));
-      grouped[g].forEach(a => {
+    // Activity list in Coda doc order (group headers when time-of-day changes)
+    const dayActs = D.dayActivities[day.n] || [];
+    const timeGroups = [];
+    dayActs.forEach(a => {
+      const t = a.time || '';
+      const last = timeGroups[timeGroups.length - 1];
+      if (last && last.time === t) last.items.push(a);
+      else timeGroups.push({ time: t, items: [a] });
+    });
+    timeGroups.forEach(({ time, items }) => {
+      if (time) {
+        root.appendChild(el('div', { class: 'tod-head' },
+          el('span', null, time),
+          el('span', { class: 'line' })
+        ));
+      }
+      items.forEach(a => {
         root.appendChild(buildActivityRow(a, day));
       });
     });
@@ -664,7 +668,10 @@
   function rebuildActivityIndexes(){
     if (!window.DATA) return;
     window.DATA.byId = {};
-    (window.DATA.activities || []).forEach(a => { window.DATA.byId[a.id] = a; });
+    (window.DATA.activities || []).forEach((a, i) => {
+      if (a.order == null) a.order = i;
+      window.DATA.byId[a.id] = a;
+    });
     window.DATA.dayActivities = {};
     (window.DATA.activities || []).forEach(a => {
       (window.DATA.dayActivities[a.day] = window.DATA.dayActivities[a.day] || []).push(a);
@@ -3108,18 +3115,13 @@
     }
     sheet.innerHTML = '';
 
-    sheet.appendChild(el('div', { class: 'handle' }));
-    sheet.appendChild(el('div', { class: 'sheet-nav' },
-      el('div', { class: 'sheet-nav-spacer' }),
-      el('div', { class: 'sheet-nav-actions' },
-        buildSheetCloseButton(hideReceiptImageSheet)
-      )
-    ));
-
     const viewport = el('div', { class: 'receipt-zoom-viewport' });
     const carouselState = { currentIndex: startIndex, cleanup: null };
     const track = el('div', { class: 'receipt-zoom-track' });
-    
+    let indicatorsEl = null;
+    let prevChevBtn = null;
+    let nextChevBtn = null;
+
     // Create stage and image for each URL
     const stages = urls.map((imageUrl, index) => {
       const stage = el('div', { class: 'receipt-zoom-stage' });
@@ -3139,12 +3141,12 @@
       stage.appendChild(img);
       stage.appendChild(status);
       track.appendChild(stage);
-      
+
       return { stage, img };
     });
-    
+
     viewport.appendChild(track);
-    
+
     // Attach pinch zoom to current image
     const attachCurrentZoom = (index) => {
       if (carouselState.cleanup) {
@@ -3153,31 +3155,63 @@
       }
       carouselState.cleanup = attachReceiptPinchZoom(viewport, stages[index].stage, stages[index].img);
     };
-    
+
+    function syncChevrons(){
+      const hasPrev = carouselState.currentIndex > 0;
+      const hasNext = carouselState.currentIndex < urls.length - 1;
+      if (prevChevBtn) prevChevBtn.disabled = hasPrev ? null : '';
+      if (nextChevBtn) nextChevBtn.disabled = hasNext ? null : '';
+    }
+
+    const updateCarousel = (index) => {
+      carouselState.currentIndex = Math.max(0, Math.min(index, urls.length - 1));
+      track.style.transition = 'transform 0.3s ease-out';
+      track.style.transform = `translateX(-${carouselState.currentIndex * 100}%)`;
+      if (indicatorsEl) {
+        indicatorsEl.querySelectorAll('.receipt-dot').forEach((dot, i) => {
+          dot.classList.toggle('active', i === carouselState.currentIndex);
+        });
+      }
+      attachCurrentZoom(carouselState.currentIndex);
+      syncChevrons();
+    };
+
+    sheet.appendChild(el('div', { class: 'handle' }));
+    prevChevBtn = el('button', {
+      class: 'sheet-chev toolbar-btn',
+      disabled: startIndex > 0 ? null : '',
+      'aria-label': 'Previous image',
+      onclick: () => updateCarousel(carouselState.currentIndex - 1)
+    }, tabIcon('chev-left'));
+    nextChevBtn = el('button', {
+      class: 'sheet-chev toolbar-btn',
+      disabled: startIndex < urls.length - 1 ? null : '',
+      'aria-label': 'Next image',
+      onclick: () => updateCarousel(carouselState.currentIndex + 1)
+    }, tabIcon('chev-right'));
+    sheet.appendChild(el('div', { class: 'sheet-nav' },
+      prevChevBtn,
+      nextChevBtn,
+      el('div', { class: 'sheet-nav-actions' },
+        buildSheetCloseButton(hideReceiptImageSheet)
+      )
+    ));
+
     // Initialize carousel at starting index
     attachCurrentZoom(startIndex);
     if (startIndex > 0) {
       track.style.transform = `translateX(-${startIndex * 100}%)`;
     }
-    
-    // Add indicators if multiple images
+
+    // Add indicators and swipe if multiple images
     if (urls.length > 1) {
-      const indicators = el('div', { class: 'receipt-indicators' });
-      
+      indicatorsEl = el('div', { class: 'receipt-indicators' });
+
       let touchStartX = 0;
       let touchCurrentX = 0;
       let isDragging = false;
       let initialScale = 1;
-      
-      const updateCarousel = (index) => {
-        carouselState.currentIndex = index;
-        track.style.transform = `translateX(-${index * 100}%)`;
-        indicators.querySelectorAll('.receipt-dot').forEach((dot, i) => {
-          dot.classList.toggle('active', i === index);
-        });
-        attachCurrentZoom(index);
-      };
-      
+
       urls.forEach((_, i) => {
         const dot = el('div', {
           class: 'receipt-dot' + (i === startIndex ? ' active' : ''),
@@ -3187,17 +3221,16 @@
           e.stopPropagation();
           updateCarousel(i);
         });
-        indicators.appendChild(dot);
+        indicatorsEl.appendChild(dot);
       });
-      viewport.appendChild(indicators);
-      
+      viewport.appendChild(indicatorsEl);
+
       // Swipe gesture handlers
       viewport.addEventListener('touchstart', (e) => {
-        const currentStage = stages[carouselState.currentIndex].stage;
         const currentImg = stages[carouselState.currentIndex].img;
         const matrix = new DOMMatrix(getComputedStyle(currentImg).transform);
         initialScale = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b);
-        
+
         // Only handle swipe if not zoomed in
         if (initialScale <= 1.05) {
           touchStartX = e.touches[0].clientX;
@@ -3206,7 +3239,7 @@
           track.style.transition = 'none';
         }
       });
-      
+
       viewport.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
         touchCurrentX = e.touches[0].clientX;
@@ -3241,7 +3274,7 @@
         updateCarousel(carouselState.currentIndex);
       });
     }
-    
+
     sheet.appendChild(viewport);
     sheet.appendChild(el('div', { class: 'receipt-image-actions' },
       el('button', {
@@ -4600,7 +4633,7 @@
       sortActivityDays([...new Set(fa.map(a => a.day))]).forEach(dn => {
         if (isUnscheduledDay(dn)) {
           root.appendChild(buildUnscheduledDayHeader());
-          fa.filter(a => a.day === dn).sort((a, b) => timeOrder(a.time) - timeOrder(b.time) || a.name.localeCompare(b.name)).forEach(a => {
+          fa.filter(a => a.day === dn).forEach(a => {
             root.appendChild(buildFullRow(a, false));
           });
           return;
@@ -4611,7 +4644,7 @@
           el('span', { class: 'day-date' }, shortDate(d.date)),
           el('span', { class: 'day-loc' }, d.loc)
         ));
-        fa.filter(a => a.day === dn).sort((a,b) => timeOrder(a.time) - timeOrder(b.time)).forEach(a => {
+        fa.filter(a => a.day === dn).forEach(a => {
           root.appendChild(buildFullRow(a, false));
         });
       });
@@ -6039,7 +6072,8 @@
       await syncTripRecordEdit({
         applyLocal: () => {
           if (!getTripRecord('activities', rowId)) {
-            return insertTripRecord('activities', { id: rowId, ...activityPatch });
+            const nextOrder = (D.activities || []).reduce((max, a) => Math.max(max, a.order ?? -1), -1) + 1;
+            return insertTripRecord('activities', { id: rowId, order: nextOrder, ...activityPatch });
           }
           return patchTripRecord('activities', rowId, activityPatch);
         },
@@ -6464,15 +6498,9 @@
 
   // ─── Activity detail sheet ────────────────────────────────────────────────
   function sortedActivityIds(){
-    // Stable order: unscheduled first, then by day, then by time-of-day bucket, then by original index.
-    return D.activities
-      .map((a, i) => ({ id: a.id, day: a.day, t: timeOrder(a.time), i }))
-      .sort((x, y) => {
-        if (isUnscheduledDay(x.day) && !isUnscheduledDay(y.day)) return -1;
-        if (!isUnscheduledDay(x.day) && isUnscheduledDay(y.day)) return 1;
-        return x.day - y.day || x.t - y.t || x.i - y.i;
-      })
-      .map(o => o.id);
+    return [...(D.activities || [])]
+      .sort(activityOrder)
+      .map(a => a.id);
   }
   function adjacentActivity(currentId, delta){
     const ids = sortedActivityIds();

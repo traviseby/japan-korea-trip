@@ -388,7 +388,7 @@ export default async function handler(req, res) {
     report('columns', 0.30);
 
     // Helper to fetch rows with pagination
-    async function fetchAllRows(tableId, valueFormat = 'simple') {
+    async function fetchAllRows(tableId, valueFormat = 'simple', sortBy = null) {
       let allRows = [];
       let pageToken = null;
       
@@ -396,6 +396,7 @@ export default async function handler(req, res) {
         const url = new URL(`https://coda.io/apis/v1/docs/${docId}/tables/${tableId}/rows`);
         url.searchParams.set('useColumnNames', 'false');
         url.searchParams.set('valueFormat', valueFormat);
+        if (sortBy) url.searchParams.set('sortBy', sortBy);
         if (pageToken) url.searchParams.set('pageToken', pageToken);
         
         const resp = await fetch(url, {
@@ -422,10 +423,10 @@ export default async function handler(req, res) {
       ['hotels', tables.hotels, 'simple', 0.78],
       ['events', tables.events, 'rich', 0.85],
       ['carRentals', tables.carRentals, 'rich', 0.88],
-      ['activities', tables.activities, 'rich', 0.92],
+      ['activities', tables.activities, 'rich', 0.92, 'natural'],
       ['todos', tables.todos, 'simple', null],
-    ].map(async ([key, tableId, valueFormat, progressValue]) => {
-      rowBuckets[key] = await fetchAllRows(tableId, valueFormat);
+    ].map(async ([key, tableId, valueFormat, progressValue, sortBy]) => {
+      rowBuckets[key] = await fetchAllRows(tableId, valueFormat, sortBy);
       if (progressValue != null) report(key, progressValue);
     }));
 
@@ -567,11 +568,12 @@ export default async function handler(req, res) {
 
     // Build activities array
     const UNSCHEDULED_DAY = 0;
-    const activities = actRows.map(row => {
+    const activities = actRows.map((row, order) => {
       const v = row.values;
       const actDate = cellToDate(v[ACT.date]);
       const activity = {
         id: row.id,
+        order,
         time: cellText(v[ACT.timeOfDay]?.name || v[ACT.timeOfDay]),
         name: cellText(v[ACT.activity]),
         desc: cellText(v[ACT.description]),

@@ -295,11 +295,12 @@ const DAY_META = {
 // No more hardcoded mapping needed!
 
 // ── Coda fetch helper ──────────────────────────────────────────────────────
-async function fetchAllRows(tableId, valueFormat = 'simple'){
+async function fetchAllRows(tableId, valueFormat = 'simple', sortBy = null){
   const out = [];
   let pageToken = null;
   do {
   const params = new URLSearchParams({ limit: '200', useColumnNames: 'false', valueFormat });
+    if (sortBy) params.set('sortBy', sortBy);
     if (pageToken) params.set('pageToken', pageToken);
     const url = `https://coda.io/apis/v1/docs/${DOC}/tables/${tableId}/rows?${params}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${TOKEN}` } });
@@ -595,7 +596,7 @@ console.log('Column mappings complete.');
 console.log('Fetching table data...');
 const [itnRows, actRows, todoRows, flightRows, hotelRows, eventRows, carRentalRows] = await Promise.all([
   fetchAllRows(TABLES.itinerary),
-  fetchAllRows(TABLES.activities),
+  fetchAllRows(TABLES.activities, 'rich', 'natural'),
   fetchAllRows(TABLES.todos),
   fetchAllRows(TABLES.flights, 'rich'),
   fetchAllRows(TABLES.hotels),
@@ -636,7 +637,7 @@ const days = itnRows
 
 // — Activities
 const UNSCHEDULED_DAY = 0;
-const activities = actRows.map(r => {
+const activities = actRows.map((r, order) => {
   const v = r.values;
   const id = r.id;
   const dayDate = cellToDate(v[ACT.date]);
@@ -644,6 +645,7 @@ const activities = actRows.map(r => {
   const lng = cellCoord(v[ACT.longitude]);
   const activity = {
     id,
+    order,
     time: v[ACT.timeOfDay]?.name || v[ACT.timeOfDay] || '',
     name: stripFence(v[ACT.activity]),
     desc: stripFence(v[ACT.description] || ''),
