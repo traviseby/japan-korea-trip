@@ -127,6 +127,7 @@
       }
       else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
       else if (k === 'html') e.innerHTML = v;
+      else if (k === 'disabled') e.disabled = true;
       else e.setAttribute(k, v);
     }
     for (const c of children.flat()){
@@ -3248,8 +3249,8 @@
       const next = navEl.querySelector('[data-receipt-chev="next"]');
       const hasPrev = carouselState.currentIndex > 0;
       const hasNext = carouselState.currentIndex < urls.length - 1;
-      if (prev) prev.disabled = hasPrev ? null : '';
-      if (next) next.disabled = hasNext ? null : '';
+      if (prev) prev.disabled = !hasPrev;
+      if (next) next.disabled = !hasNext;
     }
 
     const updateCarousel = (index, opts = {}) => {
@@ -3282,14 +3283,14 @@
         el('button', {
           class: 'sheet-chev toolbar-btn',
           'data-receipt-chev': 'prev',
-          disabled: startIndex > 0 ? null : '',
+          ...(startIndex === 0 ? { disabled: true } : {}),
           'aria-label': 'Previous image',
           onclick: () => updateCarousel(carouselState.currentIndex - 1)
         }, tabIcon('chev-left')),
         el('button', {
           class: 'sheet-chev toolbar-btn',
           'data-receipt-chev': 'next',
-          disabled: startIndex < urls.length - 1 ? null : '',
+          ...(startIndex >= urls.length - 1 ? { disabled: true } : {}),
           'aria-label': 'Next image',
           onclick: () => updateCarousel(carouselState.currentIndex + 1)
         }, tabIcon('chev-right'))
@@ -9744,7 +9745,12 @@
   function switchTab(tab){
     if (tab === 'today' && state.tab === 'today'){
       const target = currentDay();
-      if (state.todayDay !== target) navTo(target);
+      if (state.todayDay !== target) {
+        navTo(target);
+      } else if (!$('#tab-today .scroll')?.querySelector('.hero')) {
+        // First paint after load: tab is already "today" but content was never rendered.
+        renderToday();
+      }
       return;
     }
     if (tab !== 'map') stopLocationWatch();
