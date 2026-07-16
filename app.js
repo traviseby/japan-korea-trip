@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.75';
+  const APP_VERSION = '2.76';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -3915,7 +3915,7 @@
     const addr = (cr.address || '').trim();
     if (!addr) return null;
     if (isCarRentalInKorea(cr, day)) {
-      return `https://map.naver.com/v5/search/${encodeURIComponent(addr)}`;
+      return buildNaverSearchUrl(addr);
     }
     return `https://maps.google.com/?q=${encodeURIComponent(addr)}`;
   }
@@ -3940,7 +3940,7 @@
     const addr = (ev.meetupAddress || '').trim();
     if (!addr) return null;
     if (isEventInKorea(ev, day)) {
-      return `https://map.naver.com/v5/search/${encodeURIComponent(addr)}`;
+      return buildNaverSearchUrl(addr);
     }
     return `https://maps.google.com/?q=${encodeURIComponent(addr)}`;
   }
@@ -3961,11 +3961,150 @@
     return lat >= 33 && lat <= 39.6 && lng >= 124.5 && lng <= 132.1;
   }
 
+  const NAVER_IOS_STORE = 'https://apps.apple.com/app/id311867728';
+  const NAVER_ANDROID_STORE = 'https://play.google.com/store/apps/details?id=com.nhn.android.nmap';
+
+  function isMobileDevice(){
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+  }
+
+  function isAndroidDevice(){
+    return /Android/i.test(navigator.userAgent || '');
+  }
+
+  function naverAppName(){
+    try {
+      return location.origin || 'https://supertrip-mobile.vercel.app';
+    } catch {
+      return 'https://supertrip-mobile.vercel.app';
+    }
+  }
+
+  function naverPlaceLabel(name, lat, lng){
+    const raw = String(name || '').trim().replace(/[,%]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (raw) return raw;
+    if (lat != null && lng != null) return `${Number(lat).toFixed(5)} ${Number(lng).toFixed(5)}`;
+    return 'Destination';
+  }
+
+  function buildNaverSearchAppUrl(query){
+    const q = String(query || '').trim();
+    if (!q) return null;
+    const params = new URLSearchParams({ query: q, appname: naverAppName() });
+    return `nmap://search?${params.toString()}`;
+  }
+
+  function buildNaverSearchWebUrl(query){
+    const q = String(query || '').trim();
+    if (!q) return null;
+    return `https://map.naver.com/p/search/${encodeURIComponent(q)}`;
+  }
+
+  function buildNaverDirectionsAppUrl({ lat, lng, name }){
+    if (lat == null || lng == null) return null;
+    const params = new URLSearchParams({
+      dlat: String(lat),
+      dlng: String(lng),
+      appname: naverAppName()
+    });
+    const label = naverPlaceLabel(name, lat, lng);
+    if (label) params.set('dname', label);
+    return `nmap://route/walk?${params.toString()}`;
+  }
+
+  function buildNaverDirectionsWebUrl({ lat, lng, name }){
+    if (lat == null || lng == null) return null;
+    // Naver web /p/directions expects Web Mercator (EPSG:3857), not WGS84.
+    const x = (lng * 20037508.34) / 180;
+    const y = (Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) * 20037508.34) / Math.PI;
+    const label = encodeURIComponent(naverPlaceLabel(name, lat, lng));
+    return `https://map.naver.com/p/directions/-/${x.toFixed(7)},${y.toFixed(7)},${label}/-/walk`;
+  }
+
+  function toNaverIntentUrl(nmapUrl, webFallback){
+    if (!nmapUrl?.startsWith('nmap://')) return nmapUrl;
+    const rest = nmapUrl.slice('nmap://'.length);
+    const fallback = encodeURIComponent(webFallback || NAVER_ANDROID_STORE);
+    return `intent://${rest}#Intent;scheme=nmap;package=com.nhn.android.nmap;S.browser_fallback_url=${fallback};end`;
+  }
+
+  function buildNaverSearchUrl(query){
+    const web = buildNaverSearchWebUrl(query);
+    const app = buildNaverSearchAppUrl(query);
+    if (!isMobileDevice()) return web;
+    if (isAndroidDevice() && app) return toNaverIntentUrl(app, web);
+    return app || web;
+  }
+
+  function buildNaverDirectionsUrl({ lat, lng, name }){
+    const web = buildNaverDirectionsWebUrl({ lat, lng, name });
+    const app = buildNaverDirectionsAppUrl({ lat, lng, name });
+    if (!isMobileDevice()) return web;
+    if (isAndroidDevice() && app) return toNaverIntentUrl(app, web);
+    return app || web;
+  }
+
+  function naverWebFallbackFromAppUrl(appUrl){
+    if (!appUrl) return null;
+    try {
+      const cleaned = appUrl.split('#')[0]
+        .replace(/^intent:\/\//, 'https://dummy/')
+        .replace(/^nmap:\/\//, 'https://dummy/');
+      const u = new URL(cleaned);
+      const path = u.pathname.replace(/^\//, '');
+      if (path.startsWith('search') || u.searchParams.has('query')) {
+        return buildNaverSearchWebUrl(u.searchParams.get('query') || '');
+      }
+      const lat = parseFloat(u.searchParams.get('dlat'));
+      const lng = parseFloat(u.searchParams.get('dlng'));
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return buildNaverDirectionsWebUrl({
+          lat, lng, name: u.searchParams.get('dname') || ''
+        });
+      }
+    } catch { /* ignore */ }
+    return null;
+  }
+
+  function openNaverAppWithFallback(appUrl, webFallback){
+    const fallback = webFallback
+      || naverWebFallbackFromAppUrl(appUrl)
+      || (isAndroidDevice() ? NAVER_ANDROID_STORE : NAVER_IOS_STORE);
+    const timer = window.setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        window.location.href = fallback;
+      }
+    }, 2500);
+    const cancel = () => window.clearTimeout(timer);
+    window.addEventListener('pagehide', cancel, { once: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') cancel();
+    }, { once: true });
+    window.location.href = appUrl;
+  }
+
+  function externalNavLink(className, label, href){
+    if (!href || href === '#') {
+      return el('a', { class: `${className} disabled`, href: '#' }, label);
+    }
+    const isNaverApp = href.startsWith('nmap://') || href.startsWith('intent://');
+    if (!isNaverApp) {
+      return el('a', { class: className, href, target: '_blank', rel: 'noopener' }, label);
+    }
+    return el('a', {
+      class: className,
+      href,
+      onclick: (e) => {
+        e.preventDefault();
+        openNaverAppWithFallback(href);
+      }
+    }, label);
+  }
+
   function buildDirectionsUrlForPoint({ lat, lng, name, inKorea }){
     if (lat == null || lng == null) return '#';
     if (inKorea) {
-      const label = encodeURIComponent((name || 'Destination').trim());
-      return `https://map.naver.com/v5/directions/-/${lng},${lat},${label}/walking`;
+      return buildNaverDirectionsUrl({ lat, lng, name });
     }
     return `https://maps.google.com/?saddr=My+Location&daddr=${lat},${lng}`;
   }
@@ -6863,11 +7002,7 @@
     if (infoUrl){
       actionButtons.push(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
     }
-    actionButtons.push(el('a', {
-      class: 'btn',
-      href: buildDirectionsUrl(a),
-      target: '_blank', rel: 'noopener'
-    }, 'Get Directions'));
+    actionButtons.push(externalNavLink('btn', 'Get Directions', buildDirectionsUrl(a)));
     
     const actions = el('div', { class: sheetActionsClass(actionButtons.length) }, ...actionButtons);
     sheet.appendChild(actions);
@@ -7720,16 +7855,17 @@
       actionButtons.push(el('div', { class: 'btn secondary disabled' }, 'View Receipt'));
     }
     
-    const mapsUrl = hasCoords ? (isHotelInKorea(h, day)
-      ? `https://map.naver.com/v5/search/${encodeURIComponent(h.name)}`
-      : `https://maps.google.com/?q=${encodeURIComponent(h.name)}`)
+    const mapsUrl = hasCoords
+      ? (isHotelInKorea(h, day)
+        ? buildNaverSearchUrl(h.name)
+        : `https://maps.google.com/?q=${encodeURIComponent(h.name)}`)
       : null;
     if (mapsUrl) {
-      actionButtons.push(el('a', { class: 'btn secondary', href: mapsUrl, target: '_blank', rel: 'noopener' }, 'Open in Maps'));
+      actionButtons.push(externalNavLink('btn secondary', 'Open in Maps', mapsUrl));
     }
     
     if (directionsUrl) {
-      actionButtons.push(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+      actionButtons.push(externalNavLink('btn', 'Get Directions', directionsUrl));
     }
     
     if (actionButtons.length) {
@@ -8016,7 +8152,7 @@
       actionButtons.push(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
     }
     if (directionsUrl) {
-      actionButtons.push(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+      actionButtons.push(externalNavLink('btn', 'Get Directions', directionsUrl));
     }
     
     if (actionButtons.length) {
@@ -8594,7 +8730,7 @@
       actionButtons.push(buildReceiptActionButton(receiptUrl, cr.receipt, { secondary: true }));
     }
     if (directionsUrl) {
-      actionButtons.push(el('a', { class: 'btn', href: directionsUrl, target: '_blank', rel: 'noopener' }, 'Get Directions'));
+      actionButtons.push(externalNavLink('btn', 'Get Directions', directionsUrl));
     }
     
     if (actionButtons.length) {
