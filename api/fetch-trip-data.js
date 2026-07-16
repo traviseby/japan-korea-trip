@@ -1,6 +1,6 @@
 // Vercel serverless function to fetch trip data from Coda doc on-demand
 // Returns the same data structure that sync.mjs generates, but as JSON
-const FETCH_TRIP_DATA_VERSION = '2026-07-16-sort-days';
+const FETCH_TRIP_DATA_VERSION = '2026-07-16-event-geocode-address';
 
 export default async function handler(req, res) {
   console.log('fetch-trip-data called, method:', req.method, 'version:', FETCH_TRIP_DATA_VERSION);
@@ -749,7 +749,7 @@ export default async function handler(req, res) {
       if (h.address) return h.address;
       return [h.name, h.city].filter(Boolean).join(', ');
     });
-    await fillMissingCoords(events, e => e.meetupAddress || e.name || '');
+    await fillMissingCoords(events, e => (e.meetupAddress || '').trim());
     await fillMissingCoords(carRentals, cr => cr.address || cr.returnAddress || '');
 
     days.forEach(d => {

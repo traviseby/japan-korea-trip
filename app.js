@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.78';
+  const APP_VERSION = '2.79';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -8039,6 +8039,9 @@
     const lat = normalizeCoord(ev.lat);
     const lng = normalizeCoord(ev.lng);
     const hasCoords = lat != null && lng != null;
+    const hasMeetup = !!(ev.meetupAddress || '').trim();
+    // Don't show a map for tickets with no meet-up place (name-only geocodes are meaningless)
+    const hasLocation = hasCoords && hasMeetup;
 
     // Try to get Google photo
     const cachedEnrichment = getCachedPlaceEnrichment('event', ev);
@@ -8128,8 +8131,8 @@
     if (timeRange) timeParts.push(timeRange);
     if (ev.provider) timeParts.push(ev.provider);
 
-    // Hero section - Google photo or map fallback
-    if (hasGooglePhoto || hasCoords) {
+    // Hero section - Google photo or map fallback (only if there's a real meet-up location)
+    if (hasGooglePhoto || hasLocation) {
       const heroWrap = el('div', { class: 'hero-wrap' });
       const timePill = timeParts.length ? el('div', { class: 'hero-meta-pill' }, timeParts.join(' · ')) : null;
 
@@ -8149,7 +8152,7 @@
           heroWrap.appendChild(heroImg);
         }
         if (timePill) heroWrap.appendChild(timePill);
-      } else if (hasCoords) {
+      } else if (hasLocation) {
         // B - Map fallback hero
         const mapHero = el('div', { class: 'hero-map', id: 'event-hero-map' });
         heroWrap.appendChild(mapHero);
@@ -8208,8 +8211,8 @@
     }
     if (table.children.length) body.appendChild(table);
 
-    // Location map card (only for A ★ variant)
-    if (hasGooglePhoto && hasCoords) {
+    // Location map card (only for A ★ variant with a real meet-up location)
+    if (hasGooglePhoto && hasLocation) {
       const mapCard = el('div', { class: 'sheet-map-card sheet-map-card--ticket', 'aria-label': 'Event location map' },
         el('div', { id: 'event-sheet-map' }),
         el('div', { class: 'sheet-map-pin sheet-map-pin--ticket' })
@@ -8235,7 +8238,7 @@
     if (infoUrl) {
       actionButtons.push(el('a', { class: 'btn secondary', href: infoUrl, target: '_blank', rel: 'noopener' }, 'More Info'));
     }
-    if (directionsUrl) {
+    if (directionsUrl && hasLocation) {
       actionButtons.push(externalNavLink('btn', 'Get Directions', directionsUrl));
     }
     
@@ -8248,7 +8251,7 @@
     requestAnimationFrame(() => sheet.classList.add('open'));
 
     // Initialize maps
-    if (hasCoords) {
+    if (hasLocation) {
       setTimeout(() => {
         if (hasGooglePhoto) {
           // Location map card
@@ -8278,6 +8281,7 @@
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
               subdomains: 'abcd'
             }).addTo(leafletSheet);
+            L.marker([lat, lng], { icon: pinIcon('Ticket', accent) }).addTo(leafletSheet);
           }
         }
       }, 100);
