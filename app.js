@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.79';
+  const APP_VERSION = '2.80';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -7711,6 +7711,27 @@
     });
   }
 
+  async function fetchHotelReceiptUrl(rowId){
+    const activeTrip = getTrips().find(t => t.active);
+    if (!activeTrip) return '';
+
+    try {
+      const body = { docUrl: activeTrip.url, rowId, type: 'hotel' };
+      if (activeTrip.token) body.token = activeTrip.token;
+      const res = await fetch('/api/receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) return '';
+      return isHttpUrl(payload.url) ? payload.url.trim() : '';
+    } catch (err) {
+      console.warn('Failed to resolve hotel receipt URL:', err);
+      return '';
+    }
+  }
+
   async function openHotelSheet(h, day, navContext){
     state.sheet = null;
     state.flightSheet = null;
@@ -7732,6 +7753,11 @@
     const lng = normalizeCoord(h.lng);
     const hasCoords = lat != null && lng != null;
     const directionsUrl = buildHotelDirectionsUrl(h, day);
+    let receiptUrl = isHttpUrl(h.receiptUrl) ? h.receiptUrl.trim() : '';
+    if (!receiptUrl && h.receipt && h.id) {
+      receiptUrl = await fetchHotelReceiptUrl(h.id);
+      if (receiptUrl) h.receiptUrl = receiptUrl;
+    }
 
     // Try to get Google photo
     const cachedEnrichment = getCachedPlaceEnrichment('hotel', h);
@@ -7918,8 +7944,8 @@
 
     // Action buttons
     const actionButtons = [];
-    if (h.receiptUrl && isHttpUrl(h.receiptUrl)) {
-      actionButtons.push(buildReceiptActionButton(h.receiptUrl, h.receipt, { secondary: true }));
+    if (receiptUrl) {
+      actionButtons.push(buildReceiptActionButton(receiptUrl, h.receipt, { secondary: true }));
     } else if (h.receipt) {
       actionButtons.push(el('div', { class: 'btn secondary disabled' }, 'View Receipt'));
     }

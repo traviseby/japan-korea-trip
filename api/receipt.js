@@ -1,4 +1,4 @@
-// Resolve a hosted URL for a receipt attachment from Coda (handles flights, events, and car rentals)
+// Resolve a hosted URL for a receipt attachment from Coda
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -40,13 +40,14 @@ export default async function handler(req, res) {
 
   const TABLE_CONFIGS = {
     flight: { names: ['All Flights', 'All flights'], label: 'Flights' },
+    hotel: { names: ['All Hotels', 'All hotels'], label: 'Hotels' },
     event: { names: ['All Tickets', 'All Events'], label: 'Tickets' },
     carRental: { names: ['All Car Rentals'], label: 'Car rentals' }
   };
 
   const config = TABLE_CONFIGS[type];
   if (!config) {
-    return res.status(400).json({ error: `Invalid type: ${type}. Must be flight, event, or carRental` });
+    return res.status(400).json({ error: `Invalid type: ${type}. Must be flight, hotel, event, or carRental` });
   }
 
   const docId = parseDocId(docUrl);
