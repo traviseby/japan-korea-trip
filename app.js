@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.77';
+  const APP_VERSION = '2.78';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -1343,6 +1343,16 @@
   function enrichTripData(data){
     if (!Array.isArray(data.events)) data.events = [];
     if (!Array.isArray(data.carRentals)) data.carRentals = [];
+    // Coda/natural table order is not chronological — keep day pills in Day 1…N order
+    if (Array.isArray(data.days)) {
+      data.days.sort((a, b) => (a.n || 0) - (b.n || 0) || String(a.date || '').localeCompare(String(b.date || '')));
+      const dates = data.days.map(d => d.date).filter(Boolean).sort();
+      if (dates.length) {
+        data.trip = data.trip || {};
+        data.trip.start = dates[0];
+        data.trip.end = dates[dates.length - 1];
+      }
+    }
     (data.flights || []).forEach(f => {
       if (!f.day && f.date) {
         f.day = data.days?.find(d => d.date === f.date)?.n ?? null;

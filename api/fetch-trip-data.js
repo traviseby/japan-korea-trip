@@ -1,6 +1,6 @@
 // Vercel serverless function to fetch trip data from Coda doc on-demand
 // Returns the same data structure that sync.mjs generates, but as JSON
-const FETCH_TRIP_DATA_VERSION = '2026-06-24-address-geocode';
+const FETCH_TRIP_DATA_VERSION = '2026-07-16-sort-days';
 
 export default async function handler(req, res) {
   console.log('fetch-trip-data called, method:', req.method, 'version:', FETCH_TRIP_DATA_VERSION);
@@ -524,7 +524,7 @@ export default async function handler(req, res) {
     // Generic color palette for days
     const COLORS = ['#5c6f87', '#1e6a9a', '#8e44ad', '#c0392b', '#b25a14', '#0e7560', '#c56c94', '#2980b9', '#16a085', '#d35400', '#7f8c8d'];
 
-    // Build days array
+    // Build days array (Coda row order is not chronological — sort by day number)
     const days = itnRows.map((row, index) => {
       const v = row.values;
       const overviewText = cellText(v[ITN_MAP['Overview']]);
@@ -550,7 +550,7 @@ export default async function handler(req, res) {
         hero: stripFence(v[ITN_MAP['Image URL']] || ''),
         desc: stripFence(v[ITN_MAP['Description']] || '')
       };
-    });
+    }).sort((a, b) => (a.n || 0) - (b.n || 0) || String(a.date).localeCompare(String(b.date)));
 
     // Resolve activity column ids (handles renamed Coda columns + template fallbacks)
     const ACT = {
@@ -766,8 +766,8 @@ export default async function handler(req, res) {
       }
     });
 
-    // Calculate trip metadata
-    const allDates = days.map(d => d.date).filter(Boolean);
+    // Calculate trip metadata from chronological dates (not Coda row order)
+    const allDates = days.map(d => d.date).filter(Boolean).sort();
     const tripStart = allDates.length > 0 ? allDates[0] : '';
     const tripEnd = allDates.length > 0 ? allDates[allDates.length - 1] : '';
 
