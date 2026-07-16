@@ -316,6 +316,8 @@
 
   // ─── Render: TODAY tab ────────────────────────────────────────────────────
   let leafletMini = null, leafletFull = null, leafletSheet = null, leafletFullscreen = null;
+  // Bumped on every detail-sheet open/close so stale async opens don't stack content into #sheet.
+  let detailSheetOpenSeq = 0;
 
   function syncHeroTitleLayout(hero){
     if (!hero) return;
@@ -7165,6 +7167,7 @@
   }
 
   async function openFlightSheet(f, day, navContext){
+    const openSeq = ++detailSheetOpenSeq;
     state.sheet = null;
     state.hotelSheet = null;
     state.eventSheet = null;
@@ -7173,12 +7176,14 @@
     state.flightSheet = f;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
+    if (leafletSheet) { try { leafletSheet.remove(); } catch {} leafletSheet = null; }
     sheet.innerHTML = '';
 
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
     let receiptUrl = isHttpUrl(f.receiptUrl) ? f.receiptUrl.trim() : '';
     if (!receiptUrl && f.receipt && f.id) {
       receiptUrl = await fetchFlightReceiptUrl(f.id);
+      if (openSeq !== detailSheetOpenSeq) return;
       if (receiptUrl) f.receiptUrl = receiptUrl;
     }
     const costText = formatFlightCost(f.cost);
@@ -7373,12 +7378,14 @@
       ));
     }
 
+    if (openSeq !== detailSheetOpenSeq) return;
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
 
     // Initialize flight route map
     if (hasValidCoords) {
       setTimeout(() => {
+        if (openSeq !== detailSheetOpenSeq) return;
         const mapNode = $('#flight-hero-map');
         if (!mapNode || leafletSheet) return;
 
@@ -7767,6 +7774,7 @@
   }
 
   async function openHotelSheet(h, day, navContext){
+    const openSeq = ++detailSheetOpenSeq;
     state.sheet = null;
     state.flightSheet = null;
     state.eventSheet = null;
@@ -7779,6 +7787,7 @@
       console.error('Sheet elements not found');
       return;
     }
+    if (leafletSheet) { try { leafletSheet.remove(); } catch {} leafletSheet = null; }
     sheet.innerHTML = '';
 
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
@@ -7790,6 +7799,7 @@
     let receiptUrl = isHttpUrl(h.receiptUrl) ? h.receiptUrl.trim() : '';
     if (!receiptUrl && h.receipt && h.id) {
       receiptUrl = await fetchHotelReceiptUrl(h.id);
+      if (openSeq !== detailSheetOpenSeq) return;
       if (receiptUrl) h.receiptUrl = receiptUrl;
     }
 
@@ -8002,12 +8012,14 @@
       sheet.appendChild(actions);
     }
 
+    if (openSeq !== detailSheetOpenSeq) return;
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
 
     // Initialize maps
     if (hasCoords) {
       setTimeout(() => {
+        if (openSeq !== detailSheetOpenSeq) return;
         if (hasGooglePhoto) {
           // Location map card
           const mapNode = $('#hotel-sheet-map');
@@ -8073,6 +8085,7 @@
   }
 
   async function openEventSheet(ev, day, navContext){
+    const openSeq = ++detailSheetOpenSeq;
     state.sheet = null;
     state.hotelSheet = null;
     state.flightSheet = null;
@@ -8085,6 +8098,7 @@
       console.error('Sheet elements not found');
       return;
     }
+    if (leafletSheet) { try { leafletSheet.remove(); } catch {} leafletSheet = null; }
     sheet.innerHTML = '';
 
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
@@ -8093,6 +8107,7 @@
     let receiptUrl = isHttpUrl(ev.receiptUrl) ? ev.receiptUrl.trim() : '';
     if (!receiptUrl && ev.receipt && ev.id) {
       receiptUrl = await fetchEventReceiptUrl(ev.id);
+      if (openSeq !== detailSheetOpenSeq) return;
       if (receiptUrl) ev.receiptUrl = receiptUrl;
     }
     const costText = formatEventCost(ev.cost);
@@ -8307,12 +8322,14 @@
       sheet.appendChild(actions);
     }
 
+    if (openSeq !== detailSheetOpenSeq) return;
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
 
     // Initialize maps
     if (hasLocation) {
       setTimeout(() => {
+        if (openSeq !== detailSheetOpenSeq) return;
         if (hasGooglePhoto) {
           // Location map card
           const mapNode = $('#event-sheet-map');
@@ -8728,6 +8745,7 @@
   }
 
   async function openCarRentalSheet(cr, day, navContext){
+    const openSeq = ++detailSheetOpenSeq;
     state.sheet = null;
     state.hotelSheet = null;
     state.flightSheet = null;
@@ -8736,6 +8754,7 @@
     state.carRentalSheet = cr;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
+    if (leafletSheet) { try { leafletSheet.remove(); } catch {} leafletSheet = null; }
     sheet.innerHTML = '';
 
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
@@ -8743,6 +8762,7 @@
     let receiptUrl = isHttpUrl(cr.receiptUrl) ? cr.receiptUrl.trim() : '';
     if (!receiptUrl && cr.receipt && cr.id) {
       receiptUrl = await fetchCarRentalReceiptUrl(cr.id);
+      if (openSeq !== detailSheetOpenSeq) return;
       if (receiptUrl) cr.receiptUrl = receiptUrl;
     }
     const costText = formatEventCost(cr.cost);
@@ -8886,12 +8906,14 @@
       sheet.appendChild(actions);
     }
 
+    if (openSeq !== detailSheetOpenSeq) return;
     backdrop.classList.add('open');
     requestAnimationFrame(() => sheet.classList.add('open'));
 
     // Initialize hero map
     if (hasCoords) {
       setTimeout(() => {
+        if (openSeq !== detailSheetOpenSeq) return;
         const heroMapNode = $('#car-hero-map');
         if (heroMapNode && !leafletSheet) {
           leafletSheet = L.map(heroMapNode, {
@@ -9224,6 +9246,7 @@
   }
 
   function closeSheet(){
+    detailSheetOpenSeq++;
     const backdrop = $('#sheet-backdrop');
     const sheet = $('#sheet');
     clearSheetDragStyles(sheet);
