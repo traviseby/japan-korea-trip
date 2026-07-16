@@ -10052,9 +10052,8 @@
         zIndex: '9999'
       }
     },
-      el('div', { style: { fontSize: '48px', marginBottom: '20px' } }, '✈️'),
-      el('h1', { style: { fontSize: '24px', fontWeight: '600', color: 'var(--fg)', marginBottom: '12px', textAlign: 'center' } }, 'Welcome to Supertrip'),
-      el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get Started by adding a link to your trip Doc'),
+      el('h1', { style: { fontSize: '24px', fontWeight: '600', color: 'var(--fg)', marginBottom: '0', textAlign: 'center' } }, 'Welcome to Supertrip'),
+      el('p', { style: { fontSize: '15px', color: 'var(--fg-mid)', marginTop: '6px', marginBottom: '32px', textAlign: 'center', maxWidth: '400px' } }, 'Get Started by adding a link to your trip Doc'),
       
       el('div', { style: { width: '100%', maxWidth: '400px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' } },
         el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--fg)', marginBottom: '8px' } }, 'Superhuman Doc URL'),
