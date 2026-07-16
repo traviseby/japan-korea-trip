@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.81';
+  const APP_VERSION = '2.82';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -718,7 +718,7 @@
       });
     });
 
-    const cities = Array.from(groups.values())
+    let cities = Array.from(groups.values())
       .filter(g => g.lats.length > 0)
       .map(g => ({
         key: g.key,
@@ -728,6 +728,30 @@
         order: g.order
       }))
       .sort((a, b) => a.order - b.order);
+
+    // Trips whose days are only "Travel"/blank (e.g. Victoria) still need a
+    // region so the Map tab can place pins — synthesize one from stop coords.
+    if (!cities.length) {
+      const lats = [];
+      const lngs = [];
+      (D.activities || []).forEach(a => {
+        if (isFlightOrTransit(a)) return;
+        const lat = normalizeCoord(a.lat);
+        const lng = normalizeCoord(a.lng);
+        if (lat == null || lng == null) return;
+        lats.push(lat);
+        lngs.push(lng);
+      });
+      if (lats.length) {
+        cities = [{
+          key: 'trip',
+          label: (D.trip?.title && D.trip.title !== 'Trip') ? D.trip.title : 'Trip',
+          lat: lats.reduce((sum, v) => sum + v, 0) / lats.length,
+          lng: lngs.reduce((sum, v) => sum + v, 0) / lngs.length,
+          order: 1
+        }];
+      }
+    }
 
     mapCityIndex = {
       cities,
@@ -1523,6 +1547,13 @@
     state.todayDay = currentDay();
     state.tab = 'today';
     state.region = null;
+    lastMapRegion = null;
+    if (leafletFull) {
+      try { leafletFull.remove(); } catch { /* ignore */ }
+      leafletFull = null;
+    }
+    fullMapMarkers = [];
+    userLocMarker = null;
     state.sheet = null;
     state.hotelSheet = null;
     state.flightSheet = null;
@@ -4414,6 +4445,7 @@
     // If only one city or no cities, hide the selector
     if (cities.length <= 1) {
       segmented.style.display = 'none';
+      segmented.innerHTML = ''; // drop stale multi-city buttons from a previous trip
       if (cities.length === 1) {
         state.region = cities[0].key;
       } else {
@@ -4474,10 +4506,12 @@
 
     let region = state.region;
     
-    // If no region is set and we have a selector, default to first region
+    // If no region is set and the city selector is visible, default to first region.
+    // Don't read hidden leftover buttons from a previous trip.
     if (!region) {
       const segmented = $('#segmented');
-      const firstBtn = segmented && segmented.querySelector('button');
+      const selectorVisible = segmented && segmented.style.display !== 'none';
+      const firstBtn = selectorVisible && segmented.querySelector('button[data-region]');
       if (firstBtn) {
         region = firstBtn.dataset.region;
         state.region = region;
