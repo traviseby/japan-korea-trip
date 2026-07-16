@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.80';
+  const APP_VERSION = '2.81';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -57,7 +57,7 @@
     const start = new Date(D.trip.start + 'T00:00:00');
     const end   = new Date(D.trip.end   + 'T23:59:59');
     if (TODAY < start) return 1;
-    if (TODAY > end)   return D.days.length;
+    if (TODAY > end)   return 1; // trip over — start from the beginning for review
     const day = Math.floor((TODAY - start) / (24*3600*1000)) + 1;
     return Math.max(1, Math.min(D.days.length, day));
   }
