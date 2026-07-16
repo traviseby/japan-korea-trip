@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.76';
+  const APP_VERSION = '2.77';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -3450,9 +3450,13 @@
     return card;
   }
 
-  const PLACE_ENRICH_CACHE_KEY = 'trip-place-enrich-v2';
+  const PLACE_ENRICH_CACHE_KEY = 'trip-place-enrich-v3';
+  const PLACE_ENRICH_TTL_MS = 12 * 60 * 60 * 1000; // photo refs expire; refresh twice daily
   const placeEnrichInflight = new Map();
   const placeEnrichSessionMiss = new Set();
+
+  // Drop legacy enrich caches that may hold expired Google photo refs
+  try { localStorage.removeItem('trip-place-enrich-v2'); } catch { /* ignore */ }
 
   function placeEnrichRecordKey(kind, record) {
     return `${kind}:${record?.id || record?.name || 'unknown'}`;
@@ -3477,7 +3481,13 @@
   function getCachedPlaceEnrichment(kind, record) {
     const key = placeEnrichRecordKey(kind, record);
     const hit = readPlaceEnrichCacheStore()[key];
-    return hit?.enriched ? hit : null;
+    if (!hit?.enriched) return null;
+    const cachedAt = Number(hit.cachedAt) || 0;
+    if (cachedAt && Date.now() - cachedAt > PLACE_ENRICH_TTL_MS) {
+      invalidatePlaceEnrichment(kind, record);
+      return null;
+    }
+    return hit;
   }
 
   function setCachedPlaceEnrichment(kind, record, data) {
@@ -3485,12 +3495,23 @@
     if (data?.enriched) {
       placeEnrichSessionMiss.delete(key);
       const store = readPlaceEnrichCacheStore();
-      store[key] = data;
+      store[key] = { ...data, cachedAt: Date.now() };
       writePlaceEnrichCacheStore(store);
       return;
     }
     if (data?.reason === 'not_found') {
       placeEnrichSessionMiss.add(key);
+    }
+  }
+
+  function invalidatePlaceEnrichment(kind, record) {
+    const key = placeEnrichRecordKey(kind, record);
+    placeEnrichSessionMiss.delete(key);
+    placeEnrichInflight.delete(key);
+    const store = readPlaceEnrichCacheStore();
+    if (store[key]) {
+      delete store[key];
+      writePlaceEnrichCacheStore(store);
     }
   }
 
@@ -3511,8 +3532,9 @@
     return resp.json();
   }
 
-  function requestPlaceEnrichment(kind, record, onReady) {
+  function requestPlaceEnrichment(kind, record, onReady, { force = false } = {}) {
     const key = placeEnrichRecordKey(kind, record);
+    if (force) invalidatePlaceEnrichment(kind, record);
     const cached = getCachedPlaceEnrichment(kind, record);
     if (cached) {
       onReady(cached);
@@ -3588,7 +3610,7 @@
     return img;
   }
 
-  function buildPhotoCarousel(photoUrls, alt) {
+  function buildPhotoCarousel(photoUrls, alt, onPhotoError) {
     if (!Array.isArray(photoUrls) || photoUrls.length === 0) return null;
     
     const state = { currentIndex: 0 };
@@ -3607,6 +3629,9 @@
       img.addEventListener('click', () => {
         openReceiptImageSheet(photoUrls, alt || 'photo.jpg', state.currentIndex);
       });
+      if (onPhotoError) {
+        img.addEventListener('error', () => onPhotoError(url, i), { once: true });
+      }
       track.appendChild(img);
     });
     
@@ -3762,18 +3787,23 @@
       'aria-label': `${h.name}, ${metaParts.join(', ')}`
     });
 
-    const onPhotoError = () => {
-      mountHotelCardContent(card, h, { ...enrichment, photoUrl: null });
+    const refreshPhoto = (data) => {
+      if (!card.isConnected) return;
+      if (data?.photoUrl) {
+        mountHotelCardContent(card, h, data, onPhotoError);
+      }
     };
+
+    const onPhotoError = () => {
+      invalidatePlaceEnrichment('hotel', h);
+      mountHotelCardContent(card, h, null);
+      requestPlaceEnrichment('hotel', h, refreshPhoto, { force: true });
+    };
+
     mountHotelCardContent(card, h, enrichment, onPhotoError);
 
     if (!enrichment?.photoUrl) {
-      requestPlaceEnrichment('hotel', h, data => {
-        if (!card.isConnected) return;
-        if (data?.photoUrl) {
-          mountHotelCardContent(card, h, data, onPhotoError);
-        }
-      });
+      requestPlaceEnrichment('hotel', h, refreshPhoto);
     }
 
     attachScrollSafeTap(card, () => openHotelSheet(h, day));
@@ -3826,18 +3856,21 @@
     });
 
     const enrichment = getCachedPlaceEnrichment('event', ev);
+    const refreshPhoto = (data) => {
+      if (!card.isConnected) return;
+      if (data?.photoUrl) {
+        mountEventCardContent(card, ev, data, onPhotoError);
+      }
+    };
     const onPhotoError = () => {
-      mountEventCardContent(card, ev, { ...enrichment, photoUrl: null });
+      invalidatePlaceEnrichment('event', ev);
+      mountEventCardContent(card, ev, null);
+      requestPlaceEnrichment('event', ev, refreshPhoto, { force: true });
     };
     mountEventCardContent(card, ev, enrichment, onPhotoError);
 
     if (!enrichment?.photoUrl) {
-      requestPlaceEnrichment('event', ev, data => {
-        if (!card.isConnected) return;
-        if (data?.photoUrl) {
-          mountEventCardContent(card, ev, data, onPhotoError);
-        }
-      });
+      requestPlaceEnrichment('event', ev, refreshPhoto);
     }
 
     attachScrollSafeTap(card, () => openEventSheet(ev, day));
@@ -6844,7 +6877,7 @@
     return body;
   }
 
-  function mountActivitySheetHero(a, d, unscheduled, enrichment) {
+  function mountActivitySheetHero(a, d, unscheduled, enrichment, onPhotoError) {
     const hasPhoto = !!enrichment?.photoUrl;
     const itineraryParts = activityItineraryParts(a, d, unscheduled);
 
@@ -6852,7 +6885,7 @@
       // A ★ - Google photo hero with carousel and category pill
       const heroWrap = el('div', { class: 'hero-wrap' });
       const photoUrls = enrichment.photoUrls || [enrichment.photoUrl];
-      const carousel = buildPhotoCarousel(photoUrls, a.name);
+      const carousel = buildPhotoCarousel(photoUrls, a.name, onPhotoError);
       
       if (carousel) {
         heroWrap.appendChild(carousel);
@@ -6862,6 +6895,7 @@
         heroImg.addEventListener('click', () => {
           openReceiptImageSheet(enrichment.photoUrl, a.name || 'photo.jpg');
         });
+        if (onPhotoError) heroImg.addEventListener('error', () => onPhotoError(enrichment.photoUrl, 0), { once: true });
         heroWrap.appendChild(heroImg);
       }
       
@@ -6987,7 +7021,17 @@
 
     const cachedEnrichment = getCachedPlaceEnrichment('activity', a);
     const hasGooglePhoto = !!cachedEnrichment?.photoUrl;
-    const heroResult = mountActivitySheetHero(a, d, unscheduled, cachedEnrichment);
+    let photoRetrying = false;
+    const onHeroPhotoError = () => {
+      if (photoRetrying || state.sheet !== a.id) return;
+      photoRetrying = true;
+      invalidatePlaceEnrichment('activity', a);
+      requestPlaceEnrichment('activity', a, (data) => {
+        if (state.sheet !== a.id) return;
+        if (data?.photoUrl) openSheet(a);
+      }, { force: true });
+    };
+    const heroResult = mountActivitySheetHero(a, d, unscheduled, cachedEnrichment, onHeroPhotoError);
     const body = buildActivitySheetBody(a, d, unscheduled, cachedEnrichment, hasGooglePhoto);
     
     if (heroResult) {
@@ -7682,10 +7726,24 @@
     // Try to get Google photo
     const cachedEnrichment = getCachedPlaceEnrichment('hotel', h);
     const hasGooglePhoto = cachedEnrichment?.photoUrl;
+    let photoRetrying = false;
+    const sheetStillOpen = () => state.hotelSheet === h || state.hotelSheet?.id === h.id;
+    const onHeroPhotoError = () => {
+      if (photoRetrying || !sheetStillOpen()) return;
+      photoRetrying = true;
+      invalidatePlaceEnrichment('hotel', h);
+      requestPlaceEnrichment('hotel', h, (data) => {
+        if (!sheetStillOpen()) return;
+        openHotelSheet(h, day, navContext);
+      }, { force: true });
+    };
 
-    // Request enrichment if not cached (but we don't need to do anything with it here)
-    if (!cachedEnrichment && h.name) {
-      requestPlaceEnrichment('hotel', h, () => {});
+    // Request enrichment if not cached; refresh sheet when photos arrive
+    if (!hasGooglePhoto && h.name) {
+      requestPlaceEnrichment('hotel', h, (data) => {
+        if (!sheetStillOpen() || !data?.photoUrl) return;
+        openHotelSheet(h, day, navContext);
+      });
     }
 
     sheet.appendChild(el('div', { class: 'handle' }));
@@ -7762,7 +7820,7 @@
       if (hasGooglePhoto) {
         // A ★ - Google photo hero with carousel
         const photoUrls = cachedEnrichment.photoUrls || [cachedEnrichment.photoUrl];
-        const carousel = buildPhotoCarousel(photoUrls, h.name);
+        const carousel = buildPhotoCarousel(photoUrls, h.name, onHeroPhotoError);
         if (carousel) {
           heroWrap.appendChild(carousel);
         } else {
@@ -7771,6 +7829,7 @@
           heroImg.addEventListener('click', () => {
             openReceiptImageSheet(cachedEnrichment.photoUrl, h.name || 'photo.jpg');
           });
+          heroImg.addEventListener('error', () => onHeroPhotoError(), { once: true });
           heroWrap.appendChild(heroImg);
         }
         if (datePill) heroWrap.appendChild(datePill);
@@ -7974,10 +8033,24 @@
     // Try to get Google photo
     const cachedEnrichment = getCachedPlaceEnrichment('event', ev);
     const hasGooglePhoto = cachedEnrichment?.photoUrl;
+    let photoRetrying = false;
+    const sheetStillOpen = () => state.eventSheet === ev || state.eventSheet?.id === ev.id;
+    const onHeroPhotoError = () => {
+      if (photoRetrying || !sheetStillOpen()) return;
+      photoRetrying = true;
+      invalidatePlaceEnrichment('event', ev);
+      requestPlaceEnrichment('event', ev, () => {
+        if (!sheetStillOpen()) return;
+        openEventSheet(ev, day, navContext);
+      }, { force: true });
+    };
 
-    // Request enrichment if not cached (but we don't need to do anything with it here)
-    if (!cachedEnrichment && ev.name) {
-      requestPlaceEnrichment('event', ev, () => {});
+    // Request enrichment if not cached; refresh sheet when photos arrive
+    if (!hasGooglePhoto && ev.name) {
+      requestPlaceEnrichment('event', ev, (data) => {
+        if (!sheetStillOpen() || !data?.photoUrl) return;
+        openEventSheet(ev, day, navContext);
+      });
     }
 
     sheet.appendChild(el('div', { class: 'handle' }));
@@ -8053,7 +8126,7 @@
       if (hasGooglePhoto) {
         // A ★ - Google photo hero with carousel
         const photoUrls = cachedEnrichment.photoUrls || [cachedEnrichment.photoUrl];
-        const carousel = buildPhotoCarousel(photoUrls, ev.name);
+        const carousel = buildPhotoCarousel(photoUrls, ev.name, onHeroPhotoError);
         if (carousel) {
           heroWrap.appendChild(carousel);
         } else {
@@ -8062,6 +8135,7 @@
           heroImg.addEventListener('click', () => {
             openReceiptImageSheet(cachedEnrichment.photoUrl, ev.name || 'photo.jpg');
           });
+          heroImg.addEventListener('error', () => onHeroPhotoError(), { once: true });
           heroWrap.appendChild(heroImg);
         }
         if (timePill) heroWrap.appendChild(timePill);
