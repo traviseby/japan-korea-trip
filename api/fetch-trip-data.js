@@ -1,6 +1,6 @@
 // Vercel serverless function to fetch trip data from Coda doc on-demand
 // Returns the same data structure that sync.mjs generates, but as JSON
-const FETCH_TRIP_DATA_VERSION = '2026-07-17-optional-todos';
+const FETCH_TRIP_DATA_VERSION = '2026-07-17-receipt-url-or-file';
 
 export default async function handler(req, res) {
   console.log('fetch-trip-data called, method:', req.method, 'version:', FETCH_TRIP_DATA_VERSION);
@@ -237,16 +237,48 @@ export default async function handler(req, res) {
       return Number.isFinite(n) ? n : null;
     }
 
+    function looksLikeHttpUrl(str) {
+      if (!str || typeof str !== 'string') return false;
+      return /^https?:\/\//i.test(str.trim());
+    }
+
+    function receiptNameFromUrl(url) {
+      try {
+        const base = new URL(url).pathname.split('/').filter(Boolean).pop() || '';
+        return decodeURIComponent(base) || 'Receipt';
+      } catch {
+        return 'Receipt';
+      }
+    }
+
+    // Supports File attachments and Link/URL cells (plain string or { url, name }).
     function cellReceipt(v) {
       if (!v) return { name: '', url: '' };
       const items = Array.isArray(v) ? v : [v];
       for (const item of items) {
-        if (typeof item === 'string' && item) return { name: item, url: '' };
+        if (typeof item === 'string' && item.trim()) {
+          const s = item.trim();
+          if (looksLikeHttpUrl(s)) return { name: receiptNameFromUrl(s), url: s };
+          return { name: s, url: '' };
+        }
         if (item && typeof item === 'object') {
-          const name = item.name || '';
-          const url = typeof item.url === 'string' ? item.url : '';
-          if (url) return { name: name || 'Receipt', url };
-          if (name) return { name, url: '' };
+          const urlCandidate =
+            (typeof item.url === 'string' && item.url) ||
+            (typeof item.href === 'string' && item.href) ||
+            '';
+          const nameCandidate =
+            (typeof item.name === 'string' && item.name) ||
+            (typeof item.title === 'string' && item.title) ||
+            '';
+          if (looksLikeHttpUrl(urlCandidate)) {
+            const url = urlCandidate.trim();
+            return { name: nameCandidate.trim() || receiptNameFromUrl(url), url };
+          }
+          if (looksLikeHttpUrl(nameCandidate)) {
+            const url = nameCandidate.trim();
+            return { name: receiptNameFromUrl(url), url };
+          }
+          if (nameCandidate.trim()) return { name: nameCandidate.trim(), url: '' };
         }
       }
       return { name: '', url: '' };

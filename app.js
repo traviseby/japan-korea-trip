@@ -619,6 +619,14 @@
     }
   }
 
+  /** Prefer receiptUrl; also accept a plain https URL stored in receipt (URL-format Coda columns). */
+  function entityReceiptUrl(entity){
+    if (!entity) return '';
+    if (isHttpUrl(entity.receiptUrl)) return entity.receiptUrl.trim();
+    if (isHttpUrl(entity.receipt)) return entity.receipt.trim();
+    return '';
+  }
+
   function getTripDayCount(tripUrl){
     const normalized = normalizeTripUrl(tripUrl);
     const active = getActiveTrip();
@@ -7180,7 +7188,7 @@
     sheet.innerHTML = '';
 
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
-    let receiptUrl = isHttpUrl(f.receiptUrl) ? f.receiptUrl.trim() : '';
+    let receiptUrl = entityReceiptUrl(f);
     if (!receiptUrl && f.receipt && f.id) {
       receiptUrl = await fetchFlightReceiptUrl(f.id);
       if (openSeq !== detailSheetOpenSeq) return;
@@ -7796,7 +7804,7 @@
     const lng = normalizeCoord(h.lng);
     const hasCoords = lat != null && lng != null;
     const directionsUrl = buildHotelDirectionsUrl(h, day);
-    let receiptUrl = isHttpUrl(h.receiptUrl) ? h.receiptUrl.trim() : '';
+    let receiptUrl = entityReceiptUrl(h);
     if (!receiptUrl && h.receipt && h.id) {
       receiptUrl = await fetchHotelReceiptUrl(h.id);
       if (openSeq !== detailSheetOpenSeq) return;
@@ -8104,7 +8112,7 @@
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
     const directionsUrl = buildEventDirectionsUrl(ev, day);
     const infoUrl = isHttpUrl(ev.moreInfo) ? ev.moreInfo.trim() : '';
-    let receiptUrl = isHttpUrl(ev.receiptUrl) ? ev.receiptUrl.trim() : '';
+    let receiptUrl = entityReceiptUrl(ev);
     if (!receiptUrl && ev.receipt && ev.id) {
       receiptUrl = await fetchEventReceiptUrl(ev.id);
       if (openSeq !== detailSheetOpenSeq) return;
@@ -8759,7 +8767,7 @@
 
     const accent = day?.color || dayAccent(day?.n) || '#8b5cf6';
     const directionsUrl = buildCarRentalDirectionsUrl(cr, day);
-    let receiptUrl = isHttpUrl(cr.receiptUrl) ? cr.receiptUrl.trim() : '';
+    let receiptUrl = entityReceiptUrl(cr);
     if (!receiptUrl && cr.receipt && cr.id) {
       receiptUrl = await fetchCarRentalReceiptUrl(cr.id);
       if (openSeq !== detailSheetOpenSeq) return;
