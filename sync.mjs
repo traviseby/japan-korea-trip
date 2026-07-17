@@ -52,6 +52,8 @@ const TABLE_NAMES = {
   events:     ['All Tickets', 'All Events'],
   carRentals: ['All Car Rentals']
 };
+// Present in the Victoria template but not required for every trip doc.
+const OPTIONAL_TABLES = new Set(['todos']);
 
 function findTable(items, names) {
   const candidates = Array.isArray(names) ? names : [names];
@@ -447,6 +449,11 @@ for (const [key, names] of Object.entries(TABLE_NAMES)) {
   const table = findTable(allTables, names);
   if (!table) {
     const tried = (Array.isArray(names) ? names : [names]).join(', ');
+    if (OPTIONAL_TABLES.has(key)) {
+      console.warn(`Optional table not found (tried: ${tried}). Available tables:`, allTables.map(t => t.name));
+      TABLES[key] = null;
+      continue;
+    }
     console.error(`Table not found (tried: ${tried}). Available tables:`, allTables.map(t => t.name));
     process.exit(1);
   }
@@ -459,7 +466,7 @@ console.log('Fetching columns...');
 const [itnCols, actCols, todoCols, flCols, htlCols, evtCols, carCols] = await Promise.all([
   fetchColumns(TABLES.itinerary),
   fetchColumns(TABLES.activities),
-  fetchColumns(TABLES.todos),
+  TABLES.todos ? fetchColumns(TABLES.todos) : Promise.resolve([]),
   fetchColumns(TABLES.flights),
   fetchColumns(TABLES.hotels),
   fetchColumns(TABLES.events),
@@ -584,7 +591,9 @@ warnMissingColumns('All activities', ACT_MAP, ['Date', 'Time of Day', 'Descripti
 if (!ACT_MAP['Name'] && !ACT_MAP['Activity']) {
   console.warn('[All activities] Missing expected columns: Name');
 }
-warnMissingColumns('To do list', TODO_MAP, ['Priority', 'Item', 'Type', 'When to Book / Do', 'Reservation Link', 'Why It Matters', 'My Recommendation']);
+if (TABLES.todos) {
+  warnMissingColumns('To do list', TODO_MAP, ['Priority', 'Item', 'Type', 'When to Book / Do', 'Reservation Link', 'Why It Matters', 'My Recommendation']);
+}
 warnMissingColumns('All Flights', FL_MAP, ['Airline', 'Flight #', 'Depart Date', 'Depart City', 'Arrive City', 'Departure Code', 'Arrival Code', 'Receipt']);
 warnMissingColumns('All Hotels', HTL_MAP, ['Name', 'City', 'Start Date', 'End Date', 'Address', 'Latitude', 'Longitude']);
 warnMissingColumns('All Tickets', EVT_MAP, ['Name', 'Provider', 'Date', 'Start Time', 'Address', 'Receipt']);
@@ -597,7 +606,7 @@ console.log('Fetching table data...');
 const [itnRows, actRows, todoRows, flightRows, hotelRows, eventRows, carRentalRows] = await Promise.all([
   fetchAllRows(TABLES.itinerary),
   fetchAllRows(TABLES.activities, 'rich', 'natural'),
-  fetchAllRows(TABLES.todos),
+  TABLES.todos ? fetchAllRows(TABLES.todos) : Promise.resolve([]),
   fetchAllRows(TABLES.flights, 'rich'),
   fetchAllRows(TABLES.hotels),
   fetchAllRows(TABLES.events, 'rich'),

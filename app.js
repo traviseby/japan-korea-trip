@@ -5515,7 +5515,7 @@
       { key: 'Helpful',   label: 'Helpful',   cls: 'help', color: 'var(--p-helpful)' }
     ];
     sections.forEach(s => {
-      const all = D.todos.filter(t => t.priority === s.key);
+      const all = (D.todos || []).filter(t => t.priority === s.key);
       const list = all.filter(t => !checkedTodos.has(t.id));
       if (!list.length) return;
       const section = el('div', { class: 'todo-section' });
@@ -5529,7 +5529,7 @@
     });
 
     // Done section at the very bottom — all completed to-dos from any priority.
-    const doneList = D.todos.filter(t => checkedTodos.has(t.id));
+    const doneList = (D.todos || []).filter(t => checkedTodos.has(t.id));
     if (doneList.length){
       const ds = el('div', { class: 'todo-section' });
       ds.appendChild(el('div', { class: 'section-bar done-bar' },

@@ -1,6 +1,6 @@
 // Vercel serverless function to fetch trip data from Coda doc on-demand
 // Returns the same data structure that sync.mjs generates, but as JSON
-const FETCH_TRIP_DATA_VERSION = '2026-07-16-event-geocode-address';
+const FETCH_TRIP_DATA_VERSION = '2026-07-17-optional-todos';
 
 export default async function handler(req, res) {
   console.log('fetch-trip-data called, method:', req.method, 'version:', FETCH_TRIP_DATA_VERSION);
@@ -76,6 +76,8 @@ export default async function handler(req, res) {
       events: ['All Tickets', 'All Events'],
       carRentals: ['All Car Rentals']
     };
+    // Present in the Victoria template but not required for every trip doc.
+    const OPTIONAL_TABLES = new Set(['todos']);
 
     function findTable(items, names) {
       const candidates = Array.isArray(names) ? names : [names];
@@ -96,6 +98,11 @@ export default async function handler(req, res) {
       if (!table) {
         const tried = (Array.isArray(names) ? names : [names]).join(', ');
         const available = tablesData.items.map(t => t.name).join(', ');
+        if (OPTIONAL_TABLES.has(key)) {
+          console.warn(`Optional table not found (tried: ${tried}). Available: ${available}`);
+          tables[key] = null;
+          continue;
+        }
         throw new Error(`Table not found (tried: ${tried}). Available: ${available}`);
       }
       tables[key] = table.id;
@@ -360,7 +367,7 @@ export default async function handler(req, res) {
     // Fetch column maps
     const itnCols = await fetchColumns(tables.itinerary);
     const actCols = await fetchColumns(tables.activities);
-    const todoCols = await fetchColumns(tables.todos);
+    const todoCols = tables.todos ? await fetchColumns(tables.todos) : [];
     const flCols = await fetchColumns(tables.flights);
     const htlCols = await fetchColumns(tables.hotels);
     const evtCols = await fetchColumns(tables.events);
@@ -379,7 +386,9 @@ export default async function handler(req, res) {
     if (!ACT_MAP['Name'] && !ACT_MAP['Activity']) {
       console.warn('[All activities] Missing expected columns: Name');
     }
-    warnMissingColumns('To do list', TODO_MAP, ['Priority', 'Item', 'Type', 'When to Book / Do', 'Reservation Link', 'Why It Matters', 'My Recommendation']);
+    if (tables.todos) {
+      warnMissingColumns('To do list', TODO_MAP, ['Priority', 'Item', 'Type', 'When to Book / Do', 'Reservation Link', 'Why It Matters', 'My Recommendation']);
+    }
     warnMissingColumns('All Flights', FL_MAP, ['Airline', 'Flight #', 'Depart Date', 'Depart City', 'Arrive City', 'Departure Code', 'Arrival Code', 'Receipt']);
     warnMissingColumns('All Hotels', HTL_MAP, ['Name', 'City', 'Start Date', 'End Date', 'Address', 'Latitude', 'Longitude']);
     warnMissingColumns('All Tickets', EVT_MAP, ['Name', 'Provider', 'Date', 'Start Time', 'Address', 'Receipt']);
@@ -426,7 +435,7 @@ export default async function handler(req, res) {
       ['activities', tables.activities, 'rich', 0.92, 'natural'],
       ['todos', tables.todos, 'simple', null],
     ].map(async ([key, tableId, valueFormat, progressValue, sortBy]) => {
-      rowBuckets[key] = await fetchAllRows(tableId, valueFormat, sortBy);
+      rowBuckets[key] = tableId ? await fetchAllRows(tableId, valueFormat, sortBy) : [];
       if (progressValue != null) report(key, progressValue);
     }));
 
