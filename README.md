@@ -37,7 +37,7 @@ Mobile PWA for the Eby family Japan/Korea trip, July 22 – Aug 5, 2026.
 
 ## sync.mjs setup (one-time)
 
-1. Generate a Coda API token at <https://coda.io/account> → API tokens
+1. Generate a Coda API token at <https://docs.superhuman.com/account> → API tokens
    (read-only access to the trip doc is enough).
 2. Create `.env` in the project root:
    ```

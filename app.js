@@ -2494,10 +2494,10 @@
                 },
                   el('li', { style: { marginBottom: '12px' } }, 'Go to ', (() => {
                     const link = el('a', {
-                      href: 'https://coda.io/account',
+                      href: 'https://docs.superhuman.com/account',
                       target: '_blank',
                       style: { color: '#60A5FA', textDecoration: 'none' }
-                    }, 'coda.io/account');
+                    }, 'docs.superhuman.com/account');
                     link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
                     link.onmouseleave = () => { link.style.textDecoration = 'none'; };
                     return link;
@@ -10509,10 +10509,10 @@
           },
             el('li', { style: { marginBottom: '12px' } }, 'Go to ', (() => {
               const link = el('a', {
-                href: 'https://coda.io/account',
+                href: 'https://docs.superhuman.com/account',
                 target: '_blank',
                 style: { color: '#60A5FA', textDecoration: 'none' },
-              }, 'coda.io/account');
+              }, 'docs.superhuman.com/account');
               link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
               link.onmouseleave = () => { link.style.textDecoration = 'none'; };
               return link;
@@ -10918,10 +10918,10 @@
         },
           el('li', { style: { marginBottom: '12px' } }, 'Go to ', (() => {
             const link = el('a', {
-              href: 'https://coda.io/account',
+              href: 'https://docs.superhuman.com/account',
               target: '_blank',
               style: { color: '#60A5FA', textDecoration: 'none' }
-            }, 'coda.io/account');
+            }, 'docs.superhuman.com/account');
             link.onmouseenter = () => { link.style.textDecoration = 'underline'; };
             link.onmouseleave = () => { link.style.textDecoration = 'none'; };
             return link;

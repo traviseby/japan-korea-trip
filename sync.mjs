@@ -6,7 +6,7 @@
 // file under STATIC.
 //
 // Usage (one-time setup):
-//   1. Generate a Coda API token at https://coda.io/account → API tokens
+//   1. Generate a Coda API token at https://docs.superhuman.com/account → API tokens
 //      (read-only access to the trip doc is enough).
 //   2. Save it locally:  echo "CODA_TOKEN=xxx" > .env  (or export as env var)
 //   3. Install deps:     npm install dotenv
@@ -23,7 +23,7 @@ import { fillMissingCoords } from './api/_geocode.js';
 
 const TOKEN = process.env.CODA_TOKEN;
 if (!TOKEN){
-  console.error('Missing CODA_TOKEN env var. Generate at https://coda.io/account');
+  console.error('Missing CODA_TOKEN env var. Generate at https://docs.superhuman.com/account');
   process.exit(1);
 }
 
