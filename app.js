@@ -274,32 +274,92 @@
   }
 
   // ─── Weather (Open-Meteo) ─────────────────────────────────────────────────
+  // Open-Meteo default forecast is 7 days; API supports up to 16. Use the full
+  // 16-day horizon for trip-day forecasts — beyond that, show live conditions.
+  const WEATHER_FORECAST_DAYS = 16;
   const weatherCache = {};
+  function tripDateOffset(dateStr){
+    const today = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
+    const trip = new Date(dateStr + 'T00:00:00');
+    return Math.round((trip - today) / 86400000);
+  }
+  function weatherCacheKey(day){
+    return day.n + ':' + tripDateOffset(day.date);
+  }
   function weatherCoords(day){
     if (day.lat != null && day.lng != null && !isNaN(day.lat) && !isNaN(day.lng)) {
       return { lat: day.lat, lng: day.lng };
     }
     return activityCenter(day.n);
   }
+  async function fetchCurrentWeather(coords){
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&current_weather=true&temperature_unit=fahrenheit`;
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw 0;
+    const j = await res.json();
+    const cw = j.current_weather;
+    return { temp: Math.round(cw.temperature), code: cw.weathercode, mode: 'current' };
+  }
+  async function fetchForecastWeather(coords, dateStr){
+    const params = new URLSearchParams({
+      latitude: coords.lat,
+      longitude: coords.lng,
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min',
+      temperature_unit: 'fahrenheit',
+      timezone: 'auto',
+      start_date: dateStr,
+      end_date: dateStr
+    });
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { mode: 'cors' });
+    if (!res.ok) throw 0;
+    const j = await res.json();
+    const code = j.daily?.weather_code?.[0];
+    const tempMax = j.daily?.temperature_2m_max?.[0];
+    const tempMin = j.daily?.temperature_2m_min?.[0];
+    if (code == null || tempMax == null || tempMin == null) throw 0;
+    return {
+      temp: Math.round(tempMax),
+      tempMin: Math.round(tempMin),
+      tempMax: Math.round(tempMax),
+      code,
+      mode: 'forecast'
+    };
+  }
+  function formatWeatherTemp(w){
+    if (w.mode === 'forecast' && w.tempMin != null && w.tempMax != null) {
+      if (w.tempMin === w.tempMax) return `${w.tempMax}°F`;
+      return `${w.tempMin}–${w.tempMax}°F`;
+    }
+    return `${w.temp}°F`;
+  }
   async function fetchWeather(day){
-    if (weatherCache[day.n] !== undefined) return weatherCache[day.n];
+    const cacheKey = weatherCacheKey(day);
+    if (weatherCache[cacheKey] !== undefined) return weatherCache[cacheKey];
 
     const coords = weatherCoords(day);
     if (!coords) {
-      weatherCache[day.n] = null;
+      weatherCache[cacheKey] = null;
       return null;
     }
 
+    const daysOut = tripDateOffset(day.date);
+    const useForecast = daysOut > 0 && daysOut <= WEATHER_FORECAST_DAYS;
+
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&current_weather=true&temperature_unit=fahrenheit`;
-      const res = await fetch(url, { mode: 'cors' });
-      if (!res.ok) throw 0;
-      const j = await res.json();
-      const cw = j.current_weather;
-      weatherCache[day.n] = { temp: Math.round(cw.temperature), code: cw.weathercode };
-      return weatherCache[day.n];
+      const w = useForecast
+        ? await fetchForecastWeather(coords, day.date)
+        : await fetchCurrentWeather(coords);
+      weatherCache[cacheKey] = w;
+      return w;
     } catch {
-      weatherCache[day.n] = null;
+      if (useForecast) {
+        try {
+          const w = await fetchCurrentWeather(coords);
+          weatherCache[cacheKey] = w;
+          return w;
+        } catch {}
+      }
+      weatherCache[cacheKey] = null;
       return null;
     }
   }
@@ -378,7 +438,11 @@
       const wEl = $('#weather-' + day.n);
       if (!wEl) return;
       if (!w) { wEl.style.display = 'none'; return; }
-      wEl.innerHTML = `<span class="ico">${weatherIcon(w.code)}</span><span class="temp">${w.temp}°F</span>`;
+      wEl.innerHTML = `<span class="ico">${weatherIcon(w.code)}</span><span class="temp">${formatWeatherTemp(w)}</span>`;
+      wEl.classList.toggle('weather--forecast', w.mode === 'forecast');
+      wEl.title = w.mode === 'forecast'
+        ? `Forecast for ${fmtDate(day.date)}: ${w.tempMin}°F – ${w.tempMax}°F`
+        : 'Current conditions at this location';
       requestAnimationFrame(() => wEl.classList.add('weather--ready'));
     });
 

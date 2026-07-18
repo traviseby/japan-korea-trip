@@ -271,6 +271,11 @@ html.ios-standalone .tabbar {
 .hero .weather.weather--ready {
   opacity: 1;
 }
+.hero .weather.weather--forecast {
+  font-size: 11px;
+  padding: 6px 10px;
+  gap: 5px;
+}
 @media (prefers-reduced-motion: reduce) {
   .hero .weather { transition: none; }
 }
