@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.82';
+  const APP_VERSION = '2.83';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -673,6 +673,211 @@
 
   function normalizeTripUrl(url){
     return url.split('#')[0].split('?')[0];
+  }
+
+  function isLikelyOffline(){
+    return typeof navigator !== 'undefined' && navigator.onLine === false;
+  }
+
+  function isNetworkFailure(err){
+    if (isLikelyOffline()) return true;
+    if (err?.code === 'OFFLINE') return true;
+    const msg = String(err?.message || err || '');
+    return /Failed to fetch|NetworkError|Load failed|network request failed|The Internet connection appears to be offline|offline/i.test(msg);
+  }
+
+  function offlineError(message = 'No internet connection'){
+    const err = new Error(message);
+    err.code = 'OFFLINE';
+    return err;
+  }
+
+  /** Find cached trip JSON for a doc URL/ID, trying alternate URL forms. */
+  function findCachedTripDataForDoc(docUrlOrId){
+    if (!docUrlOrId) return null;
+    const docId = extractDocId(docUrlOrId);
+    const candidates = [];
+    if (typeof docUrlOrId === 'string' && /^https?:\/\//i.test(docUrlOrId)) {
+      candidates.push(normalizeTripUrl(docUrlOrId));
+    }
+    if (docId) {
+      candidates.push(`https://coda.io/d/_d${docId}`);
+      getTrips().forEach(t => {
+        if (extractDocId(t.url) === docId) candidates.push(normalizeTripUrl(t.url));
+      });
+    }
+    const tried = new Set();
+    for (const url of candidates) {
+      if (!url || tried.has(url)) continue;
+      tried.add(url);
+      try {
+        const raw = localStorage.getItem(`${TRIP_DATA_CACHE_PREFIX}${url}`);
+        if (!raw) continue;
+        const data = JSON.parse(raw);
+        if (isValidTripData(data)) return { data, url };
+      } catch {}
+    }
+    // Scan all v3 caches for a matching doc id
+    if (docId) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith(TRIP_DATA_CACHE_PREFIX)) continue;
+        const url = key.slice(TRIP_DATA_CACHE_PREFIX.length);
+        if (extractDocId(url) !== docId) continue;
+        try {
+          const data = JSON.parse(localStorage.getItem(key));
+          if (isValidTripData(data)) return { data, url };
+        } catch {}
+      }
+    }
+    return null;
+  }
+
+  function ensureTripRecordForDoc(docUrl, tripData, token = null){
+    const trips = getTrips();
+    const docId = extractDocId(docUrl);
+    const normalized = normalizeTripUrl(docUrl);
+    let trip = trips.find(t => {
+      const tid = extractDocId(t.url);
+      return (docId && tid === docId) || normalizeTripUrl(t.url) === normalized;
+    });
+    const title = tripData?.trip?.title || 'My Trip';
+    if (!trip) {
+      trips.forEach(t => { t.active = false; });
+      trip = {
+        name: title,
+        url: docUrl,
+        icon: '✈️',
+        docName: title,
+        active: true
+      };
+      if (token) trip.token = token;
+      trips.push(trip);
+    } else {
+      trips.forEach(t => { t.active = (t.url === trip.url); });
+      if (!trip.name || trip.name === 'Untitled Trip' || trip.name === 'My Trip') {
+        trip.name = title;
+        trip.docName = title;
+      }
+      if (token) trip.token = token;
+    }
+    saveTrips(trips);
+    return trip;
+  }
+
+  function openCachedTrip(docUrl, cached, opts = {}){
+    const data = cached.data || cached;
+    const url = cached.url || docUrl;
+    ensureTripRecordForDoc(url, data);
+    applyTripData(data, opts);
+    finalizeAppAfterTripLoad(opts.preserveUi ? state.tab : 'today');
+    try { updateOnline(); } catch {}
+    if (isLikelyOffline()) toast('Offline \u2014 showing saved trip');
+  }
+
+  function showNoInternetScreen({ docUrl } = {}){
+    clearTripLoadOverlays();
+    $('#no-internet-overlay')?.remove();
+    $('#autoload-token-overlay')?.remove();
+    $('#token-request-screen')?.remove();
+    $('#onboarding')?.remove();
+    hideAppShell();
+
+    const overlay = el('div', {
+      id: 'no-internet-overlay',
+      style: {
+        position: 'fixed',
+        inset: '0',
+        background: 'var(--bg)',
+        zIndex: '10000',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 24px',
+        textAlign: 'center'
+      }
+    },
+      el('div', {
+        style: {
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '20px',
+          color: 'var(--fg-mid)'
+        },
+        'aria-hidden': 'true'
+      }, (() => {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '28');
+        svg.setAttribute('height', '28');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '1.75');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.innerHTML = '<path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M5.5 12.5a10 10 0 0 1 3-2.15"/><path d="M8.5 16.2a5 5 0 0 1 2.1-1.15"/><path d="M12 20h.01"/><path d="M17 7l5 5"/><path d="M22 7l-5 5"/><path d="M15.5 5.5A15 15 0 0 1 22 8.82"/>';
+        return svg;
+      })()),
+      el('h1', {
+        style: {
+          fontSize: '24px',
+          fontWeight: '600',
+          color: 'var(--fg)',
+          margin: '0 0 8px'
+        }
+      }, 'No internet connection'),
+      el('p', {
+        style: {
+          fontSize: '15px',
+          color: 'var(--fg-mid)',
+          margin: '0 0 28px',
+          maxWidth: '320px',
+          lineHeight: '1.5'
+        }
+      }, 'Connect to the internet to load this trip. Once it\u2019s loaded once, it will open offline from your home screen.'),
+      el('button', {
+        type: 'button',
+        class: 'oc-btn',
+        style: {
+          width: '100%',
+          maxWidth: '320px',
+          padding: '14px',
+          fontSize: '16px',
+          fontWeight: '600',
+          background: '#f4f3f0',
+          color: '#0a0a0a',
+          border: 'none',
+          borderRadius: '10px',
+          cursor: 'pointer',
+          marginBottom: '12px'
+        },
+        onclick: () => window.location.reload()
+      }, 'Try again'),
+      el('button', {
+        type: 'button',
+        style: {
+          background: 'none',
+          border: 'none',
+          color: 'var(--fg-mid)',
+          fontSize: '14px',
+          cursor: 'pointer',
+          padding: '8px'
+        },
+        onclick: () => {
+          overlay.remove();
+          window.history.replaceState({}, '', window.location.pathname);
+          showOnboarding();
+        }
+      }, 'Choose another trip')
+    );
+
+    document.body.appendChild(overlay);
   }
 
   function isHttpUrl(str){
@@ -1647,6 +1852,7 @@
 
   async function loadTripData(docUrl, fromCache = true, token = null, opts = {}){
     const showLoader = !opts.preserveUi;
+    let staleFallback = null;
     try {
       // Normalize URL by removing fragments/query params for consistent cache keys
       const normalizedUrl = docUrl.split('#')[0].split('?')[0];
@@ -1655,34 +1861,40 @@
       
       // Try to load from cache first
       if (fromCache) {
-        const cacheKey = `${TRIP_DATA_CACHE_PREFIX}${normalizedUrl}`;
-        console.log('Checking cache for key:', cacheKey);
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          try {
-            tripData = JSON.parse(cached);
-            if (tripDataNeedsRefresh(tripData)) {
-              console.warn('Cached trip data is stale, refetching');
-              localStorage.removeItem(cacheKey);
-              tripData = null;
-            } else {
-              console.log('Loaded trip data from cache for:', tripData.trip?.title || 'Unknown');
-              applyTripData(tripData, opts);
-              finalizeAppAfterTripLoad(opts.preserveUi ? state.tab : undefined);
-              return;
-            }
-          } catch (e) {
-            console.warn('Failed to parse cached trip data');
-            localStorage.removeItem(cacheKey);
-            tripData = null;
+        const hit = findCachedTripDataForDoc(normalizedUrl);
+        if (hit) {
+          if (tripDataNeedsRefresh(hit.data)) {
+            console.warn('Cached trip data is stale, will try network then fall back if offline');
+            staleFallback = hit.data;
+          } else {
+            console.log('Loaded trip data from cache for:', hit.data.trip?.title || 'Unknown');
+            applyTripData(hit.data, opts);
+            finalizeAppAfterTripLoad(opts.preserveUi ? state.tab : undefined);
+            return;
           }
         } else {
           console.log('No cached data found');
+        }
+      } else if (isLikelyOffline()) {
+        const hit = findCachedTripDataForDoc(normalizedUrl);
+        if (hit) {
+          console.log('Offline with force-refresh — using cached trip');
+          openCachedTrip(normalizedUrl, hit, opts);
+          return;
         }
       }
       
       // If not in cache or cache disabled, fetch from API
       if (!tripData) {
+        if (isLikelyOffline()) {
+          if (staleFallback) {
+            console.log('Offline — using stale cached trip');
+            openCachedTrip(normalizedUrl, { data: staleFallback, url: normalizedUrl }, opts);
+            return;
+          }
+          throw offlineError();
+        }
+
         if (showLoader) {
           if (!activeTripLoadProgress) createSupertripLoader({ id: 'loader' });
           activeTripLoadProgress.setProgress(LOAD_PROGRESS.FETCH_START);
@@ -1720,6 +1932,21 @@
           }
         } catch (fetchErr) {
           clearTimeout(timeoutId);
+          if (staleFallback && (isNetworkFailure(fetchErr) || fetchErr.name === 'AbortError')) {
+            console.log('Network failed — falling back to cached trip');
+            activeTripLoadProgress?.remove();
+            openCachedTrip(normalizedUrl, { data: staleFallback, url: normalizedUrl }, opts);
+            return;
+          }
+          if (isNetworkFailure(fetchErr)) {
+            const hit = findCachedTripDataForDoc(normalizedUrl);
+            if (hit) {
+              activeTripLoadProgress?.remove();
+              openCachedTrip(normalizedUrl, hit, opts);
+              return;
+            }
+            throw offlineError();
+          }
           if (fetchErr.name === 'AbortError') {
             throw new Error('Request timed out after 60 seconds. The server may be slow or experiencing issues.');
           }
@@ -1751,7 +1978,9 @@
       
       // Show user-friendly error message
       let errorMsg = 'Trip couldn\u2019t load';
-      if (err.message.includes('deployment')) {
+      if (err.code === 'OFFLINE' || isNetworkFailure(err)) {
+        errorMsg = 'No internet connection';
+      } else if (err.message.includes('deployment')) {
         errorMsg = 'Waiting for API\u2026';
       } else if (err.message.includes('CODA_TOKEN')) {
         errorMsg = 'Docs token needed';
@@ -1953,6 +2182,17 @@
         
         // Remove loading overlay if it exists
         activeTripLoadProgress?.remove();
+
+        // Offline / network: prefer saved trip, else show no-internet screen
+        if (err.code === 'OFFLINE' || isNetworkFailure(err)) {
+          const hit = findCachedTripDataForDoc(tripToLoad.url);
+          if (hit) {
+            openCachedTrip(tripToLoad.url, hit);
+            return;
+          }
+          showNoInternetScreen({ docUrl: tripToLoad.url });
+          return;
+        }
         
         if (applyDemoTripData()) {
           finalizeAppAfterTripLoad('today');
@@ -2044,7 +2284,7 @@
         return { name: 'My Trip', icon: '✈️' };
       }
 
-      // Handle unauthorized (need token)
+      // Handle unauthorized (need token) — only when we got a real HTTP auth response
       if (res.status === 403 || res.status === 404 || res.status === 401) {
         console.warn('Doc access denied - may need authentication');
         return null;
@@ -2057,6 +2297,7 @@
       return await res.json();
     } catch (err) {
       console.error('Error fetching doc info:', err);
+      if (isNetworkFailure(err)) throw offlineError();
       return null;
     }
   }
@@ -2780,7 +3021,7 @@
           console.error('Failed to add trip:', err);
           submitBtn.textContent = 'Add Trip';
           submitBtn.disabled = false;
-          toast('Trip not found');
+          toast(err.code === 'OFFLINE' || isNetworkFailure(err) ? 'No internet connection' : 'Trip not found');
         }
       }
     }, 'Add Trip');
@@ -10728,6 +10969,19 @@
     const existingOnboarding = $('#onboarding');
     if (existingOnboarding) existingOnboarding.style.display = 'none';
     hideAppShell();
+
+    // Offline home-screen reopen: use saved trip instead of token / network UI
+    const cachedHit = findCachedTripDataForDoc(docUrl);
+    if (isLikelyOffline()) {
+      if (cachedHit) {
+        console.log('📴 Offline with cached trip — opening saved data');
+        openCachedTrip(docUrl, cachedHit);
+        return;
+      }
+      console.log('📴 Offline with no cached trip — showing no-internet screen');
+      showNoInternetScreen({ docUrl });
+      return;
+    }
     
     const loader = createSupertripLoader({ id: 'loader' });
     console.log('✅ Loading overlay added');
@@ -10736,11 +10990,37 @@
       // Fetch doc info to get the name and icon
       console.log('📡 Fetching doc info...');
       loader.setProgress(LOAD_PROGRESS.DOC_INFO_START);
-      let docInfo = await fetchDocInfo(docUrl);
+      let docInfo;
+      try {
+        docInfo = await fetchDocInfo(docUrl);
+      } catch (err) {
+        if (err.code === 'OFFLINE' || isNetworkFailure(err)) {
+          loader.remove();
+          const hit = cachedHit || findCachedTripDataForDoc(docUrl);
+          if (hit) {
+            openCachedTrip(docUrl, hit);
+            return;
+          }
+          showNoInternetScreen({ docUrl });
+          return;
+        }
+        throw err;
+      }
       console.log('📄 Doc info received:', docInfo);
       
-      // If doc is private, show token request UI
+      // If doc is private, show token request UI (only when online)
       if (!docInfo) {
+        if (isLikelyOffline()) {
+          loader.remove();
+          const hit = cachedHit || findCachedTripDataForDoc(docUrl);
+          if (hit) {
+            openCachedTrip(docUrl, hit);
+            return;
+          }
+          showNoInternetScreen({ docUrl });
+          return;
+        }
+
         console.log('🔒 Doc requires authentication - showing token UI');
         
         // First, check if there's already a partial trip saved and remove it
@@ -10837,6 +11117,15 @@
         loader.setProgress(LOAD_PROGRESS.PREPARE_APP);
       } catch (fetchErr) {
         clearTimeout(timeoutId);
+        if (isNetworkFailure(fetchErr)) {
+          const hit = findCachedTripDataForDoc(docUrl);
+          if (hit) {
+            loader.remove();
+            openCachedTrip(docUrl, hit);
+            return;
+          }
+          throw offlineError();
+        }
         if (fetchErr.name === 'AbortError') {
           throw new Error('Loading took too long. The trip has been saved - please refresh the page to try again.');
         }
@@ -10859,6 +11148,16 @@
         console.log('User cancelled, showing onboarding');
         window.history.replaceState({}, '', window.location.pathname);
         showOnboarding();
+        return;
+      }
+
+      if (error.code === 'OFFLINE' || isNetworkFailure(error)) {
+        const hit = findCachedTripDataForDoc(docUrl);
+        if (hit) {
+          openCachedTrip(docUrl, hit);
+          return;
+        }
+        showNoInternetScreen({ docUrl });
         return;
       }
       
@@ -11148,9 +11447,12 @@
     $('#trip-loading')?.remove();
     $('#auto-load-overlay')?.remove();
     $('#autoload-token-overlay')?.remove();
+    $('#no-internet-overlay')?.remove();
+    $('#token-request-screen')?.remove();
   }
 
   function finalizeAppAfterTripLoad(tab){
+    clearTripLoadOverlays();
     hideOnboarding();
     showAppShell();
     $$('.plan-screen').forEach(s => s.classList.remove('active'));
