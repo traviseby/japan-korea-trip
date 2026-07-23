@@ -531,15 +531,19 @@
 
     setTimeout(() => buildMiniMap(day, acts), 30);
 
-    // Activity list in Coda doc order (group headers when time-of-day changes)
+    // Activity list: one section per time of day (Morning → Late Night),
+    // keeping Coda order within each section so interleaved labels don't
+    // produce duplicate Afternoon/Evening headers.
     const dayActs = D.dayActivities[day.n] || [];
-    const timeGroups = [];
+    const byTime = new Map();
     dayActs.forEach(a => {
       const t = a.time || '';
-      const last = timeGroups[timeGroups.length - 1];
-      if (last && last.time === t) last.items.push(a);
-      else timeGroups.push({ time: t, items: [a] });
+      if (!byTime.has(t)) byTime.set(t, []);
+      byTime.get(t).push(a);
     });
+    const timeGroups = [...byTime.entries()]
+      .map(([time, items]) => ({ time, items }))
+      .sort((a, b) => timeOrder(a.time) - timeOrder(b.time));
     timeGroups.forEach(({ time, items }) => {
       if (time) {
         root.appendChild(el('div', { class: 'tod-head' },
