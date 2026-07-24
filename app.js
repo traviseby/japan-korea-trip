@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.91';
+  const APP_VERSION = '2.92';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -10482,11 +10482,13 @@
     root.appendChild(el('div', { class: 'settings-about' },
       el('div', { class: 'about-header' },
         el('div', { class: 'about-title' }, 'Supertrip'),
-        el('button', {
-          class: 'about-refresh-btn',
-          'aria-label': 'Refresh app',
-          onclick: () => location.reload()
-        }, '↻')
+        isHomeScreenApp()
+          ? el('button', {
+              class: 'about-refresh-btn',
+              'aria-label': 'Refresh app',
+              onclick: () => location.reload()
+            }, '↻')
+          : null
       ),
       el('div', { class: 'sub' }, 'Created by TJ Eby'),
       el('div', { class: 'sub', style: 'margin-top: 8px; opacity: 0.6;' }, `Version ${APP_VERSION}`)
