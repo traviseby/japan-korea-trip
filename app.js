@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.88';
+  const APP_VERSION = '2.90';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -2320,26 +2320,10 @@
       console.log('🔍 Total trips in storage:', trips.length);
       
       if (existingTrip) {
-        console.log('✅ Trip already exists, loading normally (keeping ?doc= in URL)');
-        // Trip already exists, just load it normally (don't auto-load again)
-        // Make sure this trip is active
-        if (!existingTrip.active) {
-          trips.forEach(t => t.active = (t.url === existingTrip.url));
-          saveTrips(trips);
-        }
-        
-        // Ensure the doc param stays in the URL (re-add if needed to normalize format)
-        const currentDocParam = urlParams.get('doc');
-        const docId = extractDocId(existingTrip.url);
-        const normalizedDocParam = docId || existingTrip.url;
-        
-        if (currentDocParam !== normalizedDocParam) {
-          const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(normalizedDocParam) + window.location.hash;
-          console.log('🔄 Normalizing doc param in URL:', newUrl);
-          window.history.replaceState({}, '', newUrl);
-        }
-        
-        // Continue to normal trip loading below
+        // Known trip (e.g. home-screen pin): do NOT force it active.
+        // Respect the last trip the user selected; ?doc= only auto-opens
+        // when it's a new/unknown doc (share / first open).
+        console.log('✅ Trip already known from ?doc= — keeping last active trip');
       } else {
         console.log('🚀 Trip not found, auto-loading from URL param');
         // Mark that we're in auto-load mode
@@ -2369,22 +2353,20 @@
       tripToLoad = getActiveTrip();
     }
     
-    // Check current URL state (it may have changed during processing)
-    const currentUrlParams = new URLSearchParams(window.location.search);
-    const currentDocParam = currentUrlParams.get('doc');
-    console.log('🔍 Current doc param after processing:', currentDocParam);
-    console.log('🔍 Active trip:', tripToLoad?.url);
-    
-    // If we have an active trip but no doc param in URL, add it (but don't trigger auto-load)
-    if (tripToLoad && !currentDocParam) {
+    // Sync the address bar to the trip we are actually opening (may differ
+    // from a pinned ?doc= when the user last selected another trip).
+    if (tripToLoad && tripToLoad.url) {
       const docId = extractDocId(tripToLoad.url);
-      const docParamToAdd = docId || tripToLoad.url;
-      // Query string must come BEFORE hash
-      const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParamToAdd) + window.location.hash;
-      console.log('📌 Adding doc param to URL:', newUrl);
-      window.history.replaceState({}, '', newUrl);
-    } else if (tripToLoad && currentDocParam) {
-      console.log('✅ Doc param already in URL, no changes needed');
+      const docParamForActive = docId || tripToLoad.url;
+      const currentUrlParams = new URLSearchParams(window.location.search);
+      const currentDocParam = currentUrlParams.get('doc');
+      console.log('🔍 Active trip:', tripToLoad.url);
+      console.log('🔍 URL doc param:', currentDocParam, '→', docParamForActive);
+      if (currentDocParam !== docParamForActive) {
+        const newUrl = window.location.pathname + '?doc=' + encodeURIComponent(docParamForActive) + window.location.hash;
+        console.log('📌 Syncing URL to active trip:', newUrl);
+        window.history.replaceState({}, '', newUrl);
+      }
     }
     
     if (tripToLoad && tripToLoad.url) {

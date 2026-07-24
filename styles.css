@@ -2204,11 +2204,15 @@ html.ios-standalone .tabbar {
   color: var(--fg);
 }
 .weather-hourly-row.is-now {
-  background: color-mix(in srgb, var(--day-accent, var(--accent-blue)) 34%, transparent);
+  background: var(--day-accent, #2980b9);
+  color: #ffffff;
   border-radius: 0;
   border-top-color: transparent;
   box-shadow: none;
   outline: none;
+}
+.weather-hourly-row.is-now .weather-hourly-precip {
+  color: rgba(255, 255, 255, 0.85);
 }
 .weather-hourly-time {
   font-variant-numeric: tabular-nums;
