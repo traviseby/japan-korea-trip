@@ -276,6 +276,15 @@ html.ios-standalone .tabbar {
   padding: 6px 10px;
   gap: 5px;
 }
+.hero .weather.weather--tappable {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.hero .weather.weather--tappable:active {
+  transform: scale(0.96);
+  background: rgba(255, 255, 255, 0.9);
+}
 @media (prefers-reduced-motion: reduce) {
   .hero .weather { transition: none; }
 }
@@ -2129,6 +2138,115 @@ html.ios-standalone .tabbar {
 .sheet .sheet-body.is-swiping {
   overflow-y: hidden;
 }
+
+/* Weather hourly sheet */
+.weather-sheet-nav-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  padding-left: 10px;
+}
+.weather-sheet-summary {
+  text-align: center;
+  padding: 8px 0 18px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.weather-sheet-summary-ico {
+  font-size: 36px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.weather-sheet-summary-temp {
+  font-family: var(--serif);
+  font-size: 40px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.weather-sheet-summary-meta {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-mid);
+  font-weight: 500;
+}
+.weather-sheet-summary-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--fg-mid);
+}
+.weather-hourly-head,
+.weather-hourly-row {
+  display: grid;
+  grid-template-columns: 64px 28px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px;
+}
+.weather-hourly-head {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-mid);
+  font-weight: 600;
+  padding-top: 0;
+  padding-bottom: 6px;
+}
+.weather-hourly-row {
+  border-top: 1px solid var(--border);
+  font-size: 15px;
+  color: var(--fg);
+}
+.weather-hourly-row.is-now {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  border-top-color: transparent;
+  box-shadow: 0 -1px 0 var(--border);
+}
+.weather-hourly-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.weather-hourly-ico {
+  text-align: center;
+  font-size: 16px;
+  line-height: 1;
+}
+.weather-hourly-temp {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.weather-hourly-precip {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-mid);
+  font-size: 13px;
+}
+.weather-hourly-loading,
+.weather-hourly-empty {
+  padding: 24px 8px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--fg-mid);
+  line-height: 1.45;
+}
+.weather-sheet-attrib {
+  display: block;
+  margin-top: 18px;
+  padding-bottom: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--fg-mid);
+  text-decoration: none;
+}
+.weather-sheet-attrib:hover {
+  text-decoration: underline;
+}
+
 .sheet .sheet-title {
   font-family: var(--serif);
   font-size: 28px; font-weight: 400; line-height: 1.15;

@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.83';
+  const APP_VERSION = '2.84';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -278,6 +278,7 @@
   // 16-day horizon for trip-day forecasts — beyond that, show live conditions.
   const WEATHER_FORECAST_DAYS = 16;
   const weatherCache = {};
+  const hourlyWeatherCache = {};
   function tripDateOffset(dateStr){
     const today = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
     const trip = new Date(dateStr + 'T00:00:00');
@@ -291,6 +292,11 @@
       return { lat: day.lat, lng: day.lng };
     }
     return activityCenter(day.n);
+  }
+  function weatherHourlyAvailable(day){
+    const daysOut = tripDateOffset(day.date);
+    // Forecast API covers today through +16 days; recent past often works too.
+    return daysOut >= -2 && daysOut <= WEATHER_FORECAST_DAYS;
   }
   async function fetchCurrentWeather(coords){
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}&current_weather=true&temperature_unit=fahrenheit`;
@@ -325,12 +331,59 @@
       mode: 'forecast'
     };
   }
+  async function fetchHourlyWeather(coords, dateStr){
+    const cacheKey = `${coords.lat.toFixed(3)},${coords.lng.toFixed(3)}:${dateStr}`;
+    if (hourlyWeatherCache[cacheKey] !== undefined) return hourlyWeatherCache[cacheKey];
+
+    const params = new URLSearchParams({
+      latitude: coords.lat,
+      longitude: coords.lng,
+      hourly: 'temperature_2m,weather_code,precipitation_probability',
+      temperature_unit: 'fahrenheit',
+      timezone: 'auto',
+      start_date: dateStr,
+      end_date: dateStr
+    });
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { mode: 'cors' });
+    if (!res.ok) throw 0;
+    const j = await res.json();
+    const times = j.hourly?.time || [];
+    const temps = j.hourly?.temperature_2m || [];
+    const codes = j.hourly?.weather_code || [];
+    const precip = j.hourly?.precipitation_probability || [];
+    const hours = [];
+    for (let i = 0; i < times.length; i++) {
+      if (temps[i] == null || codes[i] == null) continue;
+      hours.push({
+        time: times[i],
+        temp: Math.round(temps[i]),
+        code: codes[i],
+        precip: precip[i] == null ? null : Math.round(precip[i])
+      });
+    }
+    hourlyWeatherCache[cacheKey] = hours.length ? hours : null;
+    return hourlyWeatherCache[cacheKey];
+  }
   function formatWeatherTemp(w){
     if (w.mode === 'forecast' && w.tempMin != null && w.tempMax != null) {
       if (w.tempMin === w.tempMax) return `${w.tempMax}°F`;
       return `${w.tempMin}–${w.tempMax}°F`;
     }
     return `${w.temp}°F`;
+  }
+  function formatWeatherHour(iso){
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+  }
+  function isCurrentWeatherHour(iso){
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return false;
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear()
+      && d.getMonth() === now.getMonth()
+      && d.getDate() === now.getDate()
+      && d.getHours() === now.getHours();
   }
   async function fetchWeather(day){
     const cacheKey = weatherCacheKey(day);
@@ -372,6 +425,152 @@
     if ([71,73,75,85,86].includes(code)) return '❄️';
     if ([95,96,99].includes(code)) return '⛈️';
     return '☁️';
+  }
+
+  function ensureWeatherSheetDom(){
+    const root = $('#app') || $('.phone-fullscreen') || document.body;
+    let backdrop = $('#weather-sheet-backdrop');
+    let sheet = $('#weather-sheet');
+    if (!backdrop) {
+      backdrop = el('div', { id: 'weather-sheet-backdrop', class: 'sheet-backdrop' });
+      root.appendChild(backdrop);
+      backdrop.addEventListener('click', closeWeatherSheet);
+    }
+    if (!sheet) {
+      sheet = el('div', { id: 'weather-sheet', class: 'sheet weather-sheet' });
+      root.appendChild(sheet);
+    }
+    return { sheet, backdrop };
+  }
+
+  function closeWeatherSheet(){
+    const sheet = $('#weather-sheet');
+    const backdrop = $('#weather-sheet-backdrop');
+    clearSheetDragStyles(sheet);
+    sheet?.classList.remove('open');
+    backdrop?.classList.remove('open');
+  }
+
+  async function openWeatherSheet(day, summary){
+    if (!day) return;
+    const { sheet, backdrop } = ensureWeatherSheetDom();
+    sheet.innerHTML = '';
+    sheet.appendChild(el('div', { class: 'handle' }));
+    sheet.appendChild(el('div', { class: 'sheet-nav' },
+      el('div', { class: 'weather-sheet-nav-title' }, 'Weather'),
+      el('div', { class: 'sheet-nav-actions' },
+        buildSheetCloseButton(closeWeatherSheet)
+      )
+    ));
+
+    const body = el('div', { class: 'sheet-body weather-sheet-body' });
+    const summaryBlock = el('div', { class: 'weather-sheet-summary' },
+      el('div', { class: 'weather-sheet-summary-ico', 'aria-hidden': 'true' }, weatherIcon(summary?.code)),
+      el('div', { class: 'weather-sheet-summary-temp' }, summary ? formatWeatherTemp(summary) : '—'),
+      el('div', { class: 'weather-sheet-summary-meta' }, `${fmtDate(day.date)} · ${day.loc || 'Trip day'}`),
+      el('div', { class: 'weather-sheet-summary-sub' },
+        summary?.mode === 'forecast'
+          ? 'Daily forecast'
+          : 'Current conditions'
+      )
+    );
+    body.appendChild(summaryBlock);
+
+    const hourlyWrap = el('div', { class: 'weather-hourly', id: 'weather-hourly-list' },
+      el('div', { class: 'weather-hourly-loading' }, 'Loading hourly forecast\u2026')
+    );
+    body.appendChild(hourlyWrap);
+
+    body.appendChild(el('a', {
+      class: 'weather-sheet-attrib',
+      href: 'https://open-meteo.com/',
+      target: '_blank',
+      rel: 'noopener'
+    }, 'Weather data by Open-Meteo'));
+
+    sheet.appendChild(body);
+    backdrop.classList.add('open');
+    requestAnimationFrame(() => {
+      sheet.classList.add('open');
+      attachBottomSheetDismiss('#weather-sheet', closeWeatherSheet);
+    });
+
+    const coords = weatherCoords(day);
+    if (!coords || !weatherHourlyAvailable(day)) {
+      hourlyWrap.innerHTML = '';
+      hourlyWrap.appendChild(el('div', { class: 'weather-hourly-empty' },
+        'Hourly forecast isn\u2019t available for this day.'
+      ));
+      return;
+    }
+
+    try {
+      const hours = await fetchHourlyWeather(coords, day.date);
+      if (!$('#weather-sheet')?.classList.contains('open')) return;
+      hourlyWrap.innerHTML = '';
+      if (!hours?.length) {
+        hourlyWrap.appendChild(el('div', { class: 'weather-hourly-empty' },
+          'Hourly forecast isn\u2019t available for this day.'
+        ));
+        return;
+      }
+
+      hourlyWrap.appendChild(el('div', { class: 'weather-hourly-head' },
+        el('span', null, 'Hour'),
+        el('span', null, ''),
+        el('span', null, 'Temp'),
+        el('span', null, 'Rain')
+      ));
+
+      const list = el('div', { class: 'weather-hourly-list' });
+      let currentRow = null;
+      hours.forEach(h => {
+        const isNow = isCurrentWeatherHour(h.time);
+        const row = el('div', {
+          class: 'weather-hourly-row' + (isNow ? ' is-now' : '')
+        },
+          el('span', { class: 'weather-hourly-time' }, formatWeatherHour(h.time)),
+          el('span', { class: 'weather-hourly-ico', 'aria-hidden': 'true' }, weatherIcon(h.code)),
+          el('span', { class: 'weather-hourly-temp' }, `${h.temp}°`),
+          el('span', { class: 'weather-hourly-precip' }, h.precip == null ? '—' : `${h.precip}%`)
+        );
+        if (isNow) currentRow = row;
+        list.appendChild(row);
+      });
+      hourlyWrap.appendChild(list);
+      if (currentRow) {
+        requestAnimationFrame(() => {
+          currentRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        });
+      }
+    } catch {
+      if (!$('#weather-sheet')?.classList.contains('open')) return;
+      hourlyWrap.innerHTML = '';
+      hourlyWrap.appendChild(el('div', { class: 'weather-hourly-empty' },
+        isLikelyOffline()
+          ? 'Connect to the internet to load hourly weather.'
+          : 'Couldn\u2019t load hourly forecast.'
+      ));
+    }
+  }
+
+  function bindWeatherChip(wEl, day, summary){
+    if (!wEl || !day || !summary) return;
+    wEl.classList.add('weather--tappable');
+    wEl.setAttribute('role', 'button');
+    wEl.setAttribute('tabindex', '0');
+    wEl.setAttribute('aria-label', `Weather for ${fmtDate(day.date)}. Show hourly forecast.`);
+    const open = (e) => {
+      e?.stopPropagation?.();
+      openWeatherSheet(day, summary);
+    };
+    wEl.onclick = open;
+    wEl.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        open(e);
+      }
+    };
   }
 
   // ─── Render: TODAY tab ────────────────────────────────────────────────────
@@ -441,8 +640,9 @@
       wEl.innerHTML = `<span class="ico">${weatherIcon(w.code)}</span><span class="temp">${formatWeatherTemp(w)}</span>`;
       wEl.classList.toggle('weather--forecast', w.mode === 'forecast');
       wEl.title = w.mode === 'forecast'
-        ? `Forecast for ${fmtDate(day.date)}: ${w.tempMin}°F – ${w.tempMax}°F`
-        : 'Current conditions at this location';
+        ? `Forecast for ${fmtDate(day.date)}: ${w.tempMin}°F – ${w.tempMax}°F. Tap for hourly.`
+        : 'Current conditions at this location. Tap for hourly.';
+      bindWeatherChip(wEl, day, w);
       requestAnimationFrame(() => wEl.classList.add('weather--ready'));
     });
 
@@ -9707,6 +9907,7 @@
     attachBottomSheetDismiss('#edit-event-sheet', hideEditEventSheet);
     attachBottomSheetDismiss('#edit-flight-sheet', hideEditFlightSheet);
     attachBottomSheetDismiss('#receipt-image-sheet', hideReceiptImageSheet);
+    attachBottomSheetDismiss('#weather-sheet', closeWeatherSheet);
   }
 
   // Block pinch-zoom on fixed UI (Safari ignores touch-action for pinch).
@@ -11525,6 +11726,8 @@
     $('#fm-back').addEventListener('click', closeFullscreenMap);
     // filter tray
     $('#filter-tray-backdrop').addEventListener('click', closeFilterTray);
+    const weatherBackdrop = $('#weather-sheet-backdrop');
+    if (weatherBackdrop) weatherBackdrop.addEventListener('click', closeWeatherSheet);
     // initial
     updateOnline();
     registerSW();
