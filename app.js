@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.84';
+  const APP_VERSION = '2.85';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -354,6 +354,8 @@
     const hours = [];
     for (let i = 0; i < times.length; i++) {
       if (temps[i] == null || codes[i] == null) continue;
+      const hourDate = new Date(times[i]);
+      if (Number.isNaN(hourDate.getTime()) || hourDate.getHours() < 6) continue;
       hours.push({
         time: times[i],
         temp: Math.round(temps[i]),

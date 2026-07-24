@@ -2202,10 +2202,11 @@ html.ios-standalone .tabbar {
   color: var(--fg);
 }
 .weather-hourly-row.is-now {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-2);
   border-radius: 8px;
   border-top-color: transparent;
   box-shadow: 0 -1px 0 var(--border);
+  outline: 1px solid var(--border-strong);
 }
 .weather-hourly-time {
   font-variant-numeric: tabular-nums;
