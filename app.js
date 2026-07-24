@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.87';
+  const APP_VERSION = '2.88';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -5221,7 +5221,8 @@
       'chev-left': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
       'chev-right': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
       'close': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-      'plus': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+      'plus': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+      'share': '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>'
     };
     const wrap = el('span', { class: 'tab-icon', 'aria-hidden': 'true' });
     wrap.innerHTML = icons[name] || '';
@@ -10432,10 +10433,51 @@
 
   // ─── Settings overlay ─────────────────────────────────────────────────────
   // ─── Render: SETTINGS tab ─────────────────────────────────────────────────
+  function getShareableTripUrl(){
+    const url = new URL(window.location.href);
+    if (!url.searchParams.get('doc')) {
+      const trip = getActiveTrip();
+      if (trip?.url) {
+        url.searchParams.set('doc', extractDocId(trip.url) || trip.url);
+      }
+    }
+    url.hash = '';
+    return url.toString();
+  }
+
+  async function shareTripLink(){
+    const shareUrl = getShareableTripUrl();
+    const trip = getActiveTrip();
+    const title = trip?.name || D.trip?.title || 'Supertrip';
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: title, url: shareUrl });
+        return;
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast('Link copied');
+    } catch {
+      toast('Couldn\u2019t share link');
+    }
+  }
+
+  function buildShareTripButton(){
+    return el('button', {
+      class: 'toolbar-btn',
+      type: 'button',
+      'aria-label': 'Share trip link',
+      onclick: () => { shareTripLink(); }
+    }, tabIcon('share'));
+  }
+
   function renderSettingsTab(){
     const header = $('#settings-header');
     header.innerHTML = '';
-    header.appendChild(buildLargeTitle('Settings'));
+    header.appendChild(buildLargeTitle('Settings', buildShareTripButton()));
 
     const root = $('#settings-content');
     root.innerHTML = '';
