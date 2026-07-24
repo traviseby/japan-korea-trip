@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.86';
+  const APP_VERSION = '2.87';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -511,6 +511,7 @@
     if (!day) return;
     const seq = ++weatherSheetSeq;
     const { sheet, backdrop } = ensureWeatherSheetDom();
+    sheet.style.setProperty('--day-accent', day.color || '#3b82f6');
     sheet.innerHTML = '';
     sheet.appendChild(el('div', { class: 'handle' }));
     sheet.appendChild(el('div', { class: 'sheet-nav' },

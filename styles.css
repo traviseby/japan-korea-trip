@@ -2185,7 +2185,9 @@ html.ios-standalone .tabbar {
   grid-template-columns: 64px 28px 1fr 48px;
   align-items: center;
   gap: 8px;
-  padding: 10px 4px;
+  margin: 0 calc(-1 * var(--pad));
+  padding: 10px var(--pad);
+  box-sizing: border-box;
 }
 .weather-hourly-head {
   font-size: 11px;
@@ -2202,11 +2204,11 @@ html.ios-standalone .tabbar {
   color: var(--fg);
 }
 .weather-hourly-row.is-now {
-  background: var(--surface-2);
-  border-radius: 8px;
+  background: color-mix(in srgb, var(--day-accent, var(--accent-blue)) 34%, transparent);
+  border-radius: 0;
   border-top-color: transparent;
-  box-shadow: 0 -1px 0 var(--border);
-  outline: 1px solid var(--border-strong);
+  box-shadow: none;
+  outline: none;
 }
 .weather-hourly-time {
   font-variant-numeric: tabular-nums;
