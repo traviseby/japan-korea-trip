@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.90';
+  const APP_VERSION = '2.91';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -10447,6 +10447,13 @@
     }
   }
 
+  function isHomeScreenApp(){
+    return window.navigator.standalone === true
+      || window.matchMedia('(display-mode: standalone)').matches
+      || window.matchMedia('(display-mode: fullscreen)').matches
+      || window.matchMedia('(display-mode: minimal-ui)').matches;
+  }
+
   function buildShareTripButton(){
     return el('button', {
       class: 'toolbar-btn',
@@ -10459,7 +10466,10 @@
   function renderSettingsTab(){
     const header = $('#settings-header');
     header.innerHTML = '';
-    header.appendChild(buildLargeTitle('Settings', buildShareTripButton()));
+    header.appendChild(buildLargeTitle(
+      'Settings',
+      isHomeScreenApp() ? buildShareTripButton() : null
+    ));
 
     const root = $('#settings-content');
     root.innerHTML = '';
