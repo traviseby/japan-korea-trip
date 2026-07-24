@@ -9,7 +9,7 @@
       return window.DATA?.[prop];
     }
   });
-  const APP_VERSION = '2.85';
+  const APP_VERSION = '2.86';
   const UNSCHEDULED_DAY = 0;
 
   // ─── App Mode (Plan vs Travel) ────────────────────────────────────────────
@@ -344,7 +344,17 @@
       start_date: dateStr,
       end_date: dateStr
     });
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { mode: 'cors' });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    let res;
+    try {
+      res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
+        mode: 'cors',
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
     if (!res.ok) throw 0;
     const j = await res.json();
     const times = j.hourly?.time || [];
@@ -354,8 +364,10 @@
     const hours = [];
     for (let i = 0; i < times.length; i++) {
       if (temps[i] == null || codes[i] == null) continue;
-      const hourDate = new Date(times[i]);
-      if (Number.isNaN(hourDate.getTime()) || hourDate.getHours() < 6) continue;
+      // Parse hour from API local timestamp (avoid browser-TZ Date parsing).
+      const hourMatch = String(times[i]).match(/T(\d{2}):/);
+      const hourNum = hourMatch ? Number(hourMatch[1]) : -1;
+      if (hourNum < 6) continue;
       hours.push({
         time: times[i],
         temp: Math.round(temps[i]),
@@ -429,6 +441,8 @@
     return '☁️';
   }
 
+  let weatherSheetSeq = 0;
+
   function ensureWeatherSheetDom(){
     const root = $('#app') || $('.phone-fullscreen') || document.body;
     let backdrop = $('#weather-sheet-backdrop');
@@ -446,6 +460,7 @@
   }
 
   function closeWeatherSheet(){
+    weatherSheetSeq++;
     const sheet = $('#weather-sheet');
     const backdrop = $('#weather-sheet-backdrop');
     clearSheetDragStyles(sheet);
@@ -453,8 +468,48 @@
     backdrop?.classList.remove('open');
   }
 
+  function renderWeatherHourlyList(hourlyWrap, hours){
+    hourlyWrap.innerHTML = '';
+    if (!hours?.length) {
+      hourlyWrap.appendChild(el('div', { class: 'weather-hourly-empty' },
+        'Hourly forecast isn\u2019t available for this day.'
+      ));
+      return;
+    }
+
+    hourlyWrap.appendChild(el('div', { class: 'weather-hourly-head' },
+      el('span', null, 'Hour'),
+      el('span', null, ''),
+      el('span', null, 'Temp'),
+      el('span', null, 'Rain')
+    ));
+
+    const list = el('div', { class: 'weather-hourly-list' });
+    let currentRow = null;
+    hours.forEach(h => {
+      const isNow = isCurrentWeatherHour(h.time);
+      const row = el('div', {
+        class: 'weather-hourly-row' + (isNow ? ' is-now' : '')
+      },
+        el('span', { class: 'weather-hourly-time' }, formatWeatherHour(h.time)),
+        el('span', { class: 'weather-hourly-ico', 'aria-hidden': 'true' }, weatherIcon(h.code)),
+        el('span', { class: 'weather-hourly-temp' }, `${h.temp}°`),
+        el('span', { class: 'weather-hourly-precip' }, h.precip == null ? '—' : `${h.precip}%`)
+      );
+      if (isNow) currentRow = row;
+      list.appendChild(row);
+    });
+    hourlyWrap.appendChild(list);
+    if (currentRow) {
+      requestAnimationFrame(() => {
+        currentRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+    }
+  }
+
   async function openWeatherSheet(day, summary){
     if (!day) return;
+    const seq = ++weatherSheetSeq;
     const { sheet, backdrop } = ensureWeatherSheetDom();
     sheet.innerHTML = '';
     sheet.appendChild(el('div', { class: 'handle' }));
@@ -491,67 +546,32 @@
     }, 'Weather data by Open-Meteo'));
 
     sheet.appendChild(body);
+    // Open immediately so a fast/cached fetch can't finish before `.open` is set
+    // (that race left the sheet stuck on "Loading…").
     backdrop.classList.add('open');
-    requestAnimationFrame(() => {
-      sheet.classList.add('open');
-      attachBottomSheetDismiss('#weather-sheet', closeWeatherSheet);
-    });
+    sheet.classList.add('open');
+    attachBottomSheetDismiss('#weather-sheet', closeWeatherSheet);
+
+    const stillOpen = () => seq === weatherSheetSeq && hourlyWrap.isConnected;
 
     const coords = weatherCoords(day);
     if (!coords || !weatherHourlyAvailable(day)) {
-      hourlyWrap.innerHTML = '';
-      hourlyWrap.appendChild(el('div', { class: 'weather-hourly-empty' },
-        'Hourly forecast isn\u2019t available for this day.'
-      ));
+      if (!stillOpen()) return;
+      renderWeatherHourlyList(hourlyWrap, null);
       return;
     }
 
     try {
       const hours = await fetchHourlyWeather(coords, day.date);
-      if (!$('#weather-sheet')?.classList.contains('open')) return;
-      hourlyWrap.innerHTML = '';
-      if (!hours?.length) {
-        hourlyWrap.appendChild(el('div', { class: 'weather-hourly-empty' },
-          'Hourly forecast isn\u2019t available for this day.'
-        ));
-        return;
-      }
-
-      hourlyWrap.appendChild(el('div', { class: 'weather-hourly-head' },
-        el('span', null, 'Hour'),
-        el('span', null, ''),
-        el('span', null, 'Temp'),
-        el('span', null, 'Rain')
-      ));
-
-      const list = el('div', { class: 'weather-hourly-list' });
-      let currentRow = null;
-      hours.forEach(h => {
-        const isNow = isCurrentWeatherHour(h.time);
-        const row = el('div', {
-          class: 'weather-hourly-row' + (isNow ? ' is-now' : '')
-        },
-          el('span', { class: 'weather-hourly-time' }, formatWeatherHour(h.time)),
-          el('span', { class: 'weather-hourly-ico', 'aria-hidden': 'true' }, weatherIcon(h.code)),
-          el('span', { class: 'weather-hourly-temp' }, `${h.temp}°`),
-          el('span', { class: 'weather-hourly-precip' }, h.precip == null ? '—' : `${h.precip}%`)
-        );
-        if (isNow) currentRow = row;
-        list.appendChild(row);
-      });
-      hourlyWrap.appendChild(list);
-      if (currentRow) {
-        requestAnimationFrame(() => {
-          currentRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        });
-      }
+      if (!stillOpen()) return;
+      renderWeatherHourlyList(hourlyWrap, hours);
     } catch {
-      if (!$('#weather-sheet')?.classList.contains('open')) return;
+      if (!stillOpen()) return;
       hourlyWrap.innerHTML = '';
       hourlyWrap.appendChild(el('div', { class: 'weather-hourly-empty' },
         isLikelyOffline()
           ? 'Connect to the internet to load hourly weather.'
-          : 'Couldn\u2019t load hourly forecast.'
+          : 'Couldn\u2019t load hourly forecast. Try again.'
       ));
     }
   }
